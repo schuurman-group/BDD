@@ -12,7 +12,7 @@ program displace
 !----------------------------------------------------------------------
 ! Open the input and log files
 !----------------------------------------------------------------------
-  call open_files
+  call open_files_displace
 
 !----------------------------------------------------------------------
 ! Read the input file
@@ -59,7 +59,7 @@ contains
 
 !######################################################################
 
-  subroutine open_files
+  subroutine open_files_displace
 
     use constants
     use channels
@@ -110,9 +110,20 @@ contains
     ilog=2
     open(ilog,file=alog,form='formatted',status='unknown')
 
+!----------------------------------------------------------------------
+! Create the geometries directory
+!----------------------------------------------------------------------
+    inquire(file='geoms/.',exist=found)
+
+    if (found) then
+       call system('rm -rf geoms/*')
+    else
+       call system('mkdir geoms')
+    endif
+
     return
     
-  end subroutine open_files
+  end subroutine open_files_displace
 
 !######################################################################
 
@@ -284,7 +295,7 @@ contains
     
     implicit none
 
-    integer :: n
+    integer :: n,n1,n2
     
 !----------------------------------------------------------------------
 ! Reference geometry
@@ -311,8 +322,11 @@ contains
        call get_cutmask
 
        ! Make the cuts
-       print*,'The 2D cut code still needs writing...'
-       STOP
+       do n1=1,nmodes-1
+          do n2=n1+1,nmodes
+             if (cut_mask(n1,n2).eq.1) call makecut_2d(n1,n2)
+          enddo
+       enddo
        
     endif
        
@@ -366,13 +380,81 @@ contains
             //ad//'.xyz'
        
        ! Write the Cartesian coordinates to file
-       call write_1file(x,filename)       
+       call write_1file(x,filename)
        
     enddo
        
     return
     
   end subroutine makecut_1d
+
+!######################################################################
+
+  subroutine makecut_2d(n1,n2)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use dispglobal
+    
+    implicit none
+
+    integer, intent(in)         :: n1,n2
+    integer                     :: i,j
+    real(dp), dimension(nmodes) :: q
+    real(dp), dimension(ncoo)   :: x
+    character(len=60)           :: filename
+    character(len=3)            :: aq1,aq2,ai,aj
+    character(len=1)            :: ad1,ad2
+
+    write(aq1,'(i3)') n1
+    write(aq2,'(i3)') n2
+    
+    ! Loop over displacements
+    do i=-npnts,npnts
+
+       if (i.eq.0) cycle
+
+       write(ai,'(i3)') abs(i)
+
+       do j=-npnts,npnts
+          if (j.eq.0) cycle
+
+          ! Point in normal modes
+          q=0.0d0
+          q(n1)=i*dq
+          q(n2)=j*dq
+
+          ! Cartesian coordinates
+          x=xcoo0/ang2bohr+matmul(nmcoo,q)
+
+          ! Filename
+          write(ai,'(i3)') abs(i)
+          write(aj,'(i3)') abs(j)
+          if (i.lt.0) then
+             ad1='l'
+          else if (i.gt.0) then
+             ad1='r'
+          endif
+          if (j.lt.0) then
+             ad2='l'
+          else if (j.gt.0) then
+             ad2='r'
+          endif
+          filename='q'//trim(adjustl(aq1))//'_'//trim(adjustl(ai)) &
+               //ad1//'_q'//trim(adjustl(aq2))//'_' &
+               //trim(adjustl(aj))//ad2//'.xyz'
+
+           ! Write the Cartesian coordinates to file
+           call write_1file(x,filename)
+          
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine makecut_2d
 
 !######################################################################
 
@@ -393,7 +475,8 @@ contains
 ! Open the xyz file
 !----------------------------------------------------------------------
     call freeunit(unit)
-    open(unit,file=filename,form='formatted',status='unknown')
+    open(unit,file='geoms/'//trim(filename),form='formatted',&
+         status='unknown')
 
 !----------------------------------------------------------------------
 ! Write the xyz file
@@ -413,7 +496,7 @@ contains
     return
     
   end subroutine write_1file
-    
+  
 !######################################################################
 
   subroutine get_cutmask
