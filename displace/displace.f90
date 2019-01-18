@@ -498,58 +498,5 @@ contains
   end subroutine write_1file
   
 !######################################################################
-
-  subroutine get_cutmask
-
-    use constants
-    use sysinfo
-    use symmetry
-    use dispglobal
-    
-    implicit none
-
-    integer :: m1,m2,s,s1,s2
-    
-!----------------------------------------------------------------------
-! Allocate arrays
-!----------------------------------------------------------------------
-    allocate(cut_mask(nmodes,nmodes))
-    cut_mask=0
-
-!----------------------------------------------------------------------
-! Determine which 2D cuts to make based on the symmetry-allowed
-! coupling coefficients
-!----------------------------------------------------------------------
-    ! gamma
-    do s=1,nsta
-       do m1=1,nmodes-1
-          do m2=m1+1,nmodes
-             if (gamma_mask(m1,m2,s).eq.1) then
-                cut_mask(m1,m2)=1
-                cut_mask(m2,m1)=1
-             endif
-          enddo
-       enddo
-    enddo
-    
-    ! mu
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes-1
-             do m2=m1+1,nmodes
-                if (mu_mask(m1,m2,s1,s2).eq.1) then
-                   cut_mask(m1,m2)=1
-                   cut_mask(m2,m1)=1
-                endif
-             enddo
-          enddo
-       enddo
-    enddo
-    
-    return
-    
-  end subroutine get_cutmask
-  
-!######################################################################
   
 end program displace

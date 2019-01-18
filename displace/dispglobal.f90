@@ -5,9 +5,8 @@ module dispglobal
   implicit none
   
   ! Cut information
-  integer              :: icut
-  integer              :: npnts
-  integer, allocatable :: cut_mask(:,:)
-  real(dp)             :: dq
+  integer  :: icut
+  integer  :: npnts
+  real(dp) :: dq
   
 end module dispglobal

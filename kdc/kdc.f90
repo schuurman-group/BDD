@@ -68,14 +68,20 @@ program kdc
   call parse_bdfiles
 
 !----------------------------------------------------------------------
-! Determine the displacement information for each blockdiag log file
-!----------------------------------------------------------------------
-  call getdispinfo
-
-!----------------------------------------------------------------------
 ! Determine which coupling coefficients are zero by symmetry
 !----------------------------------------------------------------------
   call create_mask
+
+!----------------------------------------------------------------------
+! Determine which pairs of modes give rise to non-zero coupling
+! coefficients by symmetry
+!----------------------------------------------------------------------
+  call get_cutmask
+  
+!----------------------------------------------------------------------
+! Determine the displacement information for each blockdiag log file
+!----------------------------------------------------------------------
+  call getdispinfo
   
 !----------------------------------------------------------------------
 ! Calculate the coupling coefficients
