@@ -1,0 +1,33 @@
+
+$mos_ref = ../files/dets_170/mos.dat
+$mos_disp = ../files/dets_165/mos.dat
+
+$dets_ref
+../files/dets_170/1_det.dat 1
+../files/dets_170/2_det.dat 2
+../files/dets_170/3_det.dat 3
+../files/dets_170/4_det.dat 4
+../files/dets_170/5_det.dat 5
+../files/dets_170/6_det.dat 6
+$end
+
+$dets_disp
+../files/dets_165/1_det.dat 1
+../files/dets_165/2_det.dat 2
+../files/dets_165/3_det.dat 3
+../files/dets_165/4_det.dat 4
+../files/dets_165/5_det.dat 5
+../files/dets_165/6_det.dat 6
+$end
+
+$energies
+-78.029170456 1
+-77.806521622 2
+-77.727594473 3
+-77.555327250 4
+-77.544013795 5
+-77.418497311 6
+$end
+
+$ref_trans = ../theta_170/theta_170.log
+

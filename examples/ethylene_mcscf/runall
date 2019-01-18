@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Loop over displaced geometries
+for I in {1..18}; do
+	    
+    # Labels
+    ang=`echo 180-$I*5 | bc`
+    job=theta_$ang
+    
+    cd $job
+
+    blockdiag.x $job
+    
+    cd ../
+    
+done
+
