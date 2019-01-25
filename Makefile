@@ -52,6 +52,7 @@ DISPLACE = displace/dispglobal.o \
 
 KDC = kdc/kdcglobal.o \
 	kdc/opermod.o \
+	kdc/parinfo.o \
 	kdc/kdc.o
 
 OBJECTS_BLOCKDIAG = $(MULTI) \
@@ -115,6 +116,7 @@ OBJ_KDC = constants.o \
 	symmetry.o \
 	kdcglobal.o \
 	opermod.o \
+	parinfo.o \
 	kdc.o
 
 #-----------------------------------------------------------------------

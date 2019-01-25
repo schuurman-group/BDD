@@ -7,6 +7,7 @@ program kdc
 
   use ioqc
   use symmetry
+  use parinfo
   use opermod
   
   implicit none
@@ -92,6 +93,12 @@ program kdc
 ! Check to see if symmetry constraints are being satisfied
 !----------------------------------------------------------------------
   call check_coefficients
+
+!----------------------------------------------------------------------
+! Output some useful information about the coupling coefficients to
+! the log file
+!----------------------------------------------------------------------
+  call get_parinfo
   
 !----------------------------------------------------------------------
 ! Write the MCTDH operator file
