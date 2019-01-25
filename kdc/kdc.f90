@@ -104,6 +104,12 @@ program kdc
 ! Write the MCTDH operator file
 !----------------------------------------------------------------------
   call wroper
+
+!----------------------------------------------------------------------
+! Write the parameters to a binary file for reading by the pltkdc
+! code
+!----------------------------------------------------------------------
+  call wrbinfile
   
 contains
 
@@ -129,8 +135,8 @@ contains
     endif
     
 !----------------------------------------------------------------------
-! Read the name of the input file and set the namse of the log file
-! and operator file
+! Read the name of the input file and set the names of the log file
+! operator file, and binary file
 !----------------------------------------------------------------------
     call getarg(1,ain)
 
@@ -138,10 +144,12 @@ contains
     if (ilbl.eq.0) then
        alog=trim(ain)//'.log'
        aop=trim(ain)//'.op'
+       abin=trim(ain)//'.dat'
        ain=trim(ain)//'.inp'
     else
        alog=ain(1:ilbl-1)//'.log'
        aop=ain(1:ilbl-1)//'.op'
+       abin=ain(1:ilbl-1)//'.dat'
     endif
 
 !----------------------------------------------------------------------
@@ -155,7 +163,7 @@ contains
     endif
 
 !----------------------------------------------------------------------
-! Open the input, log and operator files
+! Open the input, log, operator and binary files
 !----------------------------------------------------------------------
     iin=1
     open(iin,file=ain,form='formatted',status='old')
@@ -165,6 +173,9 @@ contains
 
     iop=3
     open(iop,file=aop,form='formatted',status='unknown')
+
+    ibin=4
+    open(ibin,file=abin,form='unformatted',status='unknown')
     
     return
     
@@ -1039,6 +1050,58 @@ contains
     return
     
   end subroutine check_coefficients
+    
+!######################################################################
+
+  subroutine wrbinfile
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal    
+    use symmetry
+    
+    implicit none
+
+    real(dp), dimension(nsta) :: e0
+    
+!----------------------------------------------------------------------
+! System dimensions
+!----------------------------------------------------------------------
+    write(ibin) nmodes
+    write(ibin) nsta
+
+!----------------------------------------------------------------------
+! Vertical excitation energies
+!----------------------------------------------------------------------
+    e0(:)=(q0pot(:)-q0pot(1))*eh2ev
+    write(ibin) e0
+
+!----------------------------------------------------------------------
+! Frequencies
+!----------------------------------------------------------------------
+    write(ibin) freq
+
+!----------------------------------------------------------------------
+! Coupling coefficients
+!----------------------------------------------------------------------
+    write(ibin) kappa
+    write(ibin) lambda
+    write(ibin) gamma
+    write(ibin) mu
+
+!----------------------------------------------------------------------
+! Masks
+!----------------------------------------------------------------------
+    write(ibin) kappa_mask
+    write(ibin) lambda_mask
+    write(ibin) gamma_mask
+    write(ibin) mu_mask
+    
+    return
+    
+  end subroutine wrbinfile
     
 !######################################################################
 

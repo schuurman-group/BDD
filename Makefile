@@ -55,6 +55,9 @@ KDC = kdc/kdcglobal.o \
 	kdc/parinfo.o \
 	kdc/kdc.o
 
+PLTKDC = pltkdc/pltglobal.o \
+	pltkdc/pltkdc.o
+
 OBJECTS_BLOCKDIAG = $(MULTI) \
 	$(INCLUDE) \
 	$(IOMODULES) \
@@ -119,6 +122,20 @@ OBJ_KDC = constants.o \
 	parinfo.o \
 	kdc.o
 
+OBJECTS_PLTKDC = $(INCLUDE) \
+	$(IOMODULES) \
+	$(SYMMETRY) \
+	$(PLTKDC)
+
+OBJ_PLTKDC = constants.o \
+	channels.o \
+	sysinfo.o \
+	iomod.o \
+	parsemod.o \
+	symmetry.o \
+	pltglobal.o \
+	pltkdc.o
+
 #-----------------------------------------------------------------------
 # Rules to create the program
 #-----------------------------------------------------------------------
@@ -132,6 +149,10 @@ displace: $(OBJECTS_DISPLACE)
 
 kdc: $(OBJECTS_KDC)
 	$(F90) $(F90OPTS) $(OBJ_KDC) $(LIBS) -o bin/kdc.x
+	rm -f *.o *~ *.mod 2>/dev/null
+
+pltkdc: $(OBJECTS_PLTKDC)
+	$(F90) $(F90OPTS) $(OBJ_PLTKDC) $(LIBS) -o bin/pltkdc.x
 	rm -f *.o *~ *.mod 2>/dev/null
 
 %.o: %.f90
