@@ -249,6 +249,10 @@ contains
     allocate(lambda(nmodes,nsta,nsta))
     allocate(gamma(nmodes,nmodes,nsta))
     allocate(mu(nmodes,nmodes,nsta,nsta))
+    allocate(kappa_mask(nmodes,nsta))
+    allocate(lambda_mask(nmodes,nsta,nsta))
+    allocate(gamma_mask(nmodes,nmodes,nsta))
+    allocate(mu_mask(nmodes,nmodes,nsta,nsta))
     
 !----------------------------------------------------------------------
 ! Vertical excitation energies
@@ -457,6 +461,7 @@ contains
 
     use constants
     use sysinfo
+    use symmetry
     use pltglobal
 
     implicit none
@@ -491,6 +496,7 @@ contains
     ! kappa
     do s=1,nsta
        do m=1,nmodes
+          if (kappa_mask(m,s).eq.0) cycle
           w(s,s)=w(s,s)+kappa(m,s)*q(m)
        enddo
     enddo
@@ -499,6 +505,7 @@ contains
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
+             if (lambda_mask(m,s1,s2).eq.0) cycle
              w(s1,s2)=w(s1,s2)+lambda(m,s1,s2)*q(m)
              w(s2,s1)=w(s2,s1)+lambda(m,s1,s2)*q(m)
           enddo
@@ -512,6 +519,7 @@ contains
     do s=1,nsta
        do m1=1,nmodes
           do m2=1,nmodes
+             if (gamma_mask(m1,m2,s).eq.0) cycle
              w(s,s)=w(s,s)+0.5d0*gamma(m1,m2,s)*q(m1)*q(m2)
           enddo
        enddo
@@ -522,6 +530,7 @@ contains
        do s2=s1+1,nsta
           do m1=1,nmodes
              do m2=1,nmodes
+                if (mu_mask(m1,m2,s1,s2).eq.0) cycle
                 w(s1,s2)=w(s1,s2)+0.5d0*mu(m1,m2,s1,s2)*q(m1)*q(m2)
                 w(s2,s1)=w(s2,s1)+0.5d0*mu(m1,m2,s1,s2)*q(m1)*q(m2)
              enddo
