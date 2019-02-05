@@ -15,6 +15,7 @@ module kdcglobal
   ! Model type and mode <-> file mappings
   integer, allocatable            :: coefftyp(:)
   integer, allocatable            :: findx1m(:,:)
+  integer, allocatable            :: findx2m(:,:,:)
   logical                         :: lbilinear
   
   ! Adiabatic potential at Q0
