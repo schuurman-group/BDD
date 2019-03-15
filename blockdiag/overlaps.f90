@@ -464,45 +464,161 @@ contains
 
     implicit none
 
-    integer              :: i,k
-    integer, allocatable :: indx(:)
+    integer              :: i,k,sumdet,i1,i2,last,n,istate,idet
+    integer, allocatable :: indx(:),ilbl(:)
+    integer, allocatable :: info(:,:)
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    ! Indices of the unique alpha and beta strings for every
+    ! determinant in the ref. and disp. states
+    allocate(ias_ref(maxdet,nsta))
+    allocate(ibs_ref(maxdet,nsta))
+    allocate(ias_disp(maxdet,nsta))
+    allocate(ibs_disp(maxdet,nsta))
+    ias_ref=0
+    ibs_ref=0
+    ias_disp=0
+    ibs_disp=0
+    
+!----------------------------------------------------------------------
+! Determine the unique alpha and beta strings and the
+! determinant/state pairs that they correspond to for the ref. states
+! and the disp. states
+!----------------------------------------------------------------------
+    ! alpha, ref.
+    call get_unique_strings(ndet_ref,ilbla_ref,na_ref,as_ref,ia_ref,&
+         ias_ref,nalpha)
+
+    ! beta, ref.
+    call get_unique_strings(ndet_ref,ilblb_ref,nb_ref,bs_ref,ib_ref,&
+         ibs_ref,nbeta)
+    
+    ! alpha, disp.
+    call get_unique_strings(ndet_disp,ilbla_disp,na_disp,as_disp,&
+         ia_disp,ias_disp,nalpha)
+    
+    ! beta, disp.
+    call get_unique_strings(ndet_disp,ilblb_disp,nb_disp,bs_disp,&
+         ib_disp,ibs_disp,nbeta)
+
+    return
+
+  end subroutine alpha_beta_sort
+
+!#####################################################################
+
+  subroutine get_unique_strings(ndet,ilblab,nab,abs,iab,iabs,nspin)
+
+    use constants
+    use channels
+    use utils
+    use bdglobal
+    
+    implicit none
+
+    integer, dimension(nsta)            :: ndet
+    integer, dimension(maxdet,nsta)     :: ilblab
+    integer                             :: nab
+    integer, allocatable                :: abs(:,:)
+    integer, dimension(nab,maxdet,nsta) :: iab
+    integer, dimension(maxdet,nsta)     :: iabs
+    integer                             :: nspin
+
+    integer              :: i,k,sumdet,i1,i2,last,n,istate,idet
+    integer, allocatable :: indx(:),ilbl(:)
+    integer, allocatable :: info(:,:)
 
 !----------------------------------------------------------------------
 ! Allocate and initialise arrays
 !----------------------------------------------------------------------
-    allocate(indx(maxdet))
+    sumdet=sum(ndet(:))
+    allocate(indx(sumdet))
     indx=0
-    
+    allocate(info(sumdet,2))
+    info=0
+    allocate(ilbl(sumdet))
+    ilbl=0
+
 !----------------------------------------------------------------------
-! Sort the labels for the alpha and beta strings
+! Put together the combined list of alpha/beta string labels for the
+! current set of states
 !----------------------------------------------------------------------
-    ! Ref. states
-    !
-    ! Loop over states
+    i1=0
     do i=1,nsta
-
-       ! CHECK
-       indx=0
-       call isortindxa1('A',ndet_ref(i),ilbla_ref(1:ndet_ref(i),i),&
-            indx(1:ndet_ref(i)))
-
-!       do k=1,ndet_ref(i)
-!          print*,indx(k),ilbla_ref(indx(k),i),ia_ref(:,indx(k),i)
-!       enddo
-!       stop
-       ! CHECK
-
-       
+       ! Next lot of alpha/beta strings
+       i2=sum(ndet(1:i))
+       i1=i2-ndet(i)+1
+       ilbl(i1:i2)=ilblab(1:ndet(i),i)
+       ! State number of this lot of alpha/beta strings
+       info(i1:i2,2)=i
+       ! Determinant numbers for this lot of alpha/beta strings
+       do k=1,ndet(i)
+          info(i1-1+k,1)=k
+       enddo
     enddo
 
+!----------------------------------------------------------------------
+! Sort the combined list of alpha/beta string labels for the current
+! set of states
+!----------------------------------------------------------------------
+    call isortindxa1('A',sumdet,ilbl,indx)
+    
+!----------------------------------------------------------------------  
+! No. unique alpha/beta strings for the current set of states
+!----------------------------------------------------------------------  
+    last=0
+    nab=0
+    do k=1,sumdet
+       if (ilbl(indx(k)).ne.last) then
+          last=ilbl(indx(k))
+          nab=nab+1
+       endif
+    enddo
+
+!----------------------------------------------------------------------  
+! Assign working alpha string indices to all of the determinants
+! for all ref. states
+!----------------------------------------------------------------------  
+    allocate(abs(nspin,na_ref))
+
+    last=0
+    n=0
+    do k=1,sumdet
+
+       ! Determinant index for the current state/determinant pair
+       idet=info(k,1)
+       
+       ! State index for the current state/determinant pair
+       istate=info(k,2)
+
+       ! Are we at the start of a new unique alpha string?
+       if (ilbl(indx(k)).ne.last) then
+          ! If so, increment the unique alpha string counter and
+          ! fill in the nth unique alpha string
+          last=ilbl(indx(k))
+          n=n+1
+          ! nth unique alpha string
+          abs(:,n)=iab(:,idet,istate)
+       endif
+       
+       ! Index of the unique alpha string for the current
+       ! state/determinant pair
+       iabs(idet,istate)=n
+
+    enddo
+    
 !----------------------------------------------------------------------
 ! Deallocate arrays
 !----------------------------------------------------------------------
     deallocate(indx)
+    deallocate(info)
+    deallocate(ilbl)
     
     return
-
-  end subroutine alpha_beta_sort
+    
+  end subroutine get_unique_strings
     
 !#####################################################################
 ! Calculate 1-particle overlap for all spin-orbitals in a given pair 
