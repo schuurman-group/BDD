@@ -284,7 +284,7 @@ contains
     rewind(iin)
     
 15  continue
-    call rdinp(iin)
+    call rdinp(iin,.false.)
 
     i=0
     if (.not.lend) then
@@ -310,7 +310,7 @@ contains
 
        else if (keyword(i).eq.'$dets_ref') then
           do 
-             call rdinp(iin)
+             call rdinp(iin,.false.)
              if (keyword(1).eq.'$end') exit
              if (lend) then
                 errmsg='End of file reached whilst reading the &
@@ -323,7 +323,7 @@ contains
           
        else if (keyword(i).eq.'$dets_disp') then
           do 
-             call rdinp(iin)
+             call rdinp(iin,.false.)
              if (keyword(1).eq.'$end') exit
              if (lend) then
                 errmsg='End of file reached whilst reading the &
@@ -337,7 +337,7 @@ contains
        else if (keyword(i).eq.'$energies') then
           ldiabpot=.true.
           do
-             call rdinp(iin)
+             call rdinp(iin,.false.)
              if (keyword(1).eq.'$end') exit
              if (lend) then
                 errmsg='End of file reached whilst reading the &
@@ -357,7 +357,7 @@ contains
              areftrans=keyword(i)
           else
              do
-                call rdinp(iin)
+                call rdinp(iin,.false.)
                 if (keyword(1).eq.'$end') exit
                 if (lend) then
                    errmsg='End of file reached whilst reading the &
@@ -649,7 +649,7 @@ contains
        open(idet,file=adetref(i),form='formatted',status='old')
        do k=1,ndet_ref(i)
           call rdinp(idet)
-          read(keyword(1),*) c_ref(k,i)          
+          read(keyword(1),*) c_ref(k,i)
           do n=2,inkw
              read(keyword(n),*) det_ref(n-1,k,i)
           enddo          

@@ -403,8 +403,8 @@ contains
           write(string_beta,fmat_beta) ib_ref(:,k,i)
           
           ! Hashes of the alpha and beta spinorbital character string
-          ilbla_ref=djb_hash(string_alpha)
-          ilblb_ref=djb_hash(string_beta)
+          ilbla_ref(k,i)=djb_hash(string_alpha)
+          ilblb_ref(k,i)=djb_hash(string_beta)
           
        enddo
     enddo
@@ -423,8 +423,8 @@ contains
           write(string_beta,fmat_beta) ib_disp(:,k,i)
           
           ! Hashes of the alpha and beta spinorbital character string
-          ilbla_disp=djb_hash(string_alpha)
-          ilblb_disp=djb_hash(string_beta)
+          ilbla_disp(k,i)=djb_hash(string_alpha)
+          ilblb_disp(k,i)=djb_hash(string_beta)
           
        enddo
     enddo
@@ -459,12 +459,46 @@ contains
 
     use constants
     use channels
+    use utils
     use bdglobal
 
     implicit none
 
-    print*,"HERE"
-    stop
+    integer              :: i,k
+    integer, allocatable :: indx(:)
+
+!----------------------------------------------------------------------
+! Allocate and initialise arrays
+!----------------------------------------------------------------------
+    allocate(indx(maxdet))
+    indx=0
+    
+!----------------------------------------------------------------------
+! Sort the labels for the alpha and beta strings
+!----------------------------------------------------------------------
+    ! Ref. states
+    !
+    ! Loop over states
+    do i=1,nsta
+
+       ! CHECK
+       indx=0
+       call isortindxa1('A',ndet_ref(i),ilbla_ref(1:ndet_ref(i),i),&
+            indx(1:ndet_ref(i)))
+
+!       do k=1,ndet_ref(i)
+!          print*,indx(k),ilbla_ref(indx(k),i),ia_ref(:,indx(k),i)
+!       enddo
+!       stop
+       ! CHECK
+
+       
+    enddo
+
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(indx)
     
     return
 

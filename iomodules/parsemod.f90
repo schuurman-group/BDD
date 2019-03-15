@@ -26,9 +26,13 @@ contains
 !        nkw:     number of keyword on the current line
 !        ilkw:    array of lengths of the keywords on the current line
 !
+!        The optional logical flag lowerin can be used to control
+!        whether the keywords are converted to lowercase. If this flag
+!        is not present, then the keywords are converted to lowercase
+!        by default.
 !#######################################################################
 
-  subroutine rdinp(unit)
+  subroutine rdinp(unit,lowerin)
 
     use iomod, only: errmsg,error_control
 
@@ -37,6 +41,8 @@ contains
     integer             :: unit,i,k,istart,iend
     character(len=120)  :: message
     character(len=1500) :: string
+    logical, optional   :: lowerin
+    logical             :: lower
     
 !------------------------------------------------------------------------
 ! Initialise arrays
@@ -46,6 +52,13 @@ contains
 
     lend=.false.
 
+    ! Optional control over the conversion of keywords to lowercase
+    if (present(lowerin)) then
+       lower=lowerin
+    else
+       lower=.true.
+    endif
+    
 !------------------------------------------------------------------------
 ! Read the next line that is not blank and does not start with a comment
 !------------------------------------------------------------------------
@@ -109,11 +122,13 @@ contains
 
     enddo
 
-!    ! Convert all keywords to lowercase
-    do i=1,inkw
-       call lowercase(keyword(i))
-    enddo
-    
+    ! Convert all keywords to lowercase
+    if (lower) then
+       do i=1,inkw
+          call lowercase(keyword(i))
+       enddo
+    endif
+       
     ! Determine keyword lengths
     do i=1,inkw
        ilkw(i)=len_trim(keyword(i))
