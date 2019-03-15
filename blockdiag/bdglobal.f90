@@ -19,6 +19,11 @@ module bdglobal
 
   ! Wavefunction arrays
   integer, allocatable            :: det_ref(:,:,:),det_disp(:,:,:)
+  integer                         :: nalpha,nbeta
+  integer, allocatable            :: ia_ref(:,:,:),ia_disp(:,:,:),&
+                                     ib_ref(:,:,:),ib_disp(:,:,:)
+  integer, allocatable            :: ilbla_ref(:,:),ilbla_disp(:,:),&
+                                     ilblb_ref(:,:),ilblb_disp(:,:)
   real(dp), allocatable           :: c_ref(:,:),c_disp(:,:)
 
   ! Wavefunction norms

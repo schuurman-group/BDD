@@ -119,7 +119,22 @@ contains
     write(ilog,'(a)') '  Disp. State  |  Ref. State  |  Overlap'
     write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
     write(ilog,'(47a)') ('-',i=1,47)
-    
+
+!----------------------------------------------------------------------
+! Get the alpha and beta spinorbital indices for every determinant
+!----------------------------------------------------------------------
+  call alpha_beta_indices
+
+!----------------------------------------------------------------------
+! Generate an integer label for every unique alpha and beta string
+!----------------------------------------------------------------------
+  call alpha_beta_labels
+
+!----------------------------------------------------------------------
+! Sort the alpha and beta strings
+!----------------------------------------------------------------------
+  call alpha_beta_sort
+  
 !----------------------------------------------------------------------
 ! Calculate overlaps
 !----------------------------------------------------------------------
@@ -208,6 +223,253 @@ contains
     
   end subroutine psi_overlaps
 
+!#####################################################################
+
+  subroutine alpha_beta_indices
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer :: imo,nar,nad,nbr,nbd,na,nb
+    integer :: i,k
+    
+!-----------------------------------------------------------------------
+! Determine the no. alpha and beta spinorbitals
+!-----------------------------------------------------------------------
+    ! Ref. States
+    nar=0
+    nbr=0
+    do imo=1,nmo_ref
+       if (det_ref(imo,1,1).eq.2) then
+          nar=nar+1
+          nbr=nbr+1
+       else if (det_ref(imo,1,1).eq.+1) then
+          nar=nar+1
+       else if (det_ref(imo,1,1).eq.-1) then
+          nbr=nbr+1
+       endif
+    enddo
+
+    ! Disp. states
+    nad=0
+    nbd=0
+    do imo=1,nmo_disp
+       if (det_disp(imo,1,1).eq.2) then
+          nad=nad+1
+          nbd=nbd+1
+       else if (det_disp(imo,1,1).eq.+1) then
+          nad=nad+1
+       else if (det_disp(imo,1,1).eq.-1) then
+          nbd=nbd+1
+       endif
+    enddo
+
+    ! Exit if the numbers of alpha and beta electrons in the ref. and
+    ! disp. states is not consistent
+    if (nar.ne.nad.or.nbr.ne.nbd) then
+       errmsg='Inconsistent numbers of alpha and beta electrons in &
+            the ref. and disp. states'
+       call error_control
+    endif
+
+    ! Set the number of alpha and beta spinorbitals
+    nalpha=nar
+    nbeta=nbr
+
+!-----------------------------------------------------------------------
+! Allocate and initialise the spinorbital index arrays
+!-----------------------------------------------------------------------
+    allocate(ia_ref(nalpha,maxdet,nsta))
+    allocate(ib_ref(nbeta,maxdet,nsta))
+    allocate(ia_disp(nalpha,maxdet,nsta))
+    allocate(ib_disp(nbeta,maxdet,nsta))
+    ia_ref=0
+    ib_ref=0
+    ia_disp=0
+    ib_disp=0
+
+!-----------------------------------------------------------------------
+! Fill in the spinorbital index arrays
+!-----------------------------------------------------------------------
+    ! Ref. states
+    !
+    ! Loop over states
+    do i=1,nsta
+       ! Loop over determinants
+       do k=1,ndet_ref(i)
+          ! Fill in the spinorbital indicies for the current
+          ! determinant
+          na=0
+          nb=0
+          do imo=1,nmo_ref
+             if (det_ref(imo,k,i).eq.2) then
+                na=na+1
+                nb=nb+1
+                ia_ref(na,k,i)=imo
+                ib_ref(nb,k,i)=imo
+             else if (det_ref(imo,k,i).eq.+1) then
+                na=na+1
+                ia_ref(na,k,i)=imo
+             else if (det_ref(imo,k,i).eq.-1) then
+                nb=nb+1
+                ib_ref(nb,k,i)=imo
+             endif
+          enddo
+       enddo
+    enddo
+
+    ! Disp. states
+    !
+    ! Loop over states
+    do i=1,nsta
+       ! Loop over determinants
+       do k=1,ndet_disp(i)
+          ! Fill in the spinorbital indicies for the current
+          ! determinant
+          na=0
+          nb=0
+          do imo=1,nmo_disp
+             if (det_disp(imo,k,i).eq.2) then
+                na=na+1
+                nb=nb+1
+                ia_disp(na,k,i)=imo
+                ib_disp(nb,k,i)=imo
+             else if (det_disp(imo,k,i).eq.+1) then
+                na=na+1
+                ia_disp(na,k,i)=imo
+             else if (det_disp(imo,k,i).eq.-1) then
+                nb=nb+1
+                ib_disp(nb,k,i)=imo
+             endif
+          enddo
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine alpha_beta_indices
+
+!#####################################################################
+
+  subroutine alpha_beta_labels
+
+    use constants
+    use channels
+    use bdglobal
+    
+    implicit none
+
+    integer                 :: i,k
+    character(len=nalpha*3) :: string_alpha    
+    character(len=nbeta*3)  :: string_beta
+    character(len=10)       :: fmat_alpha,fmat_beta
+
+!----------------------------------------------------------------------
+! Allocate and initialise the label arrays
+!----------------------------------------------------------------------
+    allocate(ilbla_ref(maxdet,nsta))
+    allocate(ilblb_ref(maxdet,nsta))
+    allocate(ilbla_disp(maxdet,nsta))
+    allocate(ilblb_disp(maxdet,nsta))
+    ilbla_ref=0
+    ilblb_ref=0
+    ilbla_disp=0
+    ilblb_disp=0
+    
+!----------------------------------------------------------------------
+! Generate a hash of every alpha and beta spinorbital string
+!----------------------------------------------------------------------
+    ! Format statements
+    fmat_alpha=''
+    fmat_beta=''
+    write(fmat_alpha,'(a,i0,a)') '(',nalpha,'i3)'
+    write(fmat_beta,'(a,i0,a)') '(',nbeta,'i3)'
+    
+    ! Ref. states
+    !
+    do i=1,nsta
+       do k=1,ndet_ref(i)
+
+          ! Alpha spinorbital character string
+          string_alpha=''
+          write(string_alpha,fmat_alpha) ia_ref(:,k,i)
+
+          ! Beta spinorbital character string
+          string_beta=''
+          write(string_beta,fmat_beta) ib_ref(:,k,i)
+          
+          ! Hashes of the alpha and beta spinorbital character string
+          ilbla_ref=djb_hash(string_alpha)
+          ilblb_ref=djb_hash(string_beta)
+          
+       enddo
+    enddo
+
+    ! Disp. states
+    !
+    do i=1,nsta
+       do k=1,ndet_disp(i)
+
+          ! Alpha spinorbital character string
+          string_alpha=''
+          write(string_alpha,fmat_alpha) ia_disp(:,k,i)
+
+          ! Beta spinorbital character string
+          string_beta=''
+          write(string_beta,fmat_beta) ib_disp(:,k,i)
+          
+          ! Hashes of the alpha and beta spinorbital character string
+          ilbla_disp=djb_hash(string_alpha)
+          ilblb_disp=djb_hash(string_beta)
+          
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine alpha_beta_labels
+
+!#####################################################################
+  
+  function djb_hash(str) result(hash)
+
+    implicit none
+    
+    character(len=*),intent(in) :: str
+    integer                     :: hash
+    integer                     :: i
+    
+    hash = 5381
+
+    do i=1,len(str)
+        hash=(ishft(hash,5)+hash)+ichar(str(i:i))
+    enddo
+
+    return
+    
+  end function djb_hash
+
+!#####################################################################
+
+  subroutine alpha_beta_sort
+
+    use constants
+    use channels
+    use bdglobal
+
+    implicit none
+
+    print*,"HERE"
+    stop
+    
+    return
+
+  end subroutine alpha_beta_sort
+    
 !#####################################################################
 ! Calculate 1-particle overlap for all spin-orbitals in a given pair 
 ! of determinants.

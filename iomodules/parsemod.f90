@@ -109,7 +109,7 @@ contains
 
     enddo
 
-    ! Convert all keywords to lowercase
+!    ! Convert all keywords to lowercase
     do i=1,inkw
        call lowercase(keyword(i))
     enddo
