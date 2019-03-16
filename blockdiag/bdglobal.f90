@@ -20,17 +20,20 @@ module bdglobal
   ! Wavefunction arrays
   integer, allocatable            :: det_ref(:,:,:),det_disp(:,:,:)
   real(dp), allocatable           :: c_ref(:,:),c_disp(:,:)
+
+  ! Alpha and beta string arrays
   integer                         :: nalpha,nbeta
-  integer, allocatable            :: ia_ref(:,:,:),ia_disp(:,:,:),&
-                                     ib_ref(:,:,:),ib_disp(:,:,:)
+  integer, allocatable            :: iocca_ref(:,:,:),iocca_disp(:,:,:),&
+                                     ioccb_ref(:,:,:),ioccb_disp(:,:,:)
   integer, allocatable            :: ilbla_ref(:,:),ilbla_disp(:,:),&
                                      ilblb_ref(:,:),ilblb_disp(:,:)
   integer                         :: na_ref,na_disp,nb_ref,nb_disp
-  integer, allocatable            :: ias_ref(:,:),ibs_ref(:,:),&
-                                     ias_disp(:,:),ibs_disp(:,:)
-  integer, allocatable            :: as_ref(:,:),bs_ref(:,:),&
-                                     as_disp(:,:),bs_disp(:,:)
-
+  integer, allocatable            :: ia_ref(:,:),ib_ref(:,:),&
+                                     ia_disp(:,:),ib_disp(:,:)
+  integer, allocatable            :: stringa_ref(:,:),stringb_ref(:,:),&
+                                     stringa_disp(:,:),stringb_disp(:,:)
+  real(dp), allocatable           :: afac(:,:),bfac(:,:)
+  
   ! Wavefunction norms
   real(dp), allocatable           :: norm_ref(:),norm_disp(:)
 

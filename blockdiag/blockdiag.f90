@@ -519,14 +519,6 @@ contains
     deallocate(c_disp)
     deallocate(det_ref)
     deallocate(det_disp)
-    deallocate(ia_ref)
-    deallocate(ia_disp)
-    deallocate(ib_ref)
-    deallocate(ib_disp)
-    deallocate(ilbla_ref)
-    deallocate(ilblb_ref)
-    deallocate(ilbla_disp)
-    deallocate(ilblb_disp)
     
     return
     
