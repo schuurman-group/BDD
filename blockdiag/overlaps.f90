@@ -120,127 +120,129 @@ contains
     write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
     write(ilog,'(47a)') ('-',i=1,47)
 
+!****************
+!***** OLD ******
+!****************
 !----------------------------------------------------------------------
-! Get the alpha and beta spinorbital indices for every determinant
-!----------------------------------------------------------------------
-    call alpha_beta_indices
-
-!----------------------------------------------------------------------
-! Generate an integer label for every unique alpha and beta string
-!----------------------------------------------------------------------
-    call alpha_beta_labels
-
-!----------------------------------------------------------------------
-! Sort the alpha and beta strings
-!----------------------------------------------------------------------
-    call alpha_beta_sort
-
-!----------------------------------------------------------------------
-! Calculate the unique alpha and beta factors
-!----------------------------------------------------------------------
-    call get_unique_factors
-  
-!----------------------------------------------------------------------
-! OLD
 ! Calculate overlaps
-! OLD
 !----------------------------------------------------------------------
-!    spsi=0.0d0
-!
-!    ! Loop disp. states
-!    do i=1,nsta
-!       ! Loop over ref. states
-!       do j=1,nsta
-!          
-!          !$omp parallel do &
-!          !$omp& private(m,k,tid,smk,detsmk) &
-!          !$omp& shared(ndet_ref,ndet_disp,det_ref,det_disp,&
-!          !$omp&        smo,c_ref,c_disp,spsi_1thread)
-!
-!          ! Loop over determinants for the displaced geometry
-!          do m=1,ndet_disp(i)
-!             
-!             ! Loop over determinants for the reference geometry
-!             do k=1,ndet_ref(j)
-!
-!                tid=1+omp_get_thread_num()
-!                
-!                ! Construct the matrix S^mk of overlaps between
-!                ! the MOs occupied in the displaced bra <m| and the
-!                ! reference ket |k>
-!                call fill_spinorbital_integrals(det_disp(:,m,i),&
-!                    det_ref(:,k,j),smk,smo)
-!
-!                ! Calculate det S^mk
-!                detsmk=determinant_overlap(smk)
-!
-!                ! Add the contribution to < i | j >
-!                spsi_1thread(i,j,tid)=spsi_1thread(i,j,tid)&
-!                     +detsmk*c_disp(m,i)*c_ref(k,j)
-!
-!!                spsi(i,j)=spsi(i,j)+detsmk*c_disp(m,i)*c_ref(k,j)
-!                
-!             enddo
-!                
-!          enddo
-!          !$omp end parallel do
-!
-!          ! Accumulate the contributions from each thread
-!          spsi(i,j)=sum(spsi_1thread(i,j,:))
-!          
-!          ! Table entry
-!          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
-!          
-!       enddo
-!    enddo
-!
-!    ! End of the table
-!    write(ilog,'(47a)') ('-',i=1,47)
+    spsi=0.0d0
 
-!----------------------------------------------------------------------
-! NEW
-! Calculate overlaps
-! NEW
-!----------------------------------------------------------------------
-  spsi=0.0d0
+    ! Loop disp. states
+    do i=1,nsta
+       ! Loop over ref. states
+       do j=1,nsta
+          
+          !$omp parallel do &
+          !$omp& private(m,k,tid,smk,detsmk) &
+          !$omp& shared(ndet_ref,ndet_disp,det_ref,det_disp,&
+          !$omp&        smo,c_ref,c_disp,spsi_1thread)
 
-  ! Loop disp. states
-  do i=1,nsta
-     ! Loop over ref. states
-     do j=1,nsta
+          ! Loop over determinants for the displaced geometry
+          do m=1,ndet_disp(i)
+             
+             ! Loop over determinants for the reference geometry
+             do k=1,ndet_ref(j)
 
-        ! Loop over determinants for the displaced geometry
-        do m=1,ndet_disp(i)
+                tid=1+omp_get_thread_num()
+                
+                ! Construct the matrix S^mk of overlaps between
+                ! the MOs occupied in the displaced bra <m| and the
+                ! reference ket |k>
+                call fill_spinorbital_integrals(det_disp(:,m,i),&
+                    det_ref(:,k,j),smk,smo)
 
-           ! Indices of the unique alpha and beta strings
-           ! for the current disp. state/determinat pair
-           iad=ia_disp(m,i)
-           ibd=ib_disp(m,i)
-           
-           ! Loop over determinants for the reference geometry
-           do k=1,ndet_ref(j)
+                ! Calculate det S^mk
+                detsmk=determinant_overlap(smk)
 
-              ! Indices of the unique alpha and beta strings
-              ! for the current ref. state/determinat pair
-              iar=ia_ref(k,j)
-              ibr=ib_ref(k,j)
+                ! Add the contribution to < i | j >
+                spsi_1thread(i,j,tid)=spsi_1thread(i,j,tid)&
+                     +detsmk*c_disp(m,i)*c_ref(k,j)
 
-              ! Contibution to < i | j > from the current determinant pair
-              spsi(i,j)=spsi(i,j)&
-                   +c_disp(m,i)*c_ref(k,j)*afac(iar,iad)*bfac(ibr,ibd)
-              
-           enddo
-              
-        enddo
+!                spsi(i,j)=spsi(i,j)+detsmk*c_disp(m,i)*c_ref(k,j)
+                
+             enddo
+                
+          enddo
+          !$omp end parallel do
 
-        ! Table entry
-        write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
-        
-     enddo
-  enddo
+          ! Accumulate the contributions from each thread
+          spsi(i,j)=sum(spsi_1thread(i,j,:))
+          
+          ! Table entry
+          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
+          
+       enddo
+    enddo
 
-  ! End of the table
-  write(ilog,'(47a)') ('-',i=1,47)
+    ! End of the table
+    write(ilog,'(47a)') ('-',i=1,47)
+
+!****************
+!***** NEW ******
+!****************
+!!----------------------------------------------------------------------
+!! Get the alpha and beta spinorbital indices for every determinant
+!!----------------------------------------------------------------------
+!    call alpha_beta_indices
+!
+!!----------------------------------------------------------------------
+!! Generate an integer label for every unique alpha and beta string
+!!----------------------------------------------------------------------
+!    call alpha_beta_labels
+!
+!!----------------------------------------------------------------------
+!! Sort the alpha and beta strings
+!!----------------------------------------------------------------------
+!    call alpha_beta_sort
+!
+!!----------------------------------------------------------------------
+!! Calculate the unique alpha and beta factors
+!!----------------------------------------------------------------------
+!    call get_unique_factors
+!    
+!!----------------------------------------------------------------------
+!! Calculate overlaps
+!!----------------------------------------------------------------------
+!  spsi=0.0d0
+!
+!  ! Loop disp. states
+!  do i=1,nsta
+!     ! Loop over ref. states
+!     do j=1,nsta
+!
+!        ! Loop over determinants for the displaced geometry
+!        do m=1,ndet_disp(i)
+!
+!           ! Indices of the unique alpha and beta strings
+!           ! for the current disp. state/determinat pair
+!           iad=ia_disp(m,i)
+!           ibd=ib_disp(m,i)
+!           
+!           ! Loop over determinants for the reference geometry
+!           do k=1,ndet_ref(j)
+!
+!              ! Indices of the unique alpha and beta strings
+!              ! for the current ref. state/determinat pair
+!              iar=ia_ref(k,j)
+!              ibr=ib_ref(k,j)
+!
+!              ! Contibution to < i | j > from the current determinant pair
+!              spsi(i,j)=spsi(i,j)&
+!                   +c_disp(m,i)*c_ref(k,j)*afac(iar,iad)*bfac(ibr,ibd)
+!              
+!           enddo
+!              
+!        enddo
+!
+!        ! Table entry
+!        write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
+!        
+!     enddo
+!  enddo
+!
+!  ! End of the table
+!  write(ilog,'(47a)') ('-',i=1,47)
   
 !----------------------------------------------------------------------
 ! Deallocate arrays
