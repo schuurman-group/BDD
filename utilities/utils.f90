@@ -140,19 +140,19 @@ contains
 
 !######################################################################
 
-  subroutine isortindxa1(order,ndim,arrin,indx)
+  subroutine i8sortindxa1(order,ndim,arrin,indx)
 
     use constants
 
     implicit none
     
     character(1), intent(in) :: order
-    integer, intent(in) :: ndim
-    integer, dimension(ndim), intent(in)    :: arrin
-    integer, dimension(ndim), intent(inout) :: indx
+    integer*8, intent(in) :: ndim
+    integer*8, dimension(ndim), intent(in)    :: arrin
+    integer*8, dimension(ndim), intent(inout) :: indx
     
-    integer :: i,l,ir,indxt,j
-    integer :: q
+    integer*8 :: i,l,ir,indxt,j
+    integer*8 :: q
 
 !!$ The subroutine is adapted from the NR p233, employs heapsort.
     
@@ -241,7 +241,7 @@ contains
        
     end if
        
-  end subroutine isortindxa1
+  end subroutine i8sortindxa1
     
 !######################################################################
   

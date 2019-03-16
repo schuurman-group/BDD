@@ -25,7 +25,7 @@ module bdglobal
   integer                         :: nalpha,nbeta
   integer, allocatable            :: iocca_ref(:,:,:),iocca_disp(:,:,:),&
                                      ioccb_ref(:,:,:),ioccb_disp(:,:,:)
-  integer, allocatable            :: ilbla_ref(:,:),ilbla_disp(:,:),&
+  integer*8, allocatable          :: ilbla_ref(:,:),ilbla_disp(:,:),&
                                      ilblb_ref(:,:),ilblb_disp(:,:)
   integer                         :: na_ref,na_disp,nb_ref,nb_disp
   integer, allocatable            :: ia_ref(:,:),ib_ref(:,:),&

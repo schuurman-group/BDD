@@ -126,123 +126,123 @@ contains
 !----------------------------------------------------------------------
 ! Calculate overlaps
 !----------------------------------------------------------------------
-    spsi=0.0d0
-
-    ! Loop disp. states
-    do i=1,nsta
-       ! Loop over ref. states
-       do j=1,nsta
-          
-          !$omp parallel do &
-          !$omp& private(m,k,tid,smk,detsmk) &
-          !$omp& shared(ndet_ref,ndet_disp,det_ref,det_disp,&
-          !$omp&        smo,c_ref,c_disp,spsi_1thread)
-
-          ! Loop over determinants for the displaced geometry
-          do m=1,ndet_disp(i)
-             
-             ! Loop over determinants for the reference geometry
-             do k=1,ndet_ref(j)
-
-                tid=1+omp_get_thread_num()
-                
-                ! Construct the matrix S^mk of overlaps between
-                ! the MOs occupied in the displaced bra <m| and the
-                ! reference ket |k>
-                call fill_spinorbital_integrals(det_disp(:,m,i),&
-                    det_ref(:,k,j),smk,smo)
-
-                ! Calculate det S^mk
-                detsmk=determinant_overlap(smk)
-
-                ! Add the contribution to < i | j >
-                spsi_1thread(i,j,tid)=spsi_1thread(i,j,tid)&
-                     +detsmk*c_disp(m,i)*c_ref(k,j)
-
-!                spsi(i,j)=spsi(i,j)+detsmk*c_disp(m,i)*c_ref(k,j)
-                
-             enddo
-                
-          enddo
-          !$omp end parallel do
-
-          ! Accumulate the contributions from each thread
-          spsi(i,j)=sum(spsi_1thread(i,j,:))
-          
-          ! Table entry
-          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
-          
-       enddo
-    enddo
-
-    ! End of the table
-    write(ilog,'(47a)') ('-',i=1,47)
+!    spsi=0.0d0
+!
+!    ! Loop disp. states
+!    do i=1,nsta
+!       ! Loop over ref. states
+!       do j=1,nsta
+!          
+!          !$omp parallel do &
+!          !$omp& private(m,k,tid,smk,detsmk) &
+!          !$omp& shared(ndet_ref,ndet_disp,det_ref,det_disp,&
+!          !$omp&        smo,c_ref,c_disp,spsi_1thread)
+!
+!          ! Loop over determinants for the displaced geometry
+!          do m=1,ndet_disp(i)
+!             
+!             ! Loop over determinants for the reference geometry
+!             do k=1,ndet_ref(j)
+!
+!                tid=1+omp_get_thread_num()
+!                
+!                ! Construct the matrix S^mk of overlaps between
+!                ! the MOs occupied in the displaced bra <m| and the
+!                ! reference ket |k>
+!                call fill_spinorbital_integrals(det_disp(:,m,i),&
+!                    det_ref(:,k,j),smk,smo)
+!
+!                ! Calculate det S^mk
+!                detsmk=determinant_overlap(smk)
+!
+!                ! Add the contribution to < i | j >
+!                spsi_1thread(i,j,tid)=spsi_1thread(i,j,tid)&
+!                     +detsmk*c_disp(m,i)*c_ref(k,j)
+!
+!!                spsi(i,j)=spsi(i,j)+detsmk*c_disp(m,i)*c_ref(k,j)
+!                
+!             enddo
+!                
+!          enddo
+!          !$omp end parallel do
+!
+!          ! Accumulate the contributions from each thread
+!          spsi(i,j)=sum(spsi_1thread(i,j,:))
+!          
+!          ! Table entry
+!          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
+!          
+!       enddo
+!    enddo
+!
+!    ! End of the table
+!    write(ilog,'(47a)') ('-',i=1,47)
 
 !****************
 !***** NEW ******
 !****************
-!!----------------------------------------------------------------------
-!! Get the alpha and beta spinorbital indices for every determinant
-!!----------------------------------------------------------------------
-!    call alpha_beta_indices
-!
-!!----------------------------------------------------------------------
-!! Generate an integer label for every unique alpha and beta string
-!!----------------------------------------------------------------------
-!    call alpha_beta_labels
-!
-!!----------------------------------------------------------------------
-!! Sort the alpha and beta strings
-!!----------------------------------------------------------------------
-!    call alpha_beta_sort
-!
-!!----------------------------------------------------------------------
-!! Calculate the unique alpha and beta factors
-!!----------------------------------------------------------------------
-!    call get_unique_factors
-!    
-!!----------------------------------------------------------------------
-!! Calculate overlaps
-!!----------------------------------------------------------------------
-!  spsi=0.0d0
-!
-!  ! Loop disp. states
-!  do i=1,nsta
-!     ! Loop over ref. states
-!     do j=1,nsta
-!
-!        ! Loop over determinants for the displaced geometry
-!        do m=1,ndet_disp(i)
-!
-!           ! Indices of the unique alpha and beta strings
-!           ! for the current disp. state/determinat pair
-!           iad=ia_disp(m,i)
-!           ibd=ib_disp(m,i)
-!           
-!           ! Loop over determinants for the reference geometry
-!           do k=1,ndet_ref(j)
-!
-!              ! Indices of the unique alpha and beta strings
-!              ! for the current ref. state/determinat pair
-!              iar=ia_ref(k,j)
-!              ibr=ib_ref(k,j)
-!
-!              ! Contibution to < i | j > from the current determinant pair
-!              spsi(i,j)=spsi(i,j)&
-!                   +c_disp(m,i)*c_ref(k,j)*afac(iar,iad)*bfac(ibr,ibd)
-!              
-!           enddo
-!              
-!        enddo
-!
-!        ! Table entry
-!        write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
-!        
-!     enddo
-!  enddo
-!
-!  ! End of the table
-!  write(ilog,'(47a)') ('-',i=1,47)
+!----------------------------------------------------------------------
+! Get the alpha and beta spinorbital indices for every determinant
+!----------------------------------------------------------------------
+    call alpha_beta_indices
+
+!----------------------------------------------------------------------
+! Generate an integer label for every unique alpha and beta string
+!----------------------------------------------------------------------
+    call alpha_beta_labels
+
+!----------------------------------------------------------------------
+! Sort the alpha and beta strings
+!----------------------------------------------------------------------
+    call alpha_beta_sort
+
+!----------------------------------------------------------------------
+! Calculate the unique alpha and beta factors
+!----------------------------------------------------------------------
+    call get_unique_factors
+    
+!----------------------------------------------------------------------
+! Calculate overlaps
+!----------------------------------------------------------------------
+  spsi=0.0d0
+
+  ! Loop disp. states
+  do i=1,nsta
+     ! Loop over ref. states
+     do j=1,nsta
+
+        ! Loop over determinants for the displaced geometry
+        do m=1,ndet_disp(i)
+
+           ! Indices of the unique alpha and beta strings
+           ! for the current disp. state/determinat pair
+           iad=ia_disp(m,i)
+           ibd=ib_disp(m,i)
+           
+           ! Loop over determinants for the reference geometry
+           do k=1,ndet_ref(j)
+
+              ! Indices of the unique alpha and beta strings
+              ! for the current ref. state/determinat pair
+              iar=ia_ref(k,j)
+              ibr=ib_ref(k,j)
+
+              ! Contibution to < i | j > from the current determinant pair
+              spsi(i,j)=spsi(i,j)&
+                   +c_disp(m,i)*c_ref(k,j)*afac(iar,iad)*bfac(ibr,ibd)
+              
+           enddo
+              
+        enddo
+
+        ! Table entry
+        write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
+        
+     enddo
+  enddo
+
+  ! End of the table
+  write(ilog,'(47a)') ('-',i=1,47)
   
 !----------------------------------------------------------------------
 ! Deallocate arrays
@@ -451,8 +451,8 @@ contains
     ! Format statements
     fmat_alpha=''
     fmat_beta=''
-    write(fmat_alpha,'(a,i0,a)') '(',nalpha,'i3)'
-    write(fmat_beta,'(a,i0,a)') '(',nbeta,'i3)'
+    write(fmat_alpha,'(a,i0,a)') '(',nalpha,'i0)'
+    write(fmat_beta,'(a,i0,a)') '(',nbeta,'i0)'
     
     ! Ref. states
     !
@@ -466,10 +466,10 @@ contains
           ! Beta spinorbital character string
           string_beta=''
           write(string_beta,fmat_beta) ioccb_ref(:,k,i)
-          
+
           ! Hashes of the alpha and beta spinorbital character string
-          ilbla_ref(k,i)=djb_hash(string_alpha)
-          ilblb_ref(k,i)=djb_hash(string_beta)
+          ilbla_ref(k,i)=djb_hash(trim(string_alpha))
+          ilblb_ref(k,i)=djb_hash(trim(string_beta))
           
        enddo
     enddo
@@ -488,9 +488,9 @@ contains
           write(string_beta,fmat_beta) ioccb_disp(:,k,i)
           
           ! Hashes of the alpha and beta spinorbital character string
-          ilbla_disp(k,i)=djb_hash(string_alpha)
-          ilblb_disp(k,i)=djb_hash(string_beta)
-          
+          ilbla_disp(k,i)=djb_hash(trim(string_alpha))
+          ilblb_disp(k,i)=djb_hash(trim(string_beta))
+
        enddo
     enddo
     
@@ -505,7 +505,7 @@ contains
     implicit none
     
     character(len=*),intent(in) :: str
-    integer                     :: hash
+    integer*8                   :: hash
     integer                     :: i
     
     hash = 5381
@@ -593,17 +593,24 @@ contains
     implicit none
 
     integer, dimension(nsta)              :: ndet
-    integer, dimension(maxdet,nsta)       :: ilbl
+    integer*8, dimension(maxdet,nsta)     :: ilbl
     integer                               :: nunique
     integer, allocatable                  :: string(:,:)
     integer, dimension(nspin,maxdet,nsta) :: iocc
     integer, dimension(maxdet,nsta)       :: iunique
     integer                               :: nspin
 
-    integer              :: i,k,sumdet,i1,i2,last,n,istate,idet
-    integer, allocatable :: indx(:),ilbl_all(:)
-    integer, allocatable :: info(:,:)
+    integer                               :: i,k,k1,i1,i2,n,&
+                                             istate,idet
+    integer*8                             :: sumdet,last
+    integer*8, allocatable                :: indx(:),ilbl_all(:)
+    integer, allocatable                  :: info(:,:)
 
+    ! CHECK
+    integer, allocatable :: ipos(:)
+    integer              :: m,istate1,idet1,istate2,idet2
+    ! CHECK
+    
 !----------------------------------------------------------------------
 ! Allocate and initialise arrays
 !----------------------------------------------------------------------
@@ -637,7 +644,7 @@ contains
 ! Sort the combined list of alpha/beta string labels for the current
 ! set of states
 !----------------------------------------------------------------------
-    call isortindxa1('A',sumdet,ilbl_all,indx)
+    call i8sortindxa1('A',sumdet,ilbl_all,indx)
     
 !----------------------------------------------------------------------  
 ! No. unique alpha/beta strings for the current set of states
@@ -645,8 +652,9 @@ contains
     last=0
     nunique=0
     do k=1,sumdet
-       if (ilbl_all(indx(k)).ne.last) then
-          last=ilbl_all(indx(k))
+       k1=indx(k)
+       if (ilbl_all(k1).ne.last) then
+          last=ilbl_all(k1)
           nunique=nunique+1
        endif
     enddo
@@ -661,17 +669,19 @@ contains
     n=0
     do k=1,sumdet
 
+       k1=indx(k)
+       
        ! Determinant index for the current state/determinant pair
-       idet=info(k,1)
+       idet=info(k1,1)
        
        ! State index for the current state/determinant pair
-       istate=info(k,2)
+       istate=info(k1,2)
 
        ! Are we at the start of a new unique alpha string?
-       if (ilbl_all(indx(k)).ne.last) then
+       if (ilbl_all(k1).ne.last) then
           ! If so, increment the unique alpha string counter and
           ! fill in the nth unique alpha string
-          last=ilbl_all(indx(k))
+          last=ilbl_all(k1)
           n=n+1
           ! nth unique alpha string
           string(:,n)=iocc(:,idet,istate)
@@ -682,6 +692,49 @@ contains
        iunique(idet,istate)=n
 
     enddo
+
+!----------------------------------------------------------------------
+! Check for duplicates
+!----------------------------------------------------------------------
+!    allocate(ipos(nunique))
+!
+!    ipos=0
+!    last=0
+!    n=0
+!    do k=1,sumdet
+!       k1=indx(k)
+!       if (ilbl_all(k1).ne.last) then
+!          last=ilbl_all(k1)
+!          n=n+1
+!          ipos(n)=k
+!       endif
+!    enddo
+!
+!    do n=1,nunique
+!
+!       i1=ipos(n)
+!       if (n.lt.nunique) then
+!          i2=ipos(n+1)-1
+!       else
+!          i2=sumdet
+!       endif
+!
+!       do i=i1+1,i2
+!          idet1=info(indx(i-1),1)
+!          istate1=info(indx(i-1),2)
+!          idet2=info(indx(i),1)
+!          istate2=info(indx(i),2)
+!          do m=1,nspin
+!             if (iocc(m,idet1,istate1).ne.iocc(m,idet2,istate2)) then
+!                print*,'DUPLICATE FOUND!'
+!                stop
+!             endif
+!          enddo
+!       enddo
+!       
+!    enddo
+!    
+!    deallocate(ipos)
     
 !----------------------------------------------------------------------
 ! Deallocate arrays
@@ -734,9 +787,9 @@ contains
 
           ! Matrix of orbital overlaps
           do k=1,nalpha
-             mobra=stringa_ref(k,i)
+             moket=stringa_ref(k,i)
              do l=1,nalpha
-                moket=stringa_disp(l,j)
+                mobra=stringa_disp(l,j)
                 Sa(k,l)=smo(mobra,moket)
              enddo
           enddo
@@ -759,9 +812,9 @@ contains
 
           ! Matrix of orbital overlaps
           do k=1,nbeta
-             mobra=stringb_ref(k,i)
+             moket=stringb_ref(k,i)
              do l=1,nbeta
-                moket=stringb_disp(l,j)
+                mobra=stringb_disp(l,j)
                 Sb(k,l)=smo(mobra,moket)
              enddo
           enddo
@@ -772,6 +825,12 @@ contains
        enddo
 
     enddo
+
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(Sa)
+    deallocate(Sb)
     
     return
     
