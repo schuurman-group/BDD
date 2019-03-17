@@ -277,6 +277,7 @@ contains
     lreftrans=.false.
     lrdreftrans=.false.
     ldiabpot=.false.
+    ioverlap=1
     
 !----------------------------------------------------------------------
 ! Second pass: read the input file
@@ -368,6 +369,22 @@ contains
                 read(keyword(2),*) l
                 read(keyword(3),*) reftrans(k,l)
              enddo
+          endif
+
+       else if (keyword(i).eq.'$overlap') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             if (keyword(i).eq.'fast') then
+                ioverlap=1
+             else if (keyword(i).eq.'slow') then
+                ioverlap=2
+             else
+                errmsg='Unknown wavefunction overlap algorithm: '&
+                     //trim(keyword(i))
+                call error_control
+             endif
+          else
+             goto 100 
           endif
           
        else

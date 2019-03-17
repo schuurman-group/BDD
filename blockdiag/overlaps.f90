@@ -77,190 +77,38 @@ contains
     use constants
     use channels
     use bdglobal
-    use omp_lib
+    use timingmod
     
     implicit none
-    
-    integer               :: i,j,m,k,nthreads,tid,iad,ibd,iar,ibr
-    real(dp), allocatable :: smk(:,:)
-    real(dp), allocatable :: spsi_1thread(:,:,:)
-    real(dp)              :: detsmk
-    real(dp), parameter   :: ovrthrsh=0.5d0
-    logical               :: lovrlp
-    
+
+    integer             :: i,j
+    real(dp), parameter :: ovrthrsh=0.5d0
+    real(dp)            :: tw1,tw2,tc1,tc2
+    logical             :: lovrlp
+
 !----------------------------------------------------------------------
 ! Output what we are doing
 !----------------------------------------------------------------------
     write(ilog,'(/,82a)') ('+',i=1,82)
     write(ilog,'(2x,a)') 'Calculating Adiabatic Wavefunction Overlaps'
     write(ilog,'(82a)') ('+',i=1,82)
-    
+
 !-----------------------------------------------------------------------
-! Number of threads
-!-----------------------------------------------------------------------  
-    !$omp parallel
-    nthreads=omp_get_num_threads()
-    !$omp end parallel
+! Start timing
+!-----------------------------------------------------------------------
+    call times(tw1,tc1)
     
 !----------------------------------------------------------------------
-! Allocate arrays
+! Call to the requested wavefunction overlap code:
+! 1 <-> fast, but memory intensive
+! 2 <-> slow, but memory efficient
 !----------------------------------------------------------------------
-    nel=sum(abs(det_ref(:,5,1)))
-    allocate(smk(nel,nel))
-    smk=0.0d0
+    if (ioverlap.eq.1) then
+       call psi_overlaps_fast
+    else if (ioverlap.eq.2) then
+       call psi_overlaps_slow
+    endif
 
-    allocate(spsi_1thread(nsta,nsta,nthreads))
-    spsi_1thread=0.0d0
-    
-!----------------------------------------------------------------------
-! Table header
-!----------------------------------------------------------------------
-    write(ilog,'(/,47a)') ('-',i=1,47)
-    write(ilog,'(a)') '  Disp. State  |  Ref. State  |  Overlap'
-    write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
-    write(ilog,'(47a)') ('-',i=1,47)
-
-!****************
-!***** OLD ******
-!****************
-!----------------------------------------------------------------------
-! Calculate overlaps
-!----------------------------------------------------------------------
-!    spsi=0.0d0
-!
-!    ! Loop disp. states
-!    do i=1,nsta
-!       ! Loop over ref. states
-!       do j=1,nsta
-!          
-!          !$omp parallel do &
-!          !$omp& private(m,k,tid,smk,detsmk) &
-!          !$omp& shared(ndet_ref,ndet_disp,det_ref,det_disp,&
-!          !$omp&        smo,c_ref,c_disp,spsi_1thread)
-!
-!          ! Loop over determinants for the displaced geometry
-!          do m=1,ndet_disp(i)
-!             
-!             ! Loop over determinants for the reference geometry
-!             do k=1,ndet_ref(j)
-!
-!                tid=1+omp_get_thread_num()
-!                
-!                ! Construct the matrix S^mk of overlaps between
-!                ! the MOs occupied in the displaced bra <m| and the
-!                ! reference ket |k>
-!                call fill_spinorbital_integrals(det_disp(:,m,i),&
-!                    det_ref(:,k,j),smk,smo)
-!
-!                ! Calculate det S^mk
-!                detsmk=determinant_overlap(smk)
-!
-!                ! Add the contribution to < i | j >
-!                spsi_1thread(i,j,tid)=spsi_1thread(i,j,tid)&
-!                     +detsmk*c_disp(m,i)*c_ref(k,j)
-!
-!!                spsi(i,j)=spsi(i,j)+detsmk*c_disp(m,i)*c_ref(k,j)
-!                
-!             enddo
-!                
-!          enddo
-!          !$omp end parallel do
-!
-!          ! Accumulate the contributions from each thread
-!          spsi(i,j)=sum(spsi_1thread(i,j,:))
-!          
-!          ! Table entry
-!          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
-!          
-!       enddo
-!    enddo
-!
-!    ! End of the table
-!    write(ilog,'(47a)') ('-',i=1,47)
-
-!****************
-!***** NEW ******
-!****************
-!----------------------------------------------------------------------
-! Get the alpha and beta spinorbital indices for every determinant
-!----------------------------------------------------------------------
-    call alpha_beta_indices
-
-!----------------------------------------------------------------------
-! Generate an integer label for every unique alpha and beta string
-!----------------------------------------------------------------------
-    call alpha_beta_labels
-
-!----------------------------------------------------------------------
-! Sort the alpha and beta strings
-!----------------------------------------------------------------------
-    call alpha_beta_sort
-
-!----------------------------------------------------------------------
-! Calculate the unique alpha and beta factors
-!----------------------------------------------------------------------
-    call get_unique_factors
-    
-!----------------------------------------------------------------------
-! Calculate overlaps
-!----------------------------------------------------------------------
-  spsi=0.0d0
-
-  ! Loop disp. states
-  do i=1,nsta
-     ! Loop over ref. states
-     do j=1,nsta
-
-        ! Loop over determinants for the displaced geometry
-        do m=1,ndet_disp(i)
-
-           ! Indices of the unique alpha and beta strings
-           ! for the current disp. state/determinat pair
-           iad=ia_disp(m,i)
-           ibd=ib_disp(m,i)
-           
-           ! Loop over determinants for the reference geometry
-           do k=1,ndet_ref(j)
-
-              ! Indices of the unique alpha and beta strings
-              ! for the current ref. state/determinat pair
-              iar=ia_ref(k,j)
-              ibr=ib_ref(k,j)
-
-              ! Contibution to < i | j > from the current determinant pair
-              spsi(i,j)=spsi(i,j)&
-                   +c_disp(m,i)*c_ref(k,j)*afac(iar,iad)*bfac(ibr,ibd)
-              
-           enddo
-              
-        enddo
-
-        ! Table entry
-        write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
-        
-     enddo
-  enddo
-
-  ! End of the table
-  write(ilog,'(47a)') ('-',i=1,47)
-  
-!----------------------------------------------------------------------
-! Deallocate arrays
-!----------------------------------------------------------------------
-    deallocate(smk)
-    deallocate(spsi_1thread)
-
-    deallocate(afac)
-    deallocate(bfac)
-    deallocate(stringa_ref)
-    deallocate(stringb_ref)
-    deallocate(stringa_disp)
-    deallocate(stringb_disp)
-    deallocate(ia_ref)
-    deallocate(ib_ref)
-    deallocate(ia_disp)
-    deallocate(ib_disp)
-    
 !----------------------------------------------------------------------
 ! Print out a warning if it looks like a state from outside the group
 ! of interest has crossed in
@@ -283,11 +131,227 @@ contains
        endif
        
     enddo
-        
+
+!-----------------------------------------------------------------------    
+! Output timings
+!-----------------------------------------------------------------------    
+    call times(tw2,tc2)
+    write(ilog,'(/,a,1x,F9.2,1x,a)') 'Wall Time For Overlaps:',tw2-tw1," s"
+    write(ilog,'(a,2x,F9.2,1x,a)') 'CPU Time For Overlaps:',tc2-tc1," s"
+    
     return
     
   end subroutine psi_overlaps
 
+!#####################################################################
+
+  subroutine psi_overlaps_fast
+
+    use constants
+    use channels
+    use bdglobal
+    use omp_lib
+    
+    implicit none
+    
+    integer :: i,j,m,k,nthreads,tid,iad,ibd,iar,ibr
+
+!----------------------------------------------------------------------
+! Get the alpha and beta spinorbital indices for every determinant
+!----------------------------------------------------------------------
+    call alpha_beta_indices
+
+!----------------------------------------------------------------------
+! Generate an integer label for every unique alpha and beta string
+!----------------------------------------------------------------------
+    call alpha_beta_labels
+
+!----------------------------------------------------------------------
+! Sort the alpha and beta strings
+!----------------------------------------------------------------------
+    call alpha_beta_sort
+
+!----------------------------------------------------------------------
+! Calculate the unique alpha and beta factors
+!----------------------------------------------------------------------
+    call get_unique_factors
+
+!----------------------------------------------------------------------
+! Table header
+!----------------------------------------------------------------------
+    write(ilog,'(/,47a)') ('-',i=1,47)
+    write(ilog,'(a)') '  Disp. State  |  Ref. State  |  Overlap'
+    write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
+    write(ilog,'(47a)') ('-',i=1,47)
+    
+!----------------------------------------------------------------------
+! Calculate overlaps
+!----------------------------------------------------------------------
+    spsi=0.0d0
+
+    ! Loop disp. states
+    do i=1,nsta
+       ! Loop over ref. states
+       do j=1,nsta
+          
+          ! Loop over determinants for the displaced geometry
+          do m=1,ndet_disp(i)
+             
+             ! Indices of the unique alpha and beta strings
+             ! for the current disp. state/determinat pair
+             iad=ia_disp(m,i)
+             ibd=ib_disp(m,i)
+             
+             ! Loop over determinants for the reference geometry
+             do k=1,ndet_ref(j)
+                
+                ! Indices of the unique alpha and beta strings
+              ! for the current ref. state/determinat pair
+                iar=ia_ref(k,j)
+                ibr=ib_ref(k,j)
+                
+                ! Contibution to < i | j > from the current determinant pair
+                spsi(i,j)=spsi(i,j)&
+                     +c_disp(m,i)*c_ref(k,j)*afac(iar,iad)*bfac(ibr,ibd)
+                
+             enddo
+             
+          enddo
+          
+          ! Table entry
+          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
+          
+       enddo
+    enddo
+    
+    ! End of the table
+    write(ilog,'(47a)') ('-',i=1,47)
+
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(afac)
+    deallocate(bfac)
+    deallocate(stringa_ref)
+    deallocate(stringb_ref)
+    deallocate(stringa_disp)
+    deallocate(stringb_disp)
+    deallocate(ia_ref)
+    deallocate(ib_ref)
+    deallocate(ia_disp)
+    deallocate(ib_disp)
+    
+    
+    return
+  
+  end subroutine psi_overlaps_fast
+
+!#####################################################################
+
+  subroutine psi_overlaps_slow
+
+    use constants
+    use channels
+    use bdglobal
+    use omp_lib
+    
+    implicit none
+
+    integer               :: i,j,m,k,nthreads,tid
+    real(dp), allocatable :: smk(:,:)
+    real(dp), allocatable :: spsi_1thread(:,:,:)
+    real(dp)              :: detsmk
+
+!-----------------------------------------------------------------------
+! Number of threads
+!-----------------------------------------------------------------------  
+    !$omp parallel
+    nthreads=omp_get_num_threads()
+    !$omp end parallel
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    nel=sum(abs(det_ref(:,5,1)))
+    allocate(smk(nel,nel))
+    smk=0.0d0
+
+    allocate(spsi_1thread(nsta,nsta,nthreads))
+    spsi_1thread=0.0d0
+
+!----------------------------------------------------------------------
+! Table header
+!----------------------------------------------------------------------
+    write(ilog,'(/,47a)') ('-',i=1,47)
+    write(ilog,'(a)') '  Disp. State  |  Ref. State  |  Overlap'
+    write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
+    write(ilog,'(47a)') ('-',i=1,47)
+    
+!----------------------------------------------------------------------
+! Calculate overlaps
+!----------------------------------------------------------------------
+    spsi=0.0d0
+    
+    ! Loop disp. states
+    do i=1,nsta
+       ! Loop over ref. states
+       do j=1,nsta
+          
+          !$omp parallel do &
+          !$omp& private(m,k,tid,smk,detsmk) &
+          !$omp& shared(ndet_ref,ndet_disp,det_ref,det_disp,&
+          !$omp&        smo,c_ref,c_disp,spsi_1thread)
+
+          ! Loop over determinants for the displaced geometry
+          do m=1,ndet_disp(i)
+             
+             ! Loop over determinants for the reference geometry
+             do k=1,ndet_ref(j)
+
+                tid=1+omp_get_thread_num()
+                
+                ! Construct the matrix S^mk of overlaps between
+                ! the MOs occupied in the displaced bra <m| and the
+                ! reference ket |k>
+                call fill_spinorbital_integrals(det_disp(:,m,i),&
+                    det_ref(:,k,j),smk,smo)
+
+                ! Calculate det S^mk
+                detsmk=determinant_overlap(smk)
+
+                ! Add the contribution to < i | j >
+                spsi_1thread(i,j,tid)=spsi_1thread(i,j,tid)&
+                     +detsmk*c_disp(m,i)*c_ref(k,j)
+
+!                spsi(i,j)=spsi(i,j)+detsmk*c_disp(m,i)*c_ref(k,j)
+                
+             enddo
+                
+          enddo
+          !$omp end parallel do
+
+          ! Accumulate the contributions from each thread
+          spsi(i,j)=sum(spsi_1thread(i,j,:))
+          
+          ! Table entry
+          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
+          
+       enddo
+    enddo
+
+    ! End of the table
+    write(ilog,'(47a)') ('-',i=1,47)
+
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(smk)
+    deallocate(spsi_1thread)
+    
+    return
+    
+  end subroutine psi_overlaps_slow
+    
 !#####################################################################
 
   subroutine alpha_beta_indices

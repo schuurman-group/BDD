@@ -46,6 +46,7 @@ module bdglobal
   real(dp), allocatable           :: smo(:,:)
 
   ! Electronic state overlaps
+  integer                         :: ioverlap
   real(dp), allocatable           :: spsi(:,:)
   
   ! Adiabatic potential matrix
