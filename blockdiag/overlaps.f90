@@ -136,8 +136,10 @@ contains
 ! Output timings
 !-----------------------------------------------------------------------    
     call times(tw2,tc2)
-    write(ilog,'(/,a,1x,F9.2,1x,a)') 'Wall Time For Overlaps:',tw2-tw1," s"
-    write(ilog,'(a,2x,F9.2,1x,a)') 'CPU Time For Overlaps:',tc2-tc1," s"
+    write(ilog,'(/,a,1x,F9.2,1x,a)') 'Wall Time For Overlaps:'&
+         ,tw2-tw1," s"
+    write(ilog,'(a,2x,F9.2,1x,a)') 'CPU Time For Overlaps:',&
+         tc2-tc1," s"
     
     return
     
@@ -210,9 +212,10 @@ contains
                 iar=ia_ref(k,j)
                 ibr=ib_ref(k,j)
                 
-                ! Contibution to < i | j > from the current determinant pair
-                spsi(i,j)=spsi(i,j)&
-                     +c_disp(m,i)*c_ref(k,j)*afac(iar,iad)*bfac(ibr,ibd)
+                ! Contibution to < i | j > from the current determinant
+                ! pair
+                spsi(i,j)=spsi(i,j)+c_disp(m,i)*c_ref(k,j)&
+                     *afac(iar,iad)*bfac(ibr,ibd)
                 
              enddo
              
@@ -240,8 +243,7 @@ contains
     deallocate(ib_ref)
     deallocate(ia_disp)
     deallocate(ib_disp)
-    
-    
+        
     return
   
   end subroutine psi_overlaps_fast
@@ -593,6 +595,8 @@ contains
 
     implicit none
 
+    real(dp) :: mem
+    
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
@@ -628,7 +632,25 @@ contains
     call get_unique_strings(ndet_disp,ilblb_disp,nb_disp,stringb_disp,&
          ioccb_disp,ib_disp,nbeta)
 
-    return
+!----------------------------------------------------------------------
+! Output the no. unique alpha and beta strings
+!----------------------------------------------------------------------
+    write(ilog,'(/,2x,a,2x,i0)') &
+         'Unique disp. state alpha strings:',na_disp
+    write(ilog,'(2x,a,3x,i0)') &
+         'Unique disp. state beta strings:',nb_disp
+    write(ilog,'(2x,a,3x,i0)') &
+         'Unique ref. state alpha strings:',na_ref
+    write(ilog,'(2x,a,4x,i0)') &
+         'Unique ref. state beta strings:',na_ref
+
+!----------------------------------------------------------------------
+! Output the ammount of memory required to store the unique alpha
+! and beta factors
+!----------------------------------------------------------------------
+    mem=8.0d0*(na_ref*na_disp+nb_ref*nb_disp)/1024.0d0**2
+    write(ilog,'(/,2x,a,2x,F8.1,x,a)') 'Memory required to store the &
+         unique factors:',mem,'MB'
 
 !----------------------------------------------------------------------
 ! Deallocate arrays that we no longer need
@@ -641,6 +663,8 @@ contains
     deallocate(ilblb_ref)
     deallocate(ilbla_disp)
     deallocate(ilblb_disp)
+
+    return
     
   end subroutine alpha_beta_sort
 
