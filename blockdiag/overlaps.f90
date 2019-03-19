@@ -156,8 +156,22 @@ contains
     
     implicit none
     
-    integer :: i,j,m,k,nthreads,tid,iad,ibd,iar,ibr
+    integer               :: i,j,m,k,nthreads,tid,iad,ibd,iar,ibr
+    real(dp), allocatable :: spsi_1thread(:,:,:)
 
+!-----------------------------------------------------------------------
+! Number of threads
+!-----------------------------------------------------------------------  
+    !$omp parallel
+    nthreads=omp_get_num_threads()
+    !$omp end parallel
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    allocate(spsi_1thread(nsta,nsta,nthreads))
+    spsi_1thread=0.0d0
+    
 !----------------------------------------------------------------------
 ! Get the alpha and beta spinorbital indices for every determinant
 !----------------------------------------------------------------------
@@ -195,9 +209,16 @@ contains
     do i=1,nsta
        ! Loop over ref. states
        do j=1,nsta
+
+          !$omp parallel do &
+          !$omp& private(m,k,iad,ibd,iar,ibr,tid) &
+          !$omp& shared(ndet_ref,ndet_disp,afac,bfac,ia_disp,ib_disp,&
+          !$omp&        ia_ref,ib_ref,c_ref,c_disp,spsi_1thread)
           
           ! Loop over determinants for the displaced geometry
           do m=1,ndet_disp(i)
+
+             tid=1+omp_get_thread_num()
              
              ! Indices of the unique alpha and beta strings
              ! for the current disp. state/determinat pair
@@ -208,18 +229,24 @@ contains
              do k=1,ndet_ref(j)
                 
                 ! Indices of the unique alpha and beta strings
-              ! for the current ref. state/determinat pair
+                ! for the current ref. state/determinat pair
                 iar=ia_ref(k,j)
                 ibr=ib_ref(k,j)
                 
                 ! Contibution to < i | j > from the current determinant
                 ! pair
-                spsi(i,j)=spsi(i,j)+c_disp(m,i)*c_ref(k,j)&
-                     *afac(iar,iad)*bfac(ibr,ibd)
-                
+!                spsi(i,j)=spsi(i,j)+c_disp(m,i)*c_ref(k,j)&
+!                     *afac(iar,iad)*bfac(ibr,ibd)
+                spsi_1thread(i,j,tid)=spsi_1thread(i,j,tid)&
+                     +c_disp(m,i)*c_ref(k,j)*afac(iar,iad)*bfac(ibr,ibd)
+                     
              enddo
              
           enddo
+          !$omp end parallel do
+
+          ! Accumulate the contributions from each thread
+          spsi(i,j)=sum(spsi_1thread(i,j,:))
           
           ! Table entry
           write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
@@ -233,6 +260,8 @@ contains
 !----------------------------------------------------------------------
 ! Deallocate arrays
 !----------------------------------------------------------------------
+    deallocate(spsi_1thread)
+
     deallocate(afac)
     deallocate(bfac)
     deallocate(stringa_ref)
@@ -843,11 +872,19 @@ contains
     use channels
     use utils
     use bdglobal
+    use omp_lib
     
     implicit none
 
-    integer               :: i,j,k,l,mobra,moket
+    integer               :: i,j,k,l,mobra,moket,nthreads,tid
     real(dp), allocatable :: Sa(:,:),Sb(:,:)
+
+!-----------------------------------------------------------------------
+! Number of threads
+!-----------------------------------------------------------------------  
+    !$omp parallel
+    nthreads=omp_get_num_threads()
+    !$omp end parallel
     
 !----------------------------------------------------------------------
 ! Allocate arrays
@@ -863,13 +900,23 @@ contains
 
     allocate(Sb(nbeta,nbeta))
     Sb=0.0d0
-    
+
 !----------------------------------------------------------------------
 ! Calculate the unique alpha factors
 !----------------------------------------------------------------------
+    !$omp parallel do &
+    !$omp& private(i,j,k,l,moket,mobra,Sa,tid) &
+    !$omp& shared(na_ref,na_disp,nalpha,stringa_ref,stringa_disp,&
+    !$omp&        smo,afac)
+    
     ! Loop over unique ref. state alpha strings
     do i=1,na_ref
 
+!       ! Output our progress
+!       tid=omp_get_thread_num()
+!       if (tid.eq.0) write(6,'(2x,i0,a,i0)') &
+!            i,'/',ceiling(real(na_ref)/real(nthreads))
+       
        ! Loop over unique disp. state alpha strings
        do j=1,na_disp
 
@@ -888,13 +935,25 @@ contains
        enddo
 
     enddo
-
+    
+    !$omp end parallel do
+    
 !----------------------------------------------------------------------
 ! Calculate the unique beta factors
 !----------------------------------------------------------------------
+    !$omp parallel do &
+    !$omp& private(i,j,k,l,moket,mobra,Sb,tid) &
+    !$omp& shared(nb_ref,nb_disp,nbeta,stringb_ref,stringb_disp,&
+    !$omp&        smo,bfac)
+
     ! Loop over unique ref. state beta strings
     do i=1,nb_ref
 
+!       ! Output our progress
+!       tid=omp_get_thread_num()
+!       if (tid.eq.0) write(6,'(2x,i0,a,i0)') &
+!            i,'/',ceiling(real(nb_ref)/real(nthreads))
+       
        ! Loop over unique disp. state beta strings
        do j=1,nb_disp
 
@@ -914,6 +973,8 @@ contains
 
     enddo
 
+    !$omp end parallel do
+    
 !----------------------------------------------------------------------
 ! Deallocate arrays
 !----------------------------------------------------------------------
