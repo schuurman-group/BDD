@@ -665,7 +665,7 @@ contains
        enddo
        close(idet)
     enddo
-
+    
     ! Displaced geometry
     do i=1,nsta
        open(idet,file=adetdisp(i),form='formatted',status='old')

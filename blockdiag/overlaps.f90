@@ -14,14 +14,29 @@ contains
   subroutine mo_overlaps
 
     use constants
+    use channels
     use bdglobal
-    use import_gamess    
-
+    use import_gamess
+    use timingmod
+    
     implicit none
 
     integer               :: i,j,nao_ref,nao_disp
     real(dp), allocatable :: sao(:,:),ao2mo_ref(:,:),ao2mo_disp(:,:)
+    real(dp)              :: tw1,tw2,tc1,tc2
 
+!----------------------------------------------------------------------
+! Output what we are doing
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Calculating MO Overlaps'
+    write(ilog,'(82a)') ('+',i=1,82)
+    
+!-----------------------------------------------------------------------
+! Start timing
+!-----------------------------------------------------------------------
+    call times(tw1,tc1)
+    
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
@@ -65,6 +80,15 @@ contains
     deallocate(sao)
     deallocate(ao2mo_ref)
     deallocate(ao2mo_disp)
+
+!-----------------------------------------------------------------------    
+! Output timings
+!-----------------------------------------------------------------------    
+    call times(tw2,tc2)
+    write(ilog,'(/,a,1x,F9.2,1x,a)') 'Total Wall Time For MO Overlaps:'&
+         ,tw2-tw1," s"
+    write(ilog,'(a,2x,F9.2,1x,a)') 'Total CPU Time For MO Overlaps:',&
+         tc2-tc1," s"
     
     return
     
@@ -136,11 +160,11 @@ contains
 ! Output timings
 !-----------------------------------------------------------------------    
     call times(tw2,tc2)
-    write(ilog,'(/,a,1x,F9.2,1x,a)') 'Wall Time For Overlaps:'&
-         ,tw2-tw1," s"
-    write(ilog,'(a,2x,F9.2,1x,a)') 'CPU Time For Overlaps:',&
-         tc2-tc1," s"
-    
+    write(ilog,'(/,a,1x,F9.2,1x,a)') &
+         'Total Wall Time For Wavefunction Overlaps:',tw2-tw1," s"
+    write(ilog,'(a,2x,F9.2,1x,a)') &
+         'Total CPU Time For Wavefunction Overlaps:',tc2-tc1," s"
+
     return
     
   end subroutine psi_overlaps
@@ -152,13 +176,15 @@ contains
     use constants
     use channels
     use bdglobal
+    use timingmod
     use omp_lib
     
     implicit none
     
     integer               :: i,j,m,k,nthreads,tid,iad,ibd,iar,ibr
     real(dp), allocatable :: spsi_1thread(:,:,:)
-
+    real(dp)              :: tw1,tw2,tc1,tc2
+    
 !-----------------------------------------------------------------------
 ! Number of threads
 !-----------------------------------------------------------------------  
@@ -192,6 +218,11 @@ contains
 !----------------------------------------------------------------------
     call get_unique_factors
 
+!-----------------------------------------------------------------------
+! Start timing for the contraction step
+!-----------------------------------------------------------------------
+    call times(tw1,tc1)
+    
 !----------------------------------------------------------------------
 ! Table header
 !----------------------------------------------------------------------
@@ -257,6 +288,15 @@ contains
     ! End of the table
     write(ilog,'(47a)') ('-',i=1,47)
 
+!-----------------------------------------------------------------------    
+! Output timings for the contraction step
+!-----------------------------------------------------------------------    
+    call times(tw2,tc2)
+    write(ilog,'(/,2x,a,1x,F9.2,1x,a)') 'Wall Time For Contraction:'&
+         ,tw2-tw1," s"
+    write(ilog,'(2x,a,2x,F9.2,1x,a)') 'CPU Time For Contraction:',&
+         tc2-tc1," s"
+    
 !----------------------------------------------------------------------
 ! Deallocate arrays
 !----------------------------------------------------------------------
@@ -872,13 +912,21 @@ contains
     use channels
     use utils
     use bdglobal
+    use timingmod
     use omp_lib
     
     implicit none
 
     integer               :: i,j,k,l,mobra,moket,nthreads,tid
     real(dp), allocatable :: Sa(:,:),Sb(:,:)
+    real(dp)              :: ubound
+    real(dp)              :: tw1,tw2,tc1,tc2
 
+!-----------------------------------------------------------------------
+! Start timing
+!-----------------------------------------------------------------------
+    call times(tw1,tc1)
+    
 !-----------------------------------------------------------------------
 ! Number of threads
 !-----------------------------------------------------------------------  
@@ -900,18 +948,18 @@ contains
 
     allocate(Sb(nbeta,nbeta))
     Sb=0.0d0
-
+    
 !----------------------------------------------------------------------
 ! Calculate the unique alpha factors
 !----------------------------------------------------------------------
     !$omp parallel do &
-    !$omp& private(i,j,k,l,moket,mobra,Sa,tid) &
+    !$omp& private(i,j,k,l,moket,mobra,Sa,ubound,tid) &
     !$omp& shared(na_ref,na_disp,nalpha,stringa_ref,stringa_disp,&
     !$omp&        smo,afac)
     
     ! Loop over unique ref. state alpha strings
     do i=1,na_ref
-
+       
 !       ! Output our progress
 !       tid=omp_get_thread_num()
 !       if (tid.eq.0) write(6,'(2x,i0,a,i0)') &
@@ -929,15 +977,22 @@ contains
              enddo
           enddo
 
-          ! Determinant of the matrix of orbital overlaps
-          afac(i,j)=determinant(Sa)
-          
+          ! Hadamard-inequality screening
+          ubound=hadamard_bound(Sa,nalpha)
+          if (ubound.gt.1e-6_dp) then
+             ! Determinant of the matrix of orbital overlaps
+             afac(i,j)=determinant(Sa)
+          endif
+
+!          ! Determinant of the matrix of orbital overlaps
+!          afac(i,j)=determinant(Sa)
+
        enddo
 
     enddo
     
     !$omp end parallel do
-    
+
 !----------------------------------------------------------------------
 ! Calculate the unique beta factors
 !----------------------------------------------------------------------
@@ -966,25 +1021,73 @@ contains
              enddo
           enddo
 
-          ! Determinant of the matrix of orbital overlaps
-          bfac(i,j)=determinant(Sb)
+          ! Hadamard-inequality screening
+          ubound=hadamard_bound(Sb,nbeta)
+          if (ubound.gt.1e-6_dp) then
+             ! Determinant of the matrix of orbital overlaps
+             bfac(i,j)=determinant(Sb)
+          endif
           
+!          ! Determinant of the matrix of orbital overlaps
+!          bfac(i,j)=determinant(Sb)
+
        enddo
 
     enddo
 
     !$omp end parallel do
+
+!    bfac=afac
     
 !----------------------------------------------------------------------
 ! Deallocate arrays
 !----------------------------------------------------------------------
     deallocate(Sa)
     deallocate(Sb)
+
+!-----------------------------------------------------------------------    
+! Output timings
+!-----------------------------------------------------------------------    
+    call times(tw2,tc2)
+    write(ilog,'(/,2x,a,1x,F9.2,1x,a)') 'Wall Time For Unique Factors:'&
+         ,tw2-tw1," s"
+    write(ilog,'(2x,a,2x,F9.2,1x,a)') 'CPU Time For Unique Factors:',&
+         tc2-tc1," s"
     
     return
     
   end subroutine get_unique_factors
+
+!#####################################################################
+
+  function hadamard_bound(mat,dim) result(func)
+
+    use constants
     
+    implicit none
+
+    integer, intent(in)                      :: dim
+    integer                                  :: i
+    real(dp), dimension(dim,dim), intent(in) :: mat
+    real(dp), dimension(dim)                 :: norm
+    real(dp)                                 :: func
+
+    ! Norms of the columns of the matrix
+    do i=1,dim
+       norm(i)=dot_product(mat(:,i),mat(:,i))
+    enddo
+    norm=sqrt(norm)
+
+    ! Hadamard upper bound for the determinant of the matrix
+    func=1.0d0
+    do i=1,dim
+       func=func*norm(i)
+    enddo
+    
+    return
+    
+  end function hadamard_bound
+  
 !#####################################################################
 ! Calculate 1-particle overlap for all spin-orbitals in a given pair 
 ! of determinants.
