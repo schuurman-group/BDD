@@ -12,6 +12,7 @@ contains
 
     use constants
     use iomod
+    use parsemod
     
     implicit none
 
@@ -26,7 +27,7 @@ contains
     nlines=nlines+1
     goto 5
 10  continue
-    
+
     close(unit)
     
     return

@@ -5,14 +5,24 @@
 #
 # gfortran
 #
-F90	= gfortran
-F77	= gfortran
-CC	= gcc
-F90OPTS = -cpp -g -ffixed-line-length-none -ffree-line-length-none -fopenmp -O3 -fbacktrace
+#F90	= gfortran
+#F77	= gfortran
+#CC	= gcc
+#F90OPTS = -cpp -g -ffixed-line-length-none -ffree-line-length-none -fopenmp -O3 -fbacktrace
+#CCOPTS  = -g -O0
+
+#
+# ifort
+#
+F90	 = ifort
+F77	 = ifort
+CC	 = icc
+F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291
 CCOPTS  = -g -O0
 
 # External libraries
-LIBS= -lblas -llapack
+#LIBS= -lblas -llapack
+LIBS = -mkl
 
 #-----------------------------------------------------------------------
 # Define object files

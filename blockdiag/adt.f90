@@ -2,7 +2,7 @@
 ! adt: routines for the calculation of the quasi-diabatic potential
 !      matrix
 !######################################################################
-module adt
+module adtmod
 
   implicit none
   
@@ -160,4 +160,4 @@ contains
     
 !######################################################################
   
-end module adt
+end module adtmod

@@ -16,7 +16,7 @@ program blockdiag
   use constants
   use channels
   use overlaps
-  use adt
+  use adtmod
   use bdglobal
   use timingmod
   
@@ -613,10 +613,24 @@ contains
     use parsemod
     use bdglobal
     use utils
+    use timingmod
     
     implicit none
 
-    integer :: i,k,n,idet
+    integer  :: i,k,n,idet
+    real(dp) :: tw1,tw2,tc1,tc2
+
+!----------------------------------------------------------------------
+! Output what we are doing
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Parsing the determinant files'
+    write(ilog,'(82a)') ('+',i=1,82)
+    
+!-----------------------------------------------------------------------
+! Start timing
+!-----------------------------------------------------------------------
+    call times(tw1,tc1)
     
 !-----------------------------------------------------------------------
 ! First pass: determine the no. determinants for each file
@@ -663,7 +677,6 @@ contains
              read(keyword(n),*) det_ref(n-1,k,i)
           enddo          
        enddo
-       close(idet)
     enddo
     
     ! Displaced geometry
@@ -699,6 +712,15 @@ contains
        c_ref(:,i)=c_ref(:,i)/norm_ref(i)
        c_disp(:,i)=c_disp(:,i)/norm_disp(i)
     enddo
+
+!-----------------------------------------------------------------------    
+! Output timings
+!-----------------------------------------------------------------------    
+    call times(tw2,tc2)
+    write(ilog,'(/,2x,a,1x,F9.2,1x,a)') &
+         'Wall Time For Determinant Parsing:',tw2-tw1," s"
+    write(ilog,'(2x,a,2x,F9.2,1x,a)') &
+         'CPU Time For Determinant Parsing:',tc2-tc1," s"
     
     return
     
@@ -760,10 +782,20 @@ contains
 
     implicit none
 
-    integer                    :: i,n
-    integer, dimension(maxdet) :: indx
-    real(dp), parameter        :: thrsh=1e-8_dp
-    real(dp)                   :: ftmp1,ftmp2
+    integer               :: i,n
+    integer, allocatable  :: indx(:)
+    real(dp), parameter   :: thrsh=1e-8_dp
+    real(dp)              :: ftmp1,ftmp2
+    real(dp), allocatable :: absval(:)
+
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+    allocate(indx(maxdet))
+    indx=0
+
+    allocate(absval(maxdet))
+    absval=0.0d0
     
 !-----------------------------------------------------------------------
 ! Adjustment of the phases of the wavefunctions at both the reference
@@ -776,8 +808,9 @@ contains
        n=ndet_ref(i)
 
        ! Sort the absolute values of the coefficients for the current
-       ! wavefunction in ascending order 
-       call dsortindxa1('D',n,abs(c_ref(1:n,i)),indx(1:n))
+       ! wavefunction in ascending order
+       absval=abs(c_ref(:,i))
+       call dsortindxa1('D',n,absval(1:n),indx(1:n))
        
        ! Adjust the phase of the wavefunction if the largest
        ! coefficient is not positive
@@ -802,8 +835,9 @@ contains
        n=ndet_disp(i)
 
        ! Sort the absolute values of the coefficients for the current
-       ! wavefunction in ascending order 
-       call dsortindxa1('D',n,abs(c_disp(1:n,i)),indx(1:n))
+       ! wavefunction in ascending order
+       absval=abs(c_disp(:,i))
+       call dsortindxa1('D',n,absval(1:n),indx(1:n))
 
        ! Adjust the phase of the wavefunction if the largest
        ! coefficient is not positive
@@ -820,6 +854,12 @@ contains
        endif
        
     enddo
+
+!-----------------------------------------------------------------------
+! Deallocate arrays
+!-----------------------------------------------------------------------
+    deallocate(indx)
+    deallocate(absval)
     
     return
     

@@ -184,7 +184,7 @@ contains
     integer               :: i,j,m,k,nthreads,tid,iad,ibd,iar,ibr
     real(dp), allocatable :: spsi_1thread(:,:,:)
     real(dp)              :: tw1,tw2,tc1,tc2
-    
+
 !-----------------------------------------------------------------------
 ! Number of threads
 !-----------------------------------------------------------------------  
@@ -242,6 +242,7 @@ contains
        do j=1,nsta
 
           !$omp parallel do &
+          !$omp& firstprivate(i,j) &
           !$omp& private(m,k,iad,ibd,iar,ibr,tid) &
           !$omp& shared(ndet_ref,ndet_disp,afac,bfac,ia_disp,ib_disp,&
           !$omp&        ia_ref,ib_ref,c_ref,c_disp,spsi_1thread)
@@ -403,7 +404,7 @@ contains
 
           ! Accumulate the contributions from each thread
           spsi(i,j)=sum(spsi_1thread(i,j,:))
-          
+
           ! Table entry
           write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
           
@@ -817,7 +818,7 @@ contains
     enddo
 
 !----------------------------------------------------------------------  
-! Assign working alpha string indices to all of the determinants
+! Assign working alpha/beta string indices to all of the determinants
 ! for all ref. states
 !----------------------------------------------------------------------  
     allocate(string(nspin,nunique))
@@ -834,17 +835,17 @@ contains
        ! State index for the current state/determinant pair
        istate=info(k1,2)
 
-       ! Are we at the start of a new unique alpha string?
+       ! Are we at the start of a new unique alpha/beta string?
        if (ilbl_all(k1).ne.last) then
-          ! If so, increment the unique alpha string counter and
-          ! fill in the nth unique alpha string
+          ! If so, increment the unique alpha/beta string counter and
+          ! fill in the nth unique alpha/beta string
           last=ilbl_all(k1)
           n=n+1
-          ! nth unique alpha string
+          ! nth unique alpha/beta string
           string(:,n)=iocc(:,idet,istate)
        endif
        
-       ! Index of the unique alpha string for the current
+       ! Index of the unique alpha/beta string for the current
        ! state/determinant pair
        iunique(idet,istate)=n
 
@@ -960,11 +961,6 @@ contains
     ! Loop over unique ref. state alpha strings
     do i=1,na_ref
        
-!       ! Output our progress
-!       tid=omp_get_thread_num()
-!       if (tid.eq.0) write(6,'(2x,i0,a,i0)') &
-!            i,'/',ceiling(real(na_ref)/real(nthreads))
-       
        ! Loop over unique disp. state alpha strings
        do j=1,na_disp
 
@@ -981,11 +977,8 @@ contains
           ubound=hadamard_bound(Sa,nalpha)
           if (ubound.gt.1e-6_dp) then
              ! Determinant of the matrix of orbital overlaps
-             afac(i,j)=determinant(Sa)
+             afac(i,j)=determinant_new(Sa,nalpha)
           endif
-
-!          ! Determinant of the matrix of orbital overlaps
-!          afac(i,j)=determinant(Sa)
 
        enddo
 
@@ -1004,11 +997,6 @@ contains
     ! Loop over unique ref. state beta strings
     do i=1,nb_ref
 
-!       ! Output our progress
-!       tid=omp_get_thread_num()
-!       if (tid.eq.0) write(6,'(2x,i0,a,i0)') &
-!            i,'/',ceiling(real(nb_ref)/real(nthreads))
-       
        ! Loop over unique disp. state beta strings
        do j=1,nb_disp
 
@@ -1025,12 +1013,9 @@ contains
           ubound=hadamard_bound(Sb,nbeta)
           if (ubound.gt.1e-6_dp) then
              ! Determinant of the matrix of orbital overlaps
-             bfac(i,j)=determinant(Sb)
+             bfac(i,j)=determinant_new(Sb,nbeta)
           endif
           
-!          ! Determinant of the matrix of orbital overlaps
-!          bfac(i,j)=determinant(Sb)
-
        enddo
 
     enddo
@@ -1180,8 +1165,8 @@ contains
   end function determinant_overlap
     
 !######################################################################
-! determinant: Calculates the determinant of a sqaure matrix.
-!              Taken from superdyson.
+! determinant: Calculates the determinant of a sqaure matrix using
+!              Gaussian elimination.
 !######################################################################
 
   real(dp) function determinant(mat)
@@ -1189,23 +1174,57 @@ contains
     use constants
     
     real(dp), intent(inout) :: mat(:,:) ! Matrix destroyed on exit
-    integer                 :: order, info
+    integer                 :: order,info
     integer                 :: ipvt(size(mat,dim=1))
+    integer                 :: i
     real(dp)                :: work(size(mat,dim=1))
     real(dp)                :: detx(2)
-      
+    
     order = size(mat,dim=1)
-    if (order==0) stop 'null matrix passed to determinant'
-    
-    call dgefa(mat,order,order,ipvt,info)
-    
+
+    call dgefa(mat,order,order,ipvt,info)    
+
     call dgedi(mat,order,order,ipvt,detx,work,10)
-    
+
     determinant = detx(1) * 10.0d0**detx(2)
     
     return
 
   end function determinant
+
+!######################################################################
+
+  function determinant_new(mat,dim) result(detval)
+
+    use constants
+
+    implicit none
+
+    integer, intent(in)     :: dim
+    integer                 :: order,info
+    integer                 :: ipvt(dim)
+    real(dp)                :: detval
+    real(dp), intent(inout) :: mat(dim,dim)
+    real(dp)                :: tmp(dim,dim)
+    real(dp)                :: work(dim)
+    real(dp)                :: detx(2)
+
+!----------------------------------------------------------------------
+! The input matrix is overwritten in dgefa/dgedi, so use a copy
+!----------------------------------------------------------------------
+    tmp=mat
+
+!----------------------------------------------------------------------
+! Calculate the determinant of the input matrix using Gaussian
+! elimination
+!----------------------------------------------------------------------
+    call dgefa(tmp,dim,dim,ipvt,info)
+    call dgedi(tmp,dim,dim,ipvt,detx,work,10)
+    detval=detx(1)*10.0d0**detx(2)
+    
+    return
+    
+  end function determinant_new
   
 !######################################################################
   
