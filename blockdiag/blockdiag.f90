@@ -539,8 +539,12 @@ contains
     deallocate(adt)
     deallocate(c_ref)
     deallocate(c_disp)
-    deallocate(det_ref)
-    deallocate(det_disp)
+    if (allocated(det_ref)) deallocate(det_ref)
+    if (allocated(det_disp)) deallocate(det_disp)
+    deallocate(iocca_ref)
+    deallocate(ioccb_ref)
+    deallocate(iocca_disp)
+    deallocate(ioccb_disp)
     
     return
     
@@ -615,16 +619,14 @@ contains
 
     use constants
     use iomod
-    use parsemod
     use bdglobal
-    use utils
     use timingmod
     
     implicit none
 
-    integer  :: i,k,n,idet
+    integer  :: i,k,n,idet,ilbl
     real(dp) :: tw1,tw2,tc1,tc2
-
+    
 !----------------------------------------------------------------------
 ! Output what we are doing
 !----------------------------------------------------------------------
@@ -636,7 +638,79 @@ contains
 ! Start timing
 !-----------------------------------------------------------------------
     call times(tw1,tc1)
+
+!-----------------------------------------------------------------------
+! Try to determine whether we have binary or ascii determinant files.
+! We are here assuming that binary files have a .bin file extension, as
+! is the case for binary determinant files written by the mrci code.
+!-----------------------------------------------------------------------
+    ilbl=len_trim(adetref(1))
+    if (adetref(1)(ilbl-3:ilbl).eq.'.bin') then
+       lbinary=.true.
+    else
+       lbinary=.false.
+    endif
+
+!-----------------------------------------------------------------------
+! Call to the appropriate parsing routine
+!-----------------------------------------------------------------------
+    if (lbinary) then
+       call rddetfiles_binary
+    else
+       call rddetfiles_ascii
+    endif
+
+!-----------------------------------------------------------------------
+! Norms
+!-----------------------------------------------------------------------
+    ! Reference geometry
+    do i=1,nsta
+       norm_ref(i)=sqrt(sum(c_ref(:,i)**2))
+    enddo
+
+    ! Displaced geometry
+    do i=1,nsta
+       norm_disp(i)=sqrt(sum(c_disp(:,i)**2))
+    enddo
     
+!-----------------------------------------------------------------------
+! Normalisation of the wavefunctions
+! NOTE THAT THIS WAS TAKEN CARE OF BY THE LOWDIN ORTHOGONALISATION
+! OF THE OVERLAP MATRIX
+!-----------------------------------------------------------------------
+    do i=1,nsta
+       c_ref(:,i)=c_ref(:,i)/norm_ref(i)
+       c_disp(:,i)=c_disp(:,i)/norm_disp(i)
+    enddo
+
+!-----------------------------------------------------------------------    
+! Output timings
+!-----------------------------------------------------------------------    
+    call times(tw2,tc2)
+    write(ilog,'(/,2x,a,1x,F9.2,1x,a)') &
+         'Wall Time For Determinant Parsing:',tw2-tw1," s"
+    write(ilog,'(2x,a,2x,F9.2,1x,a)') &
+         'CPU Time For Determinant Parsing:',tc2-tc1," s"
+
+    return
+    
+  end subroutine rddetfiles
+
+!######################################################################
+
+  subroutine rddetfiles_ascii
+
+    use constants
+    use iomod
+    use parsemod
+    use bdglobal
+    use utils
+    use timingmod
+    
+    implicit none
+
+    integer  :: i,k,n,idet
+
 !-----------------------------------------------------------------------
 ! First pass: determine the no. determinants for each file
 !-----------------------------------------------------------------------
@@ -697,43 +771,152 @@ contains
        enddo
        close(idet)
     enddo
+    
+    return
+    
+  end subroutine rddetfiles_ascii
+
+!######################################################################
+
+  subroutine rddetfiles_binary
+
+    use constants
+    use iomod
+    use bdglobal
+    use timingmod
+    
+    implicit none
+
+    integer :: i,n,idet,nbeta_last,nalpha_last,itmp
 
 !-----------------------------------------------------------------------
-! Norms
+! First pass: read dimensions and allocate arrays
+!-----------------------------------------------------------------------
+    call freeunit(idet)
+
+    ! Reference geometry states
+    do i=1,nsta
+
+       ! Open the next determinant file
+       open(idet,file=adetref(i),form='unformatted',status='old')
+
+       ! Read in the no. determinants and the no. alpha and beta
+       ! electrons
+       read(idet) ndet_ref(i)
+       read(idet) nalpha
+       read(idet) nbeta
+
+       ! Check that the no. alpha and beta electrons is consistent
+       if (i.gt.1) then
+          if (nalpha.ne.nalpha_last.or.nbeta.ne.nbeta_last) then
+             errmsg='Inconsistent numbers of alpha and beta electrons'
+             call error_control
+          endif
+       endif
+
+       ! Reset nalpha_last and nbeta_last for the next iteration
+       nalpha_last=nalpha
+       nbeta_last=nbeta
+
+       ! Close the determinant file
+       close(idet)
+
+    enddo
+
+    ! Displaced geometry states
+    do i=1,nsta
+
+       ! Open the next determinant file
+       open(idet,file=adetdisp(i),form='unformatted',status='old')
+
+       ! Read in the no. determinants and the no. alpha and beta
+       ! electrons
+       read(idet) ndet_disp(i)
+       read(idet) nalpha
+       read(idet) nbeta
+
+       ! Check that the no. alpha and beta electrons is consistent
+       if (nalpha.ne.nalpha_last.or.nbeta.ne.nbeta_last) then
+          errmsg='Inconsistent numbers of alpha and beta electrons'
+          call error_control
+       endif
+       
+       ! Reset nalpha_last and nbeta_last for the next iteration
+       nalpha_last=nalpha
+       nbeta_last=nbeta
+
+       ! Close the determinant file
+       close(idet)
+
+    enddo
+
+    ! Maximum number of determinants
+    maxdet=max(maxval(ndet_ref),maxval(ndet_disp))
+
+    ! Number of MOs for the reference and displaced geometries (needed
+    ! elsewhere)
+    nmo_ref=gam_ref%nvectors
+    nmo_disp=gam_disp%nvectors
+    
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+    ! Indices of the occupied alpha and beta orbitals
+    allocate(iocca_ref(nalpha,maxdet,nsta))
+    allocate(ioccb_ref(nbeta,maxdet,nsta))
+    allocate(iocca_disp(nalpha,maxdet,nsta))
+    allocate(ioccb_disp(nbeta,maxdet,nsta))
+    iocca_ref=0
+    ioccb_ref=0
+    iocca_disp=0
+    ioccb_disp=0
+    
+    ! Coefficient vectors
+    allocate(c_ref(maxdet,nsta))
+    allocate(c_disp(maxdet,nsta))
+    c_ref=0.0d0
+    c_disp=0.0d0
+    
+!-----------------------------------------------------------------------
+! Read in the determinants (in terms of alpha and beta strings) and
+! coefficients
 !-----------------------------------------------------------------------
     ! Reference geometry
     do i=1,nsta
-       norm_ref(i)=sqrt(sum(c_ref(:,i)**2))
+       open(idet,file=adetref(i),form='unformatted',status='old')
+       read(idet) itmp
+       read(idet) itmp
+       read(idet) itmp
+       do n=1,ndet_ref(i)
+          read(idet) iocca_ref(:,n,i)
+       enddo
+       do n=1,ndet_ref(i)
+          read(idet) ioccb_ref(:,n,i)
+       enddo
+       read(idet) c_ref(1:ndet_ref(i),i)
+       close(idet)
     enddo
 
     ! Displaced geometry
     do i=1,nsta
-       norm_disp(i)=sqrt(sum(c_disp(:,i)**2))
-    enddo
-    
-!-----------------------------------------------------------------------
-! Normalisation of the wavefunctions
-! NOTE THAT THIS WAS TAKEN CARE OF BY THE LOWDIN ORTHOGONALISATION
-! OF THE OVERLAP MATRIX
-!-----------------------------------------------------------------------
-    do i=1,nsta
-       c_ref(:,i)=c_ref(:,i)/norm_ref(i)
-       c_disp(:,i)=c_disp(:,i)/norm_disp(i)
+       open(idet,file=adetdisp(i),form='unformatted',status='old')
+       read(idet) itmp
+       read(idet) itmp
+       read(idet) itmp
+       do n=1,ndet_disp(i)
+          read(idet) iocca_disp(:,n,i)
+       enddo
+       do n=1,ndet_disp(i)
+          read(idet) ioccb_disp(:,n,i)
+       enddo
+       read(idet) c_disp(1:ndet_disp(i),i)
+       close(idet)
     enddo
 
-!-----------------------------------------------------------------------    
-! Output timings
-!-----------------------------------------------------------------------    
-    call times(tw2,tc2)
-    write(ilog,'(/,2x,a,1x,F9.2,1x,a)') &
-         'Wall Time For Determinant Parsing:',tw2-tw1," s"
-    write(ilog,'(2x,a,2x,F9.2,1x,a)') &
-         'CPU Time For Determinant Parsing:',tc2-tc1," s"
-    
     return
     
-  end subroutine rddetfiles
-
+  end subroutine rddetfiles_binary
+    
 !######################################################################
 
   subroutine wrnorms
@@ -917,20 +1100,36 @@ contains
 
     call freeunit(idet)
 
-    do i=1,nsta
-
-       if (phfac(i).eq.1.0d0) cycle
-
-       open(idet,file=adetdisp(i),form='formatted',status='old')
-
-       do k=1,ndet_disp(i)
-          write(idet,fmt) -c_disp(k,i),(det_disp(n,k,i),n=1,nmo_disp)
+    if (lbinary) then
+       ! Binary determinant files
+       do i=1,nsta
+          if (phfac(i).eq.1.0d0) cycle
+          open(idet,file=adetdisp(i),form='unformatted',status='old')
+          write(idet) ndet_disp(i)
+          write(idet) nalpha
+          write(idet) nbeta
+          do n=1,ndet_disp(i)
+             write(idet) iocca_disp(:,n,i)
+          enddo
+          do n=1,ndet_disp(i)
+             write(idet) ioccb_disp(:,n,i)
+          enddo
+          write(idet) -c_disp(1:ndet_disp(i),i)
+          close(idet)
        enddo
-          
-       close(idet)
+    else
+       ! Ascii determinant files
+       do i=1,nsta
+          if (phfac(i).eq.1.0d0) cycle
+          open(idet,file=adetdisp(i),form='formatted',status='old')
+          do k=1,ndet_disp(i)
+             write(idet,fmt) -c_disp(k,i),(det_disp(n,k,i),n=1,nmo_disp)
+          enddo
+          close(idet)
+       enddo
+    endif
        
-    enddo
-    
+       
     return
     
   end subroutine rephase_new

@@ -13,7 +13,8 @@ module bdglobal
   ! Filenames
   character(len=120), allocatable :: adetref(:),adetdisp(:)
   character(len=120)              :: amosref,amosdisp
-
+  logical                         :: lbinary
+  
   ! Multigrid internal gamess derived data types
   type(gam_structure)             :: gam_ref,gam_disp
 

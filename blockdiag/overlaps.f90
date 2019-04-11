@@ -206,7 +206,7 @@ contains
 !----------------------------------------------------------------------
 ! Get the alpha and beta spinorbital indices for every determinant
 !----------------------------------------------------------------------
-    call alpha_beta_indices
+    if (.not.allocated(iocca_ref)) call alpha_beta_indices
 
 !----------------------------------------------------------------------
 ! Generate an integer label for every unique alpha and beta string
@@ -730,10 +730,6 @@ contains
 !----------------------------------------------------------------------
 ! Deallocate arrays that we no longer need
 !----------------------------------------------------------------------
-    deallocate(iocca_ref)
-    deallocate(ioccb_ref)
-    deallocate(iocca_disp)
-    deallocate(ioccb_disp)
     deallocate(ilbla_ref)
     deallocate(ilblb_ref)
     deallocate(ilbla_disp)
