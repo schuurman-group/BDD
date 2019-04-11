@@ -923,7 +923,9 @@ contains
     real(dp), allocatable :: Sa(:,:),Sb(:,:)
     real(dp)              :: ubound
     real(dp)              :: tw1,tw2,tc1,tc2
-
+    real(dp), parameter   :: dthrsh=1e-6_dp
+    logical               :: lequiv
+    
 !-----------------------------------------------------------------------
 ! Start timing
 !-----------------------------------------------------------------------
@@ -976,7 +978,7 @@ contains
 
           ! Hadamard-inequality screening
           ubound=hadamard_bound(Sa,nalpha)
-          if (ubound.gt.1e-6_dp) then
+          if (ubound.gt.dthrsh) then
              ! Determinant of the matrix of orbital overlaps
              afac(i,j)=determinant_new(Sa,nalpha)
           endif
@@ -990,41 +992,52 @@ contains
 !----------------------------------------------------------------------
 ! Calculate the unique beta factors
 !----------------------------------------------------------------------
-    !$omp parallel do &
-    !$omp& private(i,j,k,l,moket,mobra,Sb,tid) &
-    !$omp& shared(nb_ref,nb_disp,nbeta,stringb_ref,stringb_disp,&
-    !$omp&        smo,bfac)
+    ! Check to see if the sets of alpha and beta strings are
+    ! equivalent
+    lequiv=isequivab()
 
-    ! Loop over unique ref. state beta strings
-    do i=1,nb_ref
-
-       ! Loop over unique disp. state beta strings
-       do j=1,nb_disp
-
-          ! Matrix of orbital overlaps
-          do k=1,nbeta
-             moket=stringb_ref(k,i)
-             do l=1,nbeta
-                mobra=stringb_disp(l,j)
-                Sb(k,l)=smo(mobra,moket)
+    if (lequiv) then
+       ! The sets of unique alpha and beta strings are equivalent.
+       ! We can skip the calculation of the unique beta factors.
+       bfac=afac
+    else
+       ! The sets of unique alpha and beta strings are not equivalent.
+       ! We have to explicitly calculate the unique beta factors.
+       !
+       !$omp parallel do &
+       !$omp& private(i,j,k,l,moket,mobra,Sb,tid) &
+       !$omp& shared(nb_ref,nb_disp,nbeta,stringb_ref,stringb_disp,&
+       !$omp&        smo,bfac)
+       !
+       ! Loop over unique ref. state beta strings
+       do i=1,nb_ref
+          
+          ! Loop over unique disp. state beta strings
+          do j=1,nb_disp
+             
+             ! Matrix of orbital overlaps
+             do k=1,nbeta
+                moket=stringb_ref(k,i)
+                do l=1,nbeta
+                   mobra=stringb_disp(l,j)
+                   Sb(k,l)=smo(mobra,moket)
+                enddo
              enddo
+             
+             ! Hadamard-inequality screening
+             ubound=hadamard_bound(Sb,nbeta)
+             if (ubound.gt.dthrsh) then
+                ! Determinant of the matrix of orbital overlaps
+                bfac(i,j)=determinant_new(Sb,nbeta)
+             endif
+             
           enddo
-
-          ! Hadamard-inequality screening
-          ubound=hadamard_bound(Sb,nbeta)
-          if (ubound.gt.1e-6_dp) then
-             ! Determinant of the matrix of orbital overlaps
-             bfac(i,j)=determinant_new(Sb,nbeta)
-          endif
           
        enddo
-
-    enddo
-
-    !$omp end parallel do
-
-!    bfac=afac
-    
+       !
+       !$omp end parallel do
+    endif
+       
 !----------------------------------------------------------------------
 ! Deallocate arrays
 !----------------------------------------------------------------------
@@ -1073,6 +1086,50 @@ contains
     return
     
   end function hadamard_bound
+
+!#####################################################################
+
+  function isequivab()
+
+    use constants
+    use channels
+    use bdglobal
+    
+    implicit none
+
+    integer :: i,j
+    logical :: isequivab
+
+    ! Shortcut 1: The sets of unique alpha and beta strings are not
+    ! equivalent if the number of elements in each is not equal
+    if (na_disp.ne.nb_disp) then
+       isequivab=.false.
+       return
+    endif
+
+    ! Shortcut2: The sets of unique alpha and beta strings are not
+    ! equivalent if the numbers of alpha and beta electronc are
+    ! not equal
+    if (nalpha.ne.nbeta) then
+       isequivab=.false.
+       return
+    endif
+
+    ! Check on the equivalency of the sets of unique alpha and beta
+    ! strings
+    isequivab=.true.
+    do i=1,na_ref
+       do j=1,nalpha
+          if (stringa_disp(i,j).ne.stringb_disp(i,j)) then
+             isequivab=.false.
+             exit
+          endif
+       enddo
+    enddo
+    
+    return
+    
+  end function isequivab
   
 !#####################################################################
 ! Calculate 1-particle overlap for all spin-orbitals in a given pair 
