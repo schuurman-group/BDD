@@ -63,6 +63,7 @@ DISPLACE = displace/dispglobal.o \
 KDC = kdc/kdcglobal.o \
 	kdc/opermod.o \
 	kdc/parinfo.o \
+	kdc/fdmod.o \
 	kdc/kdc.o
 
 PLTKDC = pltkdc/pltglobal.o \
@@ -130,6 +131,7 @@ OBJ_KDC = constants.o \
 	kdcglobal.o \
 	opermod.o \
 	parinfo.o \
+	fdmod.o \
 	kdc.o
 
 OBJECTS_PLTKDC = $(INCLUDE) \

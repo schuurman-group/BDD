@@ -21,7 +21,7 @@ module kdcglobal
   ! Adiabatic potential at Q0
   real(dp), allocatable           :: q0pot(:)
   
-  ! Diabatic potential matrices at the displaces geometries
+  ! Diabatic potential matrices at the displaced geometries
   real(dp), allocatable           :: diabpot(:,:,:)
 
   ! Normal mode coordinates
@@ -32,5 +32,8 @@ module kdcglobal
   real(dp), allocatable           :: lambda(:,:,:)
   real(dp), allocatable           :: gamma(:,:,:)
   real(dp), allocatable           :: mu(:,:,:,:)
+
+  ! Parameterisation algorithm
+  integer                         :: ialgor
   
 end module kdcglobal
