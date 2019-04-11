@@ -156,9 +156,14 @@ contains
        
     enddo
 
-!-----------------------------------------------------------------------    
+!-----------------------------------------------------------------------
+! Lowdin orthogonalisation of the overlap matrix
+!-----------------------------------------------------------------------
+!    call lowdin_ortho
+    
+!-----------------------------------------------------------------------
 ! Output timings
-!-----------------------------------------------------------------------    
+!-----------------------------------------------------------------------
     call times(tw2,tc2)
     write(ilog,'(/,a,1x,F9.2,1x,a)') &
          'Total Wall Time For Wavefunction Overlaps:',tw2-tw1," s"
@@ -1225,6 +1230,44 @@ contains
     return
     
   end function determinant_new
+
+!######################################################################
+
+  subroutine lowdin_ortho
+
+    use constants
+    use channels
+    use bdglobal
+    use iomod
+    
+    implicit none
+
+    integer                        :: info,i
+    real(dp), dimension(nsta,nsta) :: tmp,umat,vtmat
+    real(dp), dimension(nsta)      :: sigma
+    real(dp), dimension(5*nsta)    :: work
+    
+!-----------------------------------------------------------------------
+! SVD of the wavefunction overlap matrix
+!-----------------------------------------------------------------------
+    tmp=spsi
+    call dgesvd('A','A',nsta,nsta,tmp,nsta,sigma,umat,nsta,vtmat,nsta,&
+         work,5*nsta,info)
+
+    ! Exit if the SVD failed
+    if (info.ne.0) then
+       errmsg='SVD failed in subroutine lowdin_ortho'
+       call error_control
+    endif
+
+!-----------------------------------------------------------------------
+! Compute the orthogonalised waverfunction overlap matrix
+!-----------------------------------------------------------------------
+    spsi=matmul(vtmat,umat)
+    
+    return
+    
+  end subroutine lowdin_ortho
   
 !######################################################################
   

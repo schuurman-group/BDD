@@ -75,11 +75,11 @@ program blockdiag
 !----------------------------------------------------------------------
   call wrnorms
   
-!----------------------------------------------------------------------
-! Adjust the phases of the wavefunctions to try and achieve
-! consistency across geometries
-!----------------------------------------------------------------------
-  call rephase
+!!----------------------------------------------------------------------
+!! Adjust the phases of the wavefunctions to try and achieve
+!! consistency across geometries
+!!----------------------------------------------------------------------
+!  call rephase
   
 !----------------------------------------------------------------------
 ! Calculate the overlaps between the MOs at the reference and
@@ -92,6 +92,11 @@ program blockdiag
 ! referenceand displaced geometries
 !----------------------------------------------------------------------
   call psi_overlaps
+
+!----------------------------------------------------------------------
+! New rephasing algorithm
+!----------------------------------------------------------------------
+  call rephase_new
 
 !----------------------------------------------------------------------
 ! Optional transformation of the reference geometry wavefunctions
@@ -677,6 +682,7 @@ contains
              read(keyword(n),*) det_ref(n-1,k,i)
           enddo          
        enddo
+       close(idet)
     enddo
     
     ! Displaced geometry
@@ -707,6 +713,8 @@ contains
     
 !-----------------------------------------------------------------------
 ! Normalisation of the wavefunctions
+! NOTE THAT THIS WAS TAKEN CARE OF BY THE LOWDIN ORTHOGONALISATION
+! OF THE OVERLAP MATRIX
 !-----------------------------------------------------------------------
     do i=1,nsta
        c_ref(:,i)=c_ref(:,i)/norm_ref(i)
@@ -864,6 +872,68 @@ contains
     return
     
   end subroutine rephase
+
+!######################################################################
+
+  subroutine rephase_new
+
+    use constants
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer                   :: i,j,k,n,idet
+    real(dp), dimension(nsta) :: phfac
+    character(len=128)        :: fmt
+
+!-----------------------------------------------------------------------
+! Try to determine if the phase of a wavefunction has switched from the
+! ref. geometry
+!-----------------------------------------------------------------------    
+    phfac=1.0d0
+    do i=1,nsta
+       do j=1,nsta
+          if (abs(spsi(i,j)).gt.0.8d0) then
+             if (spsi(i,j).lt.0.0d0) phfac(i)=-1.0d0
+          endif
+       enddo
+    enddo
+
+!-----------------------------------------------------------------------
+! Re-phase the overlap matrix elements.
+! Note that we are here assuming that the ref. states have the
+! 'correct' phase.
+!-----------------------------------------------------------------------
+    do i=1,nsta
+       spsi(i,:)=phfac(i)*spsi(i,:)
+    enddo
+
+!-----------------------------------------------------------------------
+! Re-write the disp. state determinant files with the 'correct', i.e.,
+! consistent, phases
+!-----------------------------------------------------------------------
+    write(fmt,'(a,i4,a)')'(ES15.8,',nmo_disp,'i5)'
+
+    call freeunit(idet)
+
+    do i=1,nsta
+
+       if (phfac(i).eq.1.0d0) cycle
+
+       open(idet,file=adetdisp(i),form='formatted',status='old')
+
+       do k=1,ndet_disp(i)
+          write(idet,fmt) -c_disp(k,i),(det_disp(n,k,i),n=1,nmo_disp)
+       enddo
+          
+       close(idet)
+       
+    enddo
+    
+    return
+    
+  end subroutine rephase_new
     
 !######################################################################
 
@@ -900,7 +970,7 @@ contains
 !-----------------------------------------------------------------------
 ! Transformation of the wavefunction overlap matrix
 !-----------------------------------------------------------------------
-    tmparr=matmul(spsi,reftrans)
+    tmparr=matmul(spsi,transpose(reftrans))
     spsi=tmparr
     
     return
@@ -990,7 +1060,7 @@ contains
 ! have already been transformed using the reftrans transformation.
 ! i.e., we only need to transform the disp. wavefunctions
 !----------------------------------------------------------------------
-    tau=matmul(transpose(adt),spsi)
+    tau=matmul(adt,spsi)
     
 !----------------------------------------------------------------------
 ! Analysis of the ref. - disp. quasi-diabatic wavefunction overlap
@@ -1081,7 +1151,7 @@ contains
 !----------------------------------------------------------------------
 ! Calculate the quasi-diabatic potential matrix
 !----------------------------------------------------------------------
-    Wmat=matmul(transpose(adt),matmul(Vmat,adt))
+    Wmat=matmul(adt,matmul(Vmat,transpose(adt)))
     
 !----------------------------------------------------------------------
 ! Write the quasi-diabatic potential matrix to the log file
