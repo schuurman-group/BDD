@@ -15,7 +15,8 @@ program blockdiag
 
   use constants
   use channels
-  use overlaps
+  use mooverlaps
+  use wfoverlaps
   use adtmod
   use bdglobal
   use timingmod
@@ -68,18 +69,12 @@ program blockdiag
 ! Read in the determinant files
 !----------------------------------------------------------------------
   call rddetfiles
-
+  
 !----------------------------------------------------------------------
 ! Write the norms of the reference and displaced geometry
 ! wavefunctions to the log file
 !----------------------------------------------------------------------
   call wrnorms
-  
-!!----------------------------------------------------------------------
-!! Adjust the phases of the wavefunctions to try and achieve
-!! consistency across geometries
-!!----------------------------------------------------------------------
-!  call rephase
   
 !----------------------------------------------------------------------
 ! Calculate the overlaps between the MOs at the reference and
@@ -91,12 +86,15 @@ program blockdiag
 ! Calculate the overlaps between the electronic states at the
 ! referenceand displaced geometries
 !----------------------------------------------------------------------
-  call psi_overlaps
+  call psi_overlaps(spsi,nsta,nalpha,nbeta,ndet_disp,ndet_ref,&
+                    nmo_disp,nmo_ref,maxdet,c_disp,c_ref,&
+                    det_disp,det_ref,iocca_disp,iocca_ref,&
+                    ioccb_disp,ioccb_ref,ioverlap,smo)
 
 !----------------------------------------------------------------------
 ! New rephasing algorithm
 !----------------------------------------------------------------------
-  call rephase_new
+  call rephase
 
 !----------------------------------------------------------------------
 ! Optional transformation of the reference geometry wavefunctions
@@ -771,11 +769,146 @@ contains
        enddo
        close(idet)
     enddo
+
+!----------------------------------------------------------------------
+! Get the alpha and beta spinorbital indices for every determinant
+!----------------------------------------------------------------------
+    call alpha_beta_indices
     
     return
     
   end subroutine rddetfiles_ascii
 
+!######################################################################
+
+  subroutine alpha_beta_indices
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer :: imo,nar,nad,nbr,nbd,na,nb
+    integer :: i,k
+    
+!-----------------------------------------------------------------------
+! Determine the no. alpha and beta spinorbitals
+!-----------------------------------------------------------------------
+    ! Ref. States
+    nar=0
+    nbr=0
+    do imo=1,nmo_ref
+       if (det_ref(imo,1,1).eq.2) then
+          nar=nar+1
+          nbr=nbr+1
+       else if (det_ref(imo,1,1).eq.+1) then
+          nar=nar+1
+       else if (det_ref(imo,1,1).eq.-1) then
+          nbr=nbr+1
+       endif
+    enddo
+
+    ! Disp. states
+    nad=0
+    nbd=0
+    do imo=1,nmo_disp
+       if (det_disp(imo,1,1).eq.2) then
+          nad=nad+1
+          nbd=nbd+1
+       else if (det_disp(imo,1,1).eq.+1) then
+          nad=nad+1
+       else if (det_disp(imo,1,1).eq.-1) then
+          nbd=nbd+1
+       endif
+    enddo
+
+    ! Exit if the numbers of alpha and beta electrons in the ref. and
+    ! disp. states is not consistent
+    if (nar.ne.nad.or.nbr.ne.nbd) then
+       errmsg='Inconsistent numbers of alpha and beta electrons in &
+            the ref. and disp. states'
+       call error_control
+    endif
+
+    ! Set the number of alpha and beta spinorbitals
+    nalpha=nar
+    nbeta=nbr
+
+!-----------------------------------------------------------------------
+! Allocate and initialise the spinorbital index arrays
+!-----------------------------------------------------------------------
+    allocate(iocca_ref(nalpha,maxdet,nsta))
+    allocate(ioccb_ref(nbeta,maxdet,nsta))
+    allocate(iocca_disp(nalpha,maxdet,nsta))
+    allocate(ioccb_disp(nbeta,maxdet,nsta))
+    iocca_ref=0
+    ioccb_ref=0
+    iocca_disp=0
+    ioccb_disp=0
+
+!-----------------------------------------------------------------------
+! Fill in the spinorbital index arrays
+!-----------------------------------------------------------------------
+    ! Ref. states
+    !
+    ! Loop over states
+    do i=1,nsta
+       ! Loop over determinants
+       do k=1,ndet_ref(i)
+          ! Fill in the spinorbital indicies for the current
+          ! determinant
+          na=0
+          nb=0
+          do imo=1,nmo_ref
+             if (det_ref(imo,k,i).eq.2) then
+                na=na+1
+                nb=nb+1
+                iocca_ref(na,k,i)=imo
+                ioccb_ref(nb,k,i)=imo
+             else if (det_ref(imo,k,i).eq.+1) then
+                na=na+1
+                iocca_ref(na,k,i)=imo
+             else if (det_ref(imo,k,i).eq.-1) then
+                nb=nb+1
+                ioccb_ref(nb,k,i)=imo
+             endif
+          enddo
+       enddo
+    enddo
+
+    ! Disp. states
+    !
+    ! Loop over states
+    do i=1,nsta
+       ! Loop over determinants
+       do k=1,ndet_disp(i)
+          ! Fill in the spinorbital indicies for the current
+          ! determinant
+          na=0
+          nb=0
+          do imo=1,nmo_disp
+             if (det_disp(imo,k,i).eq.2) then
+                na=na+1
+                nb=nb+1
+                iocca_disp(na,k,i)=imo
+                ioccb_disp(nb,k,i)=imo
+             else if (det_disp(imo,k,i).eq.+1) then
+                na=na+1
+                iocca_disp(na,k,i)=imo
+             else if (det_disp(imo,k,i).eq.-1) then
+                nb=nb+1
+                ioccb_disp(nb,k,i)=imo
+             endif
+          enddo
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine alpha_beta_indices
+  
 !######################################################################
 
   subroutine rddetfiles_binary
@@ -969,100 +1102,6 @@ contains
     use constants
     use iomod
     use bdglobal
-    use utils
-
-    implicit none
-
-    integer               :: i,n
-    integer, allocatable  :: indx(:)
-    real(dp), parameter   :: thrsh=1e-8_dp
-    real(dp)              :: ftmp1,ftmp2
-    real(dp), allocatable :: absval(:)
-
-!-----------------------------------------------------------------------
-! Allocate arrays
-!-----------------------------------------------------------------------
-    allocate(indx(maxdet))
-    indx=0
-
-    allocate(absval(maxdet))
-    absval=0.0d0
-    
-!-----------------------------------------------------------------------
-! Adjustment of the phases of the wavefunctions at both the reference
-! and displaced geometries
-!-----------------------------------------------------------------------
-    ! Reference geometry wavefunctions
-    do i=1,nsta
-
-       ! Number of determinants for the current wavefunction
-       n=ndet_ref(i)
-
-       ! Sort the absolute values of the coefficients for the current
-       ! wavefunction in ascending order
-       absval=abs(c_ref(:,i))
-       call dsortindxa1('D',n,absval(1:n),indx(1:n))
-       
-       ! Adjust the phase of the wavefunction if the largest
-       ! coefficient is not positive
-       if (c_ref(indx(1),i).lt.0.0d0) c_ref(:,i)=-c_ref(:,i)
-       
-       ! Sanity check: exit here if the two leading coefficients are
-       ! equal in magnitude but oposite in sign
-       ftmp1=sign(1.0d0,c_ref(indx(1),i))*sign(1.0d0,c_ref(indx(2),i))
-       ftmp2=abs(c_ref(indx(1),i))-abs(c_ref(indx(2),i))
-       if (ftmp1.lt.0.0d0.and.ftmp2.le.thrsh) then
-          errmsg='Something terrible has happened in subroutine &
-               rephase...'
-          call error_control
-       endif
-       
-    enddo
-    
-    ! Displaced geometry wavefunctions
-    do i=1,nsta
-
-       ! Number of determinants for the current wavefunction
-       n=ndet_disp(i)
-
-       ! Sort the absolute values of the coefficients for the current
-       ! wavefunction in ascending order
-       absval=abs(c_disp(:,i))
-       call dsortindxa1('D',n,absval(1:n),indx(1:n))
-
-       ! Adjust the phase of the wavefunction if the largest
-       ! coefficient is not positive
-       if (c_disp(indx(1),i).lt.0.0d0) c_disp(:,i)=-c_disp(:,i)
-       
-       ! Sanity check: exit here if the two leading coefficients are
-       ! equal in magnitude but oposite in sign
-       ftmp1=sign(1.0d0,c_disp(indx(1),i))*sign(1.0d0,c_disp(indx(2),i))
-       ftmp2=abs(c_disp(indx(1),i))-abs(c_disp(indx(2),i))
-       if (ftmp1.lt.0.0d0.and.ftmp2.le.thrsh) then
-          errmsg='Something terrible has happened in subroutine &
-               rephase...'
-          call error_control
-       endif
-       
-    enddo
-
-!-----------------------------------------------------------------------
-! Deallocate arrays
-!-----------------------------------------------------------------------
-    deallocate(indx)
-    deallocate(absval)
-    
-    return
-    
-  end subroutine rephase
-
-!######################################################################
-
-  subroutine rephase_new
-
-    use constants
-    use iomod
-    use bdglobal
     
     implicit none
 
@@ -1132,7 +1171,7 @@ contains
        
     return
     
-  end subroutine rephase_new
+  end subroutine rephase
     
 !######################################################################
 

@@ -647,6 +647,7 @@ contains
     use constants
     use kdcglobal
     use fdmod
+    use nmeqmod
     
     implicit none
 
@@ -655,8 +656,7 @@ contains
        call get_coefficients_fd
     else if (ialgor.eq.2) then
        ! Normal equations fitting
-       print*,"HERE"
-       stop
+       call get_coefficients_nmeq
     endif
     
     return

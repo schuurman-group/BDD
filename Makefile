@@ -54,7 +54,8 @@ SYMMETRY=symmetry/symmetry.o
 
 BLOCKDIAG = blockdiag/bdglobal.o \
 	blockdiag/adt.o \
-	blockdiag/overlaps.o \
+	blockdiag/mooverlaps.o \
+	blockdiag/wfoverlaps.o \
 	blockdiag/blockdiag.o
 
 DISPLACE = displace/dispglobal.o \
@@ -64,6 +65,7 @@ KDC = kdc/kdcglobal.o \
 	kdc/opermod.o \
 	kdc/parinfo.o \
 	kdc/fdmod.o \
+	kdc/nmeqmod.o \
 	kdc/kdc.o
 
 PLTKDC = pltkdc/pltglobal.o \
@@ -92,7 +94,8 @@ OBJ_BLOCKDIAG = accuracy.o \
 	utils.o \
 	bdglobal.o \
 	adt.o \
-	overlaps.o \
+	mooverlaps.o \
+	wfoverlaps.o \
 	blockdiag.o
 
 OBJECTS_DISPLACE = $(INCLUDE) \
@@ -132,6 +135,7 @@ OBJ_KDC = constants.o \
 	opermod.o \
 	parinfo.o \
 	fdmod.o \
+	nmeqmod.o \
 	kdc.o
 
 OBJECTS_PLTKDC = $(INCLUDE) \
