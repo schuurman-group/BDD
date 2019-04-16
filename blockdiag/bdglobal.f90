@@ -6,7 +6,8 @@ module bdglobal
   implicit none
 
   ! Dimensions
-  integer                         :: nsta,maxdet,nmo_ref,nmo_disp,&
+  integer                         :: nsta,nsta_disp,nsta_ref,&
+                                     maxdet,nmo_ref,nmo_disp,&
                                      nel
   integer, allocatable            :: ndet_ref(:),ndet_disp(:)
   
@@ -43,7 +44,7 @@ module bdglobal
   real(dp), allocatable           :: spsi(:,:)
   
   ! Adiabatic potential matrix
-  real(dp), allocatable           :: Vmat(:,:)
+  real(dp), allocatable           :: Vmat(:,:),Vmat1(:,:)
 
   ! Diabatic potential matrix
   real(dp), allocatable           :: Wmat(:,:)

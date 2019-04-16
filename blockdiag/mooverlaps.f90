@@ -45,11 +45,11 @@ contains
     nao_disp=gam_disp%nbasis
 
     ! AO overlap matrix
-    allocate(sao(nao_ref,nao_disp))
+    allocate(sao(nao_disp,nao_ref))
     sao=0.0d0
     
     ! MO overlap matrix
-    allocate(smo(nmo_ref,nmo_disp))
+    allocate(smo(nmo_disp,nmo_ref))
     smo=0.0d0
     
     ! AO-to-MO transformation matrices

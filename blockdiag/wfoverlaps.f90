@@ -27,9 +27,9 @@ contains
 
 !######################################################################
 
-  subroutine psi_overlaps(spsi,nsta,nalpha,nbeta,ndet_bra,ndet_ket,&
-       nmo_bra,nmo_ket,maxdet,c_bra,c_ket,det_bra,det_ket,iocca_bra,&
-       iocca_ket,ioccb_bra,ioccb_ket,ioverlap,smo)
+  subroutine psi_overlaps(spsi,nsta_bra,nsta_ket,nalpha,nbeta,&
+       ndet_bra,ndet_ket,nmo_bra,nmo_ket,maxdet,c_bra,c_ket,&
+       iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,ioverlap,smo)
 
     use constants
     use channels
@@ -38,29 +38,18 @@ contains
     
     implicit none
 
-    integer, intent(in)  :: nsta,nalpha,nbeta,nmo_bra,nmo_ket,maxdet,&
-                            ioverlap
-    integer, intent(in)  :: ndet_bra(nsta),ndet_ket(nsta)
-    integer              :: i,j
-    real(dp)             :: spsi(nsta,nsta)
-    integer, intent(in)  :: det_bra(nmo_bra,maxdet,nsta)
-    integer, intent(in)  :: det_ket(nmo_ket,maxdet,nsta)
-    integer, intent(in)  :: iocca_bra(nalpha,maxdet,nsta)
-    integer, intent(in)  :: iocca_ket(nalpha,maxdet,nsta)
-    integer, intent(in)  :: ioccb_bra(nbeta,maxdet,nsta)
-    integer, intent(in)  :: ioccb_ket(nbeta,maxdet,nsta)
-    real(dp), intent(in) :: c_bra(maxdet,nsta),c_ket(maxdet,nsta)
+    integer, intent(in)  :: nsta_bra,nsta_ket,nalpha,nbeta,nmo_bra,&
+                            nmo_ket,maxdet,ioverlap
+    integer, intent(in)  :: ndet_bra(nsta_bra),ndet_ket(nsta_ket)
+    real(dp)             :: spsi(nsta_bra,nsta_ket)
+    integer, intent(in)  :: iocca_bra(nalpha,maxdet,nsta_bra)
+    integer, intent(in)  :: iocca_ket(nalpha,maxdet,nsta_ket)
+    integer, intent(in)  :: ioccb_bra(nbeta,maxdet,nsta_bra)
+    integer, intent(in)  :: ioccb_ket(nbeta,maxdet,nsta_ket)
+    real(dp), intent(in) :: c_bra(maxdet,nsta_bra),&
+                            c_ket(maxdet,nsta_ket)
     real(dp), intent(in) :: smo(nmo_bra,nmo_ket)
-    real(dp), parameter  :: ovrthrsh=0.5d0
     real(dp)             :: tw1,tw2,tc1,tc2
-    logical              :: lovrlp
-    
-!----------------------------------------------------------------------
-! Output what we are doing
-!----------------------------------------------------------------------
-    write(ilog,'(/,82a)') ('+',i=1,82)
-    write(ilog,'(2x,a)') 'Calculating Adiabatic Wavefunction Overlaps'
-    write(ilog,'(82a)') ('+',i=1,82)
 
 !-----------------------------------------------------------------------
 ! Start timing
@@ -73,9 +62,9 @@ contains
 ! 2 <-> slow, but memory efficient
 !----------------------------------------------------------------------
     if (ioverlap.eq.1) then
-       call psi_overlaps_fast(spsi,nsta,nalpha,nbeta,ndet_bra,&
-            ndet_ket,nmo_bra,nmo_ket,maxdet,c_bra,c_ket,iocca_bra,&
-            iocca_ket,ioccb_bra,ioccb_ket,smo)
+       call psi_overlaps_fast(spsi,nsta_bra,nsta_ket,nalpha,nbeta,&
+            ndet_bra,ndet_ket,nmo_bra,nmo_ket,maxdet,c_bra,c_ket,&
+            iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,smo)
     else if (ioverlap.eq.2) then
        errmsg='The slow overlaps code needs re-writing to detach &
             it from the bdglobal module...'
@@ -83,32 +72,13 @@ contains
        !call psi_overlaps_slow
     endif
 
-!----------------------------------------------------------------------
-! Print out a warning if it looks like a state from outside the group
-! of interest has crossed in
-!----------------------------------------------------------------------
-    ! Loop over bra states
-    do i=1,nsta
-
-       lovrlp=.false.
-       
-       ! Loop over ket states
-       do j=1,nsta
-          if (abs(spsi(i,j)).ge.ovrthrsh) lovrlp=.true.
-       enddo
-       
-       if (.not.lovrlp) write(ilog,'(/,2x,a)') &
-            'WARNING: state crossing detected!'
-
-    enddo
-
 !-----------------------------------------------------------------------
 ! Output timings
 !-----------------------------------------------------------------------
     call times(tw2,tc2)
-    write(ilog,'(/,a,1x,F9.2,1x,a)') &
+    write(ilog,'(/,2x,a,1x,F9.2,1x,a)') &
          'Total Wall Time For Wavefunction Overlaps:',tw2-tw1," s"
-    write(ilog,'(a,2x,F9.2,1x,a)') &
+    write(ilog,'(2x,a,2x,F9.2,1x,a)') &
          'Total CPU Time For Wavefunction Overlaps:',tc2-tc1," s"
 
     return
@@ -117,9 +87,9 @@ contains
 
 !#####################################################################
 
-  subroutine psi_overlaps_fast(spsi,nsta,nalpha,nbeta,ndet_bra,&
-       ndet_ket,nmo_bra,nmo_ket,maxdet,c_bra,c_ket,iocca_bra,&
-       iocca_ket,ioccb_bra,ioccb_ket,smo)
+  subroutine psi_overlaps_fast(spsi,nsta_bra,nsta_ket,nalpha,nbeta,&
+       ndet_bra,ndet_ket,nmo_bra,nmo_ket,maxdet,c_bra,c_ket,&
+       iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,smo)
 
     use constants
     use channels
@@ -130,14 +100,16 @@ contains
 
    
     
-    integer, intent(in)   :: nsta,nalpha,nbeta,nmo_bra,nmo_ket,maxdet
-    integer, intent(in)   :: ndet_bra(nsta),ndet_ket(nsta)
-    integer, intent(in)   :: iocca_bra(nalpha,maxdet,nsta)
-    integer, intent(in)   :: iocca_ket(nalpha,maxdet,nsta)
-    integer, intent(in)   :: ioccb_bra(nbeta,maxdet,nsta)
-    integer, intent(in)   :: ioccb_ket(nbeta,maxdet,nsta)
-    real(dp)              :: spsi(nsta,nsta)
-    real(dp), intent(in)  :: c_bra(maxdet,nsta),c_ket(maxdet,nsta)
+    integer, intent(in)   :: nsta_bra,nsta_ket,nalpha,nbeta,nmo_bra,&
+                             nmo_ket,maxdet
+    integer, intent(in)   :: ndet_bra(nsta_bra),ndet_ket(nsta_ket)
+    integer, intent(in)   :: iocca_bra(nalpha,maxdet,nsta_bra)
+    integer, intent(in)   :: iocca_ket(nalpha,maxdet,nsta_ket)
+    integer, intent(in)   :: ioccb_bra(nbeta,maxdet,nsta_bra)
+    integer, intent(in)   :: ioccb_ket(nbeta,maxdet,nsta_ket)
+    real(dp)              :: spsi(nsta_bra,nsta_ket)
+    real(dp), intent(in)  :: c_bra(maxdet,nsta_bra),&
+                             c_ket(maxdet,nsta_ket)
     real(dp), intent(in)  :: smo(nmo_bra,nmo_ket)
     
     integer               :: i,j,m,k,nthreads,tid,iad,ibd,iar,ibr
@@ -154,20 +126,20 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
-    allocate(spsi_1thread(nsta,nsta,nthreads))
+    allocate(spsi_1thread(nsta_bra,nsta_ket,nthreads))
     spsi_1thread=0.0d0
 
 !----------------------------------------------------------------------
 ! Generate an integer label for every unique alpha and beta string
 !----------------------------------------------------------------------
-    call alpha_beta_labels(nsta,maxdet,nalpha,nbeta,ndet_bra,ndet_ket,&
-         iocca_bra,iocca_ket,ioccb_bra,ioccb_ket)
+    call alpha_beta_labels(nsta_bra,nsta_ket,maxdet,nalpha,nbeta,&
+         ndet_bra,ndet_ket,iocca_bra,iocca_ket,ioccb_bra,ioccb_ket)
 
 !----------------------------------------------------------------------
 ! Sort the alpha and beta strings
 !----------------------------------------------------------------------
-    call alpha_beta_sort(nsta,maxdet,nalpha,nbeta,ndet_bra,ndet_ket,&
-         iocca_bra,iocca_ket,ioccb_bra,ioccb_ket)
+    call alpha_beta_sort(nsta_bra,nsta_ket,maxdet,nalpha,nbeta,&
+         ndet_bra,ndet_ket,iocca_bra,iocca_ket,ioccb_bra,ioccb_ket)
 
 !----------------------------------------------------------------------
 ! Calculate the unique alpha and beta factors
@@ -180,22 +152,14 @@ contains
     call times(tw1,tc1)
     
 !----------------------------------------------------------------------
-! Table header
-!----------------------------------------------------------------------
-    write(ilog,'(/,47a)') ('-',i=1,47)
-    write(ilog,'(a)') '  Disp. State  |  Ref. State  |  Overlap'
-    write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
-    write(ilog,'(47a)') ('-',i=1,47)
-    
-!----------------------------------------------------------------------
 ! Calculate overlaps
 !----------------------------------------------------------------------
     spsi=0.0d0
 
     ! Loop bra states
-    do i=1,nsta
+    do i=1,nsta_bra
        ! Loop over ket states
-       do j=1,nsta
+       do j=1,nsta_ket
 
           !$omp parallel do &
           !$omp& firstprivate(i,j) &
@@ -236,14 +200,8 @@ contains
           ! Accumulate the contributions from each thread
           spsi(i,j)=sum(spsi_1thread(i,j,:))
           
-          ! Table entry
-          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
-          
        enddo
     enddo
-    
-    ! End of the table
-    write(ilog,'(47a)') ('-',i=1,47)
 
 !-----------------------------------------------------------------------    
 ! Output timings for the contraction step
@@ -381,22 +339,21 @@ contains
     
 !#####################################################################
 
-  subroutine alpha_beta_labels(nsta,maxdet,nalpha,nbeta,ndet_bra,&
-       ndet_ket,iocca_bra,iocca_ket,ioccb_bra,ioccb_ket)
+  subroutine alpha_beta_labels(nsta_bra,nsta_ket,maxdet,nalpha,nbeta,&
+       ndet_bra,ndet_ket,iocca_bra,iocca_ket,ioccb_bra,ioccb_ket)
 
     use constants
     use channels
-!    use bdglobal
     
     implicit none
 
-    integer, intent(in)     :: nsta,nalpha,nbeta,maxdet
-    integer, intent(in)     :: ndet_bra(nsta),ndet_ket(nsta)
+    integer, intent(in)     :: nsta_bra,nsta_ket,nalpha,nbeta,maxdet
+    integer, intent(in)     :: ndet_bra(nsta_bra),ndet_ket(nsta_ket)
     integer                 :: i,k
-    integer, intent(in)     :: iocca_bra(nalpha,maxdet,nsta)
-    integer, intent(in)     :: iocca_ket(nalpha,maxdet,nsta)
-    integer, intent(in)     :: ioccb_bra(nbeta,maxdet,nsta)
-    integer, intent(in)     :: ioccb_ket(nbeta,maxdet,nsta)
+    integer, intent(in)     :: iocca_bra(nalpha,maxdet,nsta_bra)
+    integer, intent(in)     :: iocca_ket(nalpha,maxdet,nsta_ket)
+    integer, intent(in)     :: ioccb_bra(nbeta,maxdet,nsta_bra)
+    integer, intent(in)     :: ioccb_ket(nbeta,maxdet,nsta_ket)
     character(len=nalpha*3) :: string_alpha    
     character(len=nbeta*3)  :: string_beta
     character(len=10)       :: fmat_alpha,fmat_beta
@@ -404,10 +361,10 @@ contains
 !----------------------------------------------------------------------
 ! Allocate and initialise the label arrays
 !----------------------------------------------------------------------
-    allocate(ilbla_ket(maxdet,nsta))
-    allocate(ilblb_ket(maxdet,nsta))
-    allocate(ilbla_bra(maxdet,nsta))
-    allocate(ilblb_bra(maxdet,nsta))
+    allocate(ilbla_ket(maxdet,nsta_ket))
+    allocate(ilblb_ket(maxdet,nsta_ket))
+    allocate(ilbla_bra(maxdet,nsta_bra))
+    allocate(ilblb_bra(maxdet,nsta_bra))
     ilbla_ket=0
     ilblb_ket=0
     ilbla_bra=0
@@ -424,7 +381,7 @@ contains
     
     ! Ket states
     !
-    do i=1,nsta
+    do i=1,nsta_ket
        do k=1,ndet_ket(i)
 
           ! Alpha spinorbital character string
@@ -444,7 +401,7 @@ contains
 
     ! Bra states
     !
-    do i=1,nsta
+    do i=1,nsta_bra
        do k=1,ndet_bra(i)
 
           ! Alpha spinorbital character string
@@ -488,22 +445,21 @@ contains
 
 !#####################################################################
 
-  subroutine alpha_beta_sort(nsta,maxdet,nalpha,nbeta,ndet_bra,&
-       ndet_ket,iocca_bra,iocca_ket,ioccb_bra,ioccb_ket)
+  subroutine alpha_beta_sort(nsta_bra,nsta_ket,maxdet,nalpha,nbeta,&
+       ndet_bra,ndet_ket,iocca_bra,iocca_ket,ioccb_bra,ioccb_ket)
 
     use constants
     use channels
     use utils
-!    use bdglobal
 
     implicit none
     
-    integer, intent(in) :: nsta,nalpha,nbeta,maxdet
-    integer, intent(in) :: ndet_bra(nsta),ndet_ket(nsta)
-    integer, intent(in) :: iocca_bra(nalpha,maxdet,nsta)
-    integer, intent(in) :: iocca_ket(nalpha,maxdet,nsta)
-    integer, intent(in) :: ioccb_bra(nbeta,maxdet,nsta)
-    integer, intent(in) :: ioccb_ket(nbeta,maxdet,nsta)    
+    integer, intent(in) :: nsta_bra,nsta_ket,nalpha,nbeta,maxdet
+    integer, intent(in) :: ndet_bra(nsta_bra),ndet_ket(nsta_ket)
+    integer, intent(in) :: iocca_bra(nalpha,maxdet,nsta_bra)
+    integer, intent(in) :: iocca_ket(nalpha,maxdet,nsta_ket)
+    integer, intent(in) :: ioccb_bra(nbeta,maxdet,nsta_bra)
+    integer, intent(in) :: ioccb_ket(nbeta,maxdet,nsta_ket)
     real(dp)            :: mem
     
 !----------------------------------------------------------------------
@@ -511,10 +467,10 @@ contains
 !----------------------------------------------------------------------
     ! Indices of the unique alpha and beta strings for every
     ! determinant in the bra and ket states
-    allocate(ia_ket(maxdet,nsta))
-    allocate(ib_ket(maxdet,nsta))
-    allocate(ia_bra(maxdet,nsta))
-    allocate(ib_bra(maxdet,nsta))
+    allocate(ia_ket(maxdet,nsta_ket))
+    allocate(ib_ket(maxdet,nsta_ket))
+    allocate(ia_bra(maxdet,nsta_bra))
+    allocate(ib_bra(maxdet,nsta_bra))
     ia_ket=0
     ib_ket=0
     ia_bra=0
@@ -527,19 +483,19 @@ contains
 !----------------------------------------------------------------------
     ! alpha, ket
     call get_unique_strings(ndet_ket,ilbla_ket,na_ket,stringa_ket,&
-         iocca_ket,ia_ket,nalpha,nsta,maxdet)
+         iocca_ket,ia_ket,nalpha,nsta_ket,maxdet)
 
     ! beta, ket
     call get_unique_strings(ndet_ket,ilblb_ket,nb_ket,stringb_ket,&
-         ioccb_ket,ib_ket,nbeta,nsta,maxdet)
+         ioccb_ket,ib_ket,nbeta,nsta_ket,maxdet)
     
     ! alpha, bra
     call get_unique_strings(ndet_bra,ilbla_bra,na_bra,stringa_bra,&
-         iocca_bra,ia_bra,nalpha,nsta,maxdet)
+         iocca_bra,ia_bra,nalpha,nsta_bra,maxdet)
     
     ! beta, bra
     call get_unique_strings(ndet_bra,ilblb_bra,nb_bra,stringb_bra,&
-         ioccb_bra,ib_bra,nbeta,nsta,maxdet)
+         ioccb_bra,ib_bra,nbeta,nsta_bra,maxdet)
 
 !----------------------------------------------------------------------
 ! Output the no. unique alpha and beta strings
@@ -581,7 +537,6 @@ contains
     use constants
     use channels
     use utils
-!    use bdglobal
     
     implicit none
 
@@ -748,7 +703,6 @@ contains
     use constants
     use channels
     use utils
-!    use bdglobal
     use timingmod
     use omp_lib
     
@@ -832,7 +786,7 @@ contains
     ! Check to see if the sets of alpha and beta strings are
     ! equivalent
     lequiv=isequivab(nalpha,nbeta)
-
+    
     if (lequiv) then
        ! The sets of unique alpha and beta strings are equivalent.
        ! We can skip the calculation of the unique beta factors.
@@ -930,7 +884,6 @@ contains
 
     use constants
     use channels
-!    use bdglobal
     
     implicit none
 
@@ -940,11 +893,11 @@ contains
 
     ! Shortcut 1: The sets of unique alpha and beta strings are not
     ! equivalent if the number of elements in each is not equal
-    if (na_bra.ne.nb_bra) then
+    if (na_bra.ne.nb_bra.or.na_ket.ne.nb_ket) then
        isequivab=.false.
        return
     endif
-
+    
     ! Shortcut2: The sets of unique alpha and beta strings are not
     ! equivalent if the numbers of alpha and beta electronc are
     ! not equal
@@ -954,17 +907,26 @@ contains
     endif
 
     ! Check on the equivalency of the sets of unique alpha and beta
-    ! strings
+    ! strings. Note that if we are here, then nalpha=nbeta,
+    ! na_bra=nb_bra, and na_ket=nb_ket
     isequivab=.true.
-    do i=1,na_ket
+    do i=1,na_bra
        do j=1,nalpha
-          if (stringa_bra(i,j).ne.stringb_bra(i,j)) then
+          if (stringa_bra(j,i).ne.stringb_bra(j,i)) then
              isequivab=.false.
              exit
           endif
        enddo
     enddo
-    
+    do i=1,na_ket
+       do j=1,nalpha
+          if (stringa_ket(j,i).ne.stringb_ket(j,i)) then
+             isequivab=.false.
+             exit
+          endif
+       enddo
+    enddo
+
     return
     
   end function isequivab

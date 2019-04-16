@@ -83,14 +83,26 @@ program blockdiag
   call mo_overlaps
 
 !----------------------------------------------------------------------
-! Calculate the overlaps between the electronic states at the
-! referenceand displaced geometries
+! Determine the disp. geometry states to use by trying to follow
+! electronic characters from geometry to geometry
 !----------------------------------------------------------------------
-  call psi_overlaps(spsi,nsta,nalpha,nbeta,ndet_disp,ndet_ref,&
-                    nmo_disp,nmo_ref,maxdet,c_disp,c_ref,&
-                    det_disp,det_ref,iocca_disp,iocca_ref,&
-                    ioccb_disp,ioccb_ref,ioverlap,smo)
-
+  if (nsta_disp.ne.nsta_ref) then
+     call trackwfs
+  else
+     Vmat=Vmat1
+  endif
+     
+!----------------------------------------------------------------------
+! Calculate the overlaps between the electronic states at the
+! reference and displaced geometries
+!----------------------------------------------------------------------
+  call get_overlaps
+  
+!----------------------------------------------------------------------
+! Write the wavefunction overlaps to the log file
+!----------------------------------------------------------------------
+  call wroverlaps
+  
 !----------------------------------------------------------------------
 ! New rephasing algorithm
 !----------------------------------------------------------------------
@@ -230,28 +242,57 @@ contains
     implicit none
 
 !----------------------------------------------------------------------
-! Determine the number of states from the input file
+! Determine the number of ref. geometry states from the input file
 !----------------------------------------------------------------------
     rewind(iin)
 
     ! Determine the no. states from the $dets_ref section
-    nsta=0
+    nsta_ref=0
 5   call rdinp(iin)
     if (keyword(1).eq.'$dets_ref') then
 10     call rdinp(iin)
        if (keyword(1).ne.'$end') then
-          nsta=nsta+1
+          nsta_ref=nsta_ref+1
           goto 10
        endif
     endif
     if (.not.lend) goto 5
 
     ! Quit if the $dets_ref section is missing
-    if (nsta.eq.0) then
+    if (nsta_ref.eq.0) then
        errmsg='The $dets_ref section could not be found in '//trim(ain)
        call error_control
     endif
 
+    ! nsta (the dimension of the diabatic potential matrix) is going
+    ! to be equal to nsta_ref no matter how we are operating
+    nsta=nsta_ref
+
+!----------------------------------------------------------------------
+! Determine the number of disp. geometry states from the input file.
+! Note that nsta_disp can be different to nsta_ref if we trying to
+! follow states by character from geometry to geometry.
+!----------------------------------------------------------------------
+    rewind(iin)
+
+    ! Determine the no. states from the $dets_disp section
+    nsta_disp=0
+15   call rdinp(iin)
+    if (keyword(1).eq.'$dets_disp') then
+20     call rdinp(iin)
+       if (keyword(1).ne.'$end') then
+          nsta_disp=nsta_disp+1
+          goto 20
+       endif
+    endif
+    if (.not.lend) goto 15
+
+    ! Quit if the $dets_disp section is missing
+    if (nsta_disp.eq.0) then
+       errmsg='The $dets_disp section could not be found in '//trim(ain)
+       call error_control
+    endif
+    
     return
     
   end subroutine get_nsta
@@ -349,7 +390,7 @@ contains
                 call error_control
              endif
              read(keyword(2),*) k
-             read(keyword(1),*) Vmat(k,k)
+             read(keyword(1),*) Vmat1(k,k)
           enddo
 
        else if (keyword(i).eq.'$ref_trans') then
@@ -429,7 +470,7 @@ contains
     endif
 
     ! Reference geometry determinant file
-    do i=1,nsta
+    do i=1,nsta_ref
        if (adetref(i).eq.'') then
           write(errmsg,'(a,x,i2)') 'The reference geometry &
                determinant file is missing for state',i
@@ -438,7 +479,7 @@ contains
     enddo
 
     ! Displaced geometry determinant file
-    do i=1,nsta
+    do i=1,nsta_disp
        if (adetdisp(i).eq.'') then
           write(errmsg,'(a,x,i2)') 'The displaced geometry &
                determinant file is missing for state',i
@@ -469,17 +510,17 @@ contains
 ! Allocate and initialise arrays
 !-----------------------------------------------------------------------
     ! Names of the determinant files
-    allocate(adetref(nsta))
-    allocate(adetdisp(nsta))
+    allocate(adetref(nsta_ref))
+    allocate(adetdisp(nsta_disp))
     adetref=''
     adetdisp=''
     
     ! Number of determinants for each state at the reference geometry
-    allocate(ndet_ref(nsta))
+    allocate(ndet_ref(nsta_ref))
     ndet_ref=0
 
     ! Number of determinants for each state at the displaced geometry
-    allocate(ndet_disp(nsta))
+    allocate(ndet_disp(nsta_disp))
     ndet_disp=0
 
     ! Reference geometry transformation matrix
@@ -487,11 +528,11 @@ contains
     reftrans=0.0d0
     
     ! Norms of the wavefunctions at the reference geometry
-    allocate(norm_ref(nsta))
+    allocate(norm_ref(nsta_ref))
     norm_ref=0.0d0
 
     ! Norms of the wavefunctions at the displaced geometry
-    allocate(norm_disp(nsta))
+    allocate(norm_disp(nsta_disp))
     norm_disp=0.0d0
     
     ! Overlaps between the electronic states at the two geometries
@@ -501,7 +542,11 @@ contains
     ! Adiabatic potential matrix
     allocate(Vmat(nsta,nsta))
     Vmat=0.0d0
-
+    
+    ! Temporary adiabatic potential matrix
+    allocate(Vmat1(nsta_disp,nsta_disp))
+    Vmat1=0.0d0
+    
     ! Diabatic potential matrix
     allocate(Wmat(nsta,nsta))
     Wmat=0.0d0
@@ -533,6 +578,7 @@ contains
     deallocate(norm_disp)
     deallocate(spsi)
     deallocate(Vmat)
+    deallocate(Vmat1)
     deallocate(Wmat)
     deallocate(adt)
     deallocate(c_ref)
@@ -662,25 +708,26 @@ contains
 ! Norms
 !-----------------------------------------------------------------------
     ! Reference geometry
-    do i=1,nsta
+    do i=1,nsta_ref
        norm_ref(i)=sqrt(sum(c_ref(:,i)**2))
     enddo
 
     ! Displaced geometry
-    do i=1,nsta
+    do i=1,nsta_disp
        norm_disp(i)=sqrt(sum(c_disp(:,i)**2))
     enddo
     
 !-----------------------------------------------------------------------
 ! Normalisation of the wavefunctions
-! NOTE THAT THIS WAS TAKEN CARE OF BY THE LOWDIN ORTHOGONALISATION
-! OF THE OVERLAP MATRIX
 !-----------------------------------------------------------------------
-    do i=1,nsta
+    do i=1,nsta_ref
        c_ref(:,i)=c_ref(:,i)/norm_ref(i)
-       c_disp(:,i)=c_disp(:,i)/norm_disp(i)
     enddo
 
+    do i=1,nsta_disp
+       c_disp(:,i)=c_disp(:,i)/norm_disp(i)
+    enddo
+    
 !-----------------------------------------------------------------------    
 ! Output timings
 !-----------------------------------------------------------------------    
@@ -712,11 +759,14 @@ contains
 !-----------------------------------------------------------------------
 ! First pass: determine the no. determinants for each file
 !-----------------------------------------------------------------------
-    do i=1,nsta
+    do i=1,nsta_ref
        ndet_ref(i)=nlines(adetref(i))
-       ndet_disp(i)=nlines(adetdisp(i))
     enddo
 
+    do i=1,nsta_disp
+       ndet_disp(i)=nlines(adetdisp(i))
+    enddo
+    
     ! Maximum number of determinants
     maxdet=max(maxval(ndet_ref),maxval(ndet_disp))
 
@@ -728,14 +778,14 @@ contains
     nmo_disp=gam_disp%nvectors
 
     ! Coefficient vectors
-    allocate(c_ref(maxdet,nsta))
-    allocate(c_disp(maxdet,nsta))
+    allocate(c_ref(maxdet,nsta_ref))
+    allocate(c_disp(maxdet,nsta_disp))
     c_ref=0.0d0
     c_disp=0.0d0
 
     ! Determinant vectors
-    allocate(det_ref(nmo_ref,maxdet,nsta))
-    allocate(det_disp(nmo_disp,maxdet,nsta))
+    allocate(det_ref(nmo_ref,maxdet,nsta_ref))
+    allocate(det_disp(nmo_disp,maxdet,nsta_disp))
     det_ref=0
     det_disp=0
 
@@ -745,7 +795,7 @@ contains
     call freeunit(idet)
 
     ! Reference geometry
-    do i=1,nsta
+    do i=1,nsta_ref
        open(idet,file=adetref(i),form='formatted',status='old')
        do k=1,ndet_ref(i)
           call rdinp(idet)
@@ -758,7 +808,7 @@ contains
     enddo
     
     ! Displaced geometry
-    do i=1,nsta
+    do i=1,nsta_disp
        open(idet,file=adetdisp(i),form='formatted',status='old')
        do k=1,ndet_disp(i)
           call rdinp(idet)
@@ -839,10 +889,10 @@ contains
 !-----------------------------------------------------------------------
 ! Allocate and initialise the spinorbital index arrays
 !-----------------------------------------------------------------------
-    allocate(iocca_ref(nalpha,maxdet,nsta))
-    allocate(ioccb_ref(nbeta,maxdet,nsta))
-    allocate(iocca_disp(nalpha,maxdet,nsta))
-    allocate(ioccb_disp(nbeta,maxdet,nsta))
+    allocate(iocca_ref(nalpha,maxdet,nsta_ref))
+    allocate(ioccb_ref(nbeta,maxdet,nsta_ref))
+    allocate(iocca_disp(nalpha,maxdet,nsta_disp))
+    allocate(ioccb_disp(nbeta,maxdet,nsta_disp))
     iocca_ref=0
     ioccb_ref=0
     iocca_disp=0
@@ -854,7 +904,7 @@ contains
     ! Ref. states
     !
     ! Loop over states
-    do i=1,nsta
+    do i=1,nsta_ref
        ! Loop over determinants
        do k=1,ndet_ref(i)
           ! Fill in the spinorbital indicies for the current
@@ -881,7 +931,7 @@ contains
     ! Disp. states
     !
     ! Loop over states
-    do i=1,nsta
+    do i=1,nsta_disp
        ! Loop over determinants
        do k=1,ndet_disp(i)
           ! Fill in the spinorbital indicies for the current
@@ -928,7 +978,7 @@ contains
     call freeunit(idet)
 
     ! Reference geometry states
-    do i=1,nsta
+    do i=1,nsta_ref
 
        ! Open the next determinant file
        open(idet,file=adetref(i),form='unformatted',status='old')
@@ -957,7 +1007,7 @@ contains
     enddo
 
     ! Displaced geometry states
-    do i=1,nsta
+    do i=1,nsta_disp
 
        ! Open the next determinant file
        open(idet,file=adetdisp(i),form='unformatted',status='old')
@@ -995,18 +1045,18 @@ contains
 ! Allocate arrays
 !-----------------------------------------------------------------------
     ! Indices of the occupied alpha and beta orbitals
-    allocate(iocca_ref(nalpha,maxdet,nsta))
-    allocate(ioccb_ref(nbeta,maxdet,nsta))
-    allocate(iocca_disp(nalpha,maxdet,nsta))
-    allocate(ioccb_disp(nbeta,maxdet,nsta))
+    allocate(iocca_ref(nalpha,maxdet,nsta_ref))
+    allocate(ioccb_ref(nbeta,maxdet,nsta_ref))
+    allocate(iocca_disp(nalpha,maxdet,nsta_disp))
+    allocate(ioccb_disp(nbeta,maxdet,nsta_disp))
     iocca_ref=0
     ioccb_ref=0
     iocca_disp=0
     ioccb_disp=0
     
     ! Coefficient vectors
-    allocate(c_ref(maxdet,nsta))
-    allocate(c_disp(maxdet,nsta))
+    allocate(c_ref(maxdet,nsta_ref))
+    allocate(c_disp(maxdet,nsta_disp))
     c_ref=0.0d0
     c_disp=0.0d0
     
@@ -1015,7 +1065,7 @@ contains
 ! coefficients
 !-----------------------------------------------------------------------
     ! Reference geometry
-    do i=1,nsta
+    do i=1,nsta_ref
        open(idet,file=adetref(i),form='unformatted',status='old')
        read(idet) itmp
        read(idet) itmp
@@ -1031,7 +1081,7 @@ contains
     enddo
 
     ! Displaced geometry
-    do i=1,nsta
+    do i=1,nsta_disp
        open(idet,file=adetdisp(i),form='unformatted',status='old')
        read(idet) itmp
        read(idet) itmp
@@ -1076,7 +1126,7 @@ contains
     write(ilog,'(a)') '   Ref. State  |   Norm'
     write(ilog,'(a)') '     |I>       | || |I> ||'
     write(ilog,'(47a)') ('-',i=1,47)
-    do i=1,nsta
+    do i=1,nsta_ref
        write(ilog,'(5x,i2,11x,F13.10)') i,norm_ref(i)
     enddo
     
@@ -1087,13 +1137,380 @@ contains
     write(ilog,'(a)') '  Disp. State  |   Norm'
     write(ilog,'(a)') '     |I>       | || |I> ||'
     write(ilog,'(47a)') ('-',i=1,47)
-    do i=1,nsta
+    do i=1,nsta_disp
        write(ilog,'(5x,i2,11x,F13.10)') i,norm_disp(i)
     enddo
 
     return
     
   end subroutine wrnorms
+
+!######################################################################
+
+  subroutine trackwfs
+
+    use constants
+    use channels
+    use wfoverlaps
+    use bdglobal
+    use utils
+    use iomod
+    
+    implicit none
+
+    integer                         :: i,j,k,maxdet1,nok,n
+    integer, allocatable            :: indx(:),ndet1_disp(:),&
+                                       ndet1_ref(:)
+    integer, allocatable            :: iocca1_disp(:,:,:),&
+                                       ioccb1_disp(:,:,:),&
+                                       iocca1_ref(:,:,:),&
+                                       ioccb1_ref(:,:,:)
+    integer, allocatable            :: iswapvec1(:)
+    integer, allocatable            :: iswapvec3(:,:,:)
+    integer, parameter              :: nsmall=200
+    real(dp), allocatable           :: fswapvec2(:,:)
+    real(dp), allocatable           :: spsi1(:,:)
+    real(dp), allocatable           :: c1_disp(:,:),c1_ref(:,:)
+    real(dp), allocatable           :: cabs(:)
+    real(dp), parameter             :: thrsh=0.8d0
+    real(dp)                        :: norm
+    character(len=120), allocatable :: aswapvec1(:)
+    
+!----------------------------------------------------------------------
+! Output what we are doing
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Tracking wavefunctions by overlap'
+    write(ilog,'(82a)') ('+',i=1,82)
+    
+!----------------------------------------------------------------------
+! Allocate arrays.
+!    
+! To speed things up, we will only use a 'handful' of determinants for
+! each state in the calculation of the overlaps. This should be
+! sufficient for the following of electronic state character from
+! geometry to geometry.
+!----------------------------------------------------------------------
+    ! Wavefunction overlaps
+    allocate(spsi1(nsta_disp,nsta_ref))
+    spsi1=0.0d0
+    
+    ! Reduced number of determinants for the disp. states
+    allocate(ndet1_disp(nsta_disp))
+    do i=1,nsta_disp
+       ndet1_disp(i)=min(nsmall,ndet_disp(i))
+    enddo
+
+    ! Reduced number of determinants for the ref. states
+    allocate(ndet1_ref(nsta_ref))
+    do i=1,nsta_ref
+       ndet1_ref(i)=min(nsmall,ndet_ref(i))
+    enddo
+
+    ! Maximum reduced number of determinants
+    maxdet1=max(maxval(ndet1_ref),maxval(ndet1_disp))
+    
+    ! Determinant coefficient and spinorbital index arrays
+    allocate(c1_disp(maxdet1,nsta_disp))
+    allocate(c1_ref(maxdet1,nsta_ref))
+    allocate(iocca1_disp(nalpha,maxdet1,nsta_disp))
+    allocate(iocca1_ref(nalpha,maxdet1,nsta_ref))
+    allocate(ioccb1_disp(nbeta,maxdet1,nsta_disp))
+    allocate(ioccb1_ref(nbeta,maxdet1,nsta_ref))
+    c1_disp=0.0d0
+    c1_ref=0.0d0
+    iocca1_disp=0
+    iocca1_ref=0
+    ioccb1_disp=0
+    ioccb1_ref=0
+
+!----------------------------------------------------------------------
+! Fill in the reduced determinant coefficient and spinorbital index
+! arrays
+!----------------------------------------------------------------------
+    ! Allocate arrays
+    allocate(indx(maxdet))
+    allocate(cabs(maxdet))
+
+    ! Disp. geometry arrays
+    do i=1,nsta_disp
+
+       indx=0
+       cabs(:)=abs(c_disp(:,i))
+
+       call dsortindxa1('D',ndet_disp(i),cabs(1:ndet_disp(i)),&
+            indx(1:ndet_disp(i)))
+
+       do k=1,ndet1_disp(i)
+          c1_disp(k,i)=c_disp(indx(k),i)
+          iocca1_disp(:,k,i)=iocca_disp(:,indx(k),i)
+          ioccb1_disp(:,k,i)=ioccb_disp(:,indx(k),i)
+       enddo
+       
+    enddo
+    
+    ! Ref. geometry arrays
+    do i=1,nsta_ref
+
+       indx=0
+       cabs(:)=abs(c_ref(:,i))
+
+       call dsortindxa1('D',ndet_ref(i),cabs(1:ndet_ref(i)),&
+            indx(1:ndet_ref(i)))
+
+       do k=1,ndet1_ref(i)
+          c1_ref(k,i)=c_ref(indx(k),i)
+          iocca1_ref(:,k,i)=iocca_ref(:,indx(k),i)
+          ioccb1_ref(:,k,i)=ioccb_ref(:,indx(k),i)
+       enddo
+       
+    enddo
+    
+    ! Deallocate arrays
+    deallocate(indx)
+    deallocate(cabs)
+
+!----------------------------------------------------------------------
+! Normalisation of the truncated wavefunctions
+!----------------------------------------------------------------------
+    ! Reference geometry
+    do i=1,nsta_ref
+       norm=sqrt(sum(c1_ref(:,i)**2))
+       c1_ref(:,i)=c1_ref(:,i)/norm
+    enddo
+
+    ! Displaced geometry
+    do i=1,nsta_disp
+       norm=sqrt(sum(c1_disp(:,i)**2))
+       c1_disp(:,i)=c1_disp(:,i)/norm
+    enddo
+    
+!----------------------------------------------------------------------
+! Calculate the overlaps between the (larger) set of electronic states
+! at the displaced geometry and the (smaller) set of electronic states
+! at the reference geometry.
+!----------------------------------------------------------------------
+    call psi_overlaps(spsi1,nsta_disp,nsta_ref,nalpha,nbeta,&
+         ndet1_disp,ndet1_ref,nmo_disp,nmo_ref,maxdet1,c1_disp,c1_ref,&
+         iocca1_disp,iocca1_ref,ioccb1_disp,ioccb1_ref,ioverlap,smo)
+
+!----------------------------------------------------------------------
+! Write the overlaps to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(/,47a)') ('-',i=1,47)
+    write(ilog,'(a)') '  Disp. State  |  Ref. State  |  Overlap'
+    write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
+    write(ilog,'(47a)') ('-',i=1,47)
+    do i=1,nsta_disp
+       do j=1,nsta_ref
+          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi1(i,j)
+       enddo
+    enddo
+    write(ilog,'(47a)') ('-',i=1,47)
+
+!----------------------------------------------------------------------
+! Determine which disp. states correspond to the ref. states.
+!----------------------------------------------------------------------
+    allocate(indx(nsta_ref))
+    indx=0
+
+    ! Good overlap counter
+    nok=0
+
+    ! Loop over ref. states
+    do i=1,nsta_ref
+       ! Loop over disp. states
+       do j=1,nsta_disp
+          if (abs(spsi1(j,i)).gt.thrsh) then
+             nok=nok+1
+             indx(i)=j
+          endif
+       enddo
+    enddo
+
+    ! Exit if any ref. states do not correspond to a disp. state
+    do i=1,nsta_ref
+       n=0
+       do j=1,nsta_disp
+          if (indx(i).eq.j) n=n+1
+       enddo
+       if (n.ne.1) then
+          errmsg='Not all ref. states correspond to a single disp. &
+               state. Quitting.'
+          call error_control
+       endif
+    enddo
+
+!----------------------------------------------------------------------
+! Write the selected state indices to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(a)') ''
+    do i=1,nsta_ref
+       write(ilog,'(x,2(x,a,x,i0))') 'Selected state',i,':',indx(i)
+    enddo
+    
+!----------------------------------------------------------------------
+! Re-fill the disp. geometry arrays
+!----------------------------------------------------------------------
+    ! Number of determinants for the disp. states
+    allocate(iswapvec1(nsta_ref))
+    iswapvec1=0
+    do i=1,nsta_ref
+       iswapvec1(i)=ndet_disp(indx(i))
+    enddo
+    ndet_disp=0
+    ndet_disp(1:nsta_ref)=iswapvec1
+    deallocate(iswapvec1)
+
+    ! Disp. state coefficient vectors
+    allocate(fswapvec2(maxdet,nsta_ref))
+    do i=1,nsta_ref
+       fswapvec2(:,i)=c_disp(:,indx(i))
+    enddo
+    c_disp=0.0d0
+    c_disp(:,1:nsta_ref)=fswapvec2
+    deallocate(fswapvec2)
+
+    ! Disp. state alpha spinorbital index arrays
+    allocate(iswapvec3(nalpha,maxdet,nsta_ref))
+    do i=1,nsta_ref
+       iswapvec3(:,:,i)=iocca_disp(:,:,indx(i))
+    enddo
+    iocca_disp=0
+    iocca_disp(:,:,1:nsta_ref)=iswapvec3
+    deallocate(iswapvec3)
+
+    ! Disp. state beta spinorbital index arrays
+    allocate(iswapvec3(nbeta,maxdet,nsta_ref))
+    do i=1,nsta_ref
+       iswapvec3(:,:,i)=ioccb_disp(:,:,indx(i))
+    enddo
+    ioccb_disp=0
+    ioccb_disp(:,:,1:nsta_ref)=iswapvec3
+    deallocate(iswapvec3)
+
+    ! Adiabatic potential array at the disp. geometry
+    Vmat=0.0d0
+    do i=1,nsta_ref
+       Vmat(i,i)=Vmat1(indx(i),indx(i))
+    enddo
+
+    ! Names of the disp. determinant files: this has to be reset
+    ! otherwise the rephasing routine will over-write files
+    ! incorrectly
+    allocate(aswapvec1(nsta_ref))
+    do i=1,nsta_ref
+       aswapvec1(i)=adetdisp(indx(i))
+    enddo
+    adetdisp=''
+    adetdisp(1:nsta_ref)=aswapvec1
+    
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(spsi1)
+    deallocate(ndet1_disp)
+    deallocate(ndet1_ref)
+    deallocate(c1_disp)
+    deallocate(c1_ref)
+    deallocate(iocca1_disp)
+    deallocate(iocca1_ref)
+    deallocate(ioccb1_disp)
+    deallocate(ioccb1_ref)
+    deallocate(indx)
+    
+    return
+    
+  end subroutine trackwfs
+
+!######################################################################
+
+  subroutine get_overlaps
+
+    use constants
+    use channels
+    use wfoverlaps
+    use bdglobal
+    use iomod
+    
+    implicit none
+
+    integer :: i
+    
+!----------------------------------------------------------------------
+! Output what we are doing
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Calculating Adiabatic Wavefunction Overlaps'
+    write(ilog,'(82a)') ('+',i=1,82)
+    
+!----------------------------------------------------------------------
+! Calculate the wavefunction overlaps
+!----------------------------------------------------------------------
+    call psi_overlaps(spsi,nsta,nsta,nalpha,nbeta,ndet_disp(1:nsta),&
+         ndet_ref(1:nsta),nmo_disp,nmo_ref,maxdet,c_disp(:,1:nsta),&
+         c_ref(:,1:nsta),iocca_disp(:,:,1:nsta),iocca_ref(:,:,1:nsta),&
+         ioccb_disp(:,:,1:nsta),ioccb_ref(:,:,1:nsta),ioverlap,smo)
+    
+    return
+    
+  end subroutine get_overlaps
+    
+!######################################################################
+
+  subroutine wroverlaps
+
+    use constants
+    use channels
+    use bdglobal
+    
+    implicit none
+
+    integer              :: i,j
+    real(dp), parameter  :: ovrthrsh=0.5d0
+    logical              :: lovrlp
+
+!----------------------------------------------------------------------
+! Print out the wavefunction overlaps
+!----------------------------------------------------------------------
+    ! Table header
+    write(ilog,'(/,47a)') ('-',i=1,47)
+    write(ilog,'(a)') '  Disp. State  |  Ref. State  |  Overlap'
+    write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
+    write(ilog,'(47a)') ('-',i=1,47)
+
+    ! Table entries
+    do i=1,nsta
+       do j=1,nsta
+          write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,spsi(i,j)
+       enddo
+    enddo
+       
+    ! End of the table
+    write(ilog,'(47a)') ('-',i=1,47)
+
+!----------------------------------------------------------------------
+! Print out a warning if it looks like a state from outside the group
+! of interest has crossed in
+!----------------------------------------------------------------------
+    ! Loop over disp. states
+    do i=1,nsta
+
+       lovrlp=.false.
+       
+       ! Loop over ref states
+       do j=1,nsta
+          if (abs(spsi(i,j)).ge.ovrthrsh) lovrlp=.true.
+       enddo
+       
+       if (.not.lovrlp) write(ilog,'(/,2x,a)') &
+            'WARNING: state crossing detected!'
+
+    enddo
+    
+    return
+    
+  end subroutine wroverlaps
     
 !######################################################################
 
@@ -1167,7 +1584,6 @@ contains
           close(idet)
        enddo
     endif
-       
        
     return
     
