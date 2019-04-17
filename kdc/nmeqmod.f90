@@ -8,12 +8,30 @@ contains
 
   subroutine get_coefficients_nmeq
 
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
     implicit none
 
 !----------------------------------------------------------------------
 ! Perform the fitting for the 1-mode terms
 !----------------------------------------------------------------------
     call fit_1mode_terms
+
+!----------------------------------------------------------------------
+! Convert all coupling coefficients to units of eV
+!----------------------------------------------------------------------
+    kappa=kappa*eh2ev
+    lambda=lambda*eh2ev
+    gamma=gamma*eh2ev
+    mu=mu*eh2ev
+    iota=iota*eh2ev
+    tau=tau*eh2ev
+    epsilon=epsilon*eh2ev
+    xi=xi*eh2ev
     
     return
     
@@ -27,7 +45,6 @@ contains
     use channels
     use iomod
     use sysinfo
-    use symmetry
     use kdcglobal
     
     implicit none
@@ -35,6 +52,7 @@ contains
     integer               :: m,n,s1,s2,ndat
     integer               :: order
     real(dp), allocatable :: coeff(:),q(:),w(:)
+    logical               :: lpseudo
     
 !----------------------------------------------------------------------
 ! Determine the sets of files corresponding to single mode
@@ -49,7 +67,7 @@ contains
     order=4
 
     ! Coefficient vector
-    allocate(coeff(order))
+    allocate(coeff(order+1))
     coeff=0.0d0
 
     ! Input coordinates and diabatic potential values
@@ -83,15 +101,23 @@ contains
              
              ! Perform the fitting for the current mode and
              ! diabatic potential matrix element
-             call nmeq1d(order,coeff,ndat,q(1:ndat),w(1:ndat))
-
+             call nmeq1d(order,coeff,ndat,q(1:ndat),w(1:ndat),&
+                  lpseudo)
+             
+             ! Output a warning if the psedo-inverse was used in
+             ! the fitting
+             if (lpseudo) write(ilog,'(/,a,i0,a,i0,x,i0)') &
+                  'WARNING: Pseudoinverse used in the fitting of the &
+                  coefficients for mode ',m,' and states ',s1,s2
+             
+             ! Fill in the global coefficient arrays
+             call fill_coeffs1d(coeff,order,m,s1,s2)
+             
           enddo
        enddo
              
     enddo
 
-    STOP
-    
 !----------------------------------------------------------------------
 ! Deallocate arrays
 !----------------------------------------------------------------------
@@ -111,7 +137,6 @@ contains
     use channels
     use iomod
     use sysinfo
-    use symmetry
     use kdcglobal
     
     implicit none
@@ -184,24 +209,96 @@ contains
 
 !######################################################################
 
-  subroutine nmeq1d(order,coeff,npnts,x,y)
+  subroutine nmeq1d(order,coeff,npnts,x,y,lpseudo)
 
     use constants
     use channels
     use iomod
+    use utils
     
     implicit none
 
     integer, intent(in)                    :: order,npnts
-    real(dp), dimension(order)             :: coeff
+    integer                                :: i,j
+    real(dp), dimension(order+1)           :: coeff
     real(dp), intent(in), dimension(npnts) :: x,y
-
+    real(dp), dimension(npnts,order+1)     :: Xmat
+    real(dp), dimension(order+1,order+1)   :: XTX,invXTX
+    logical                                :: lpseudo
     
+!----------------------------------------------------------------------
+! Fill in the X-matrix
+!----------------------------------------------------------------------
+    do i=1,npnts
+       do j=1,order+1
+          Xmat(i,j)=x(i)**(j-1)
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Calculate the coefficients
+!----------------------------------------------------------------------
+    XTX=matmul(transpose(Xmat),Xmat)
+
+    call invert_matrix(XTX,invXTX,order+1,lpseudo)
+
+    coeff=matmul(invXTX,matmul(transpose(Xmat),y))
     
     return
     
   end subroutine nmeq1d
-  
+
+!######################################################################
+
+  subroutine fill_coeffs1d(coeff,order,m,s1,s2)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer, intent(in)                      :: order,m,s1,s2
+    real(dp), intent(in), dimension(order+1) :: coeff
+
+!----------------------------------------------------------------------
+! Intrastate coupling coefficients
+!----------------------------------------------------------------------
+    if (s1.eq.s2) then
+       if (order.gt.0) kappa(m,s1)=coeff(2)
+       if (order.gt.1) gamma(m,m,s1)=2.0d0*coeff(3)-freq(m)/eh2ev
+       if (order.gt.2) iota(m,s1)=6.0d0*coeff(4)
+       if (order.gt.3) epsilon(m,s1)=24.0d0*coeff(5)
+    endif
+
+!----------------------------------------------------------------------
+! Intrastate coupling coefficients
+!----------------------------------------------------------------------
+    if (s1.ne.s2) then
+       if (order.gt.0) then
+          lambda(m,s1,s2)=coeff(2)
+          lambda(m,s2,s1)=lambda(m,s1,s2)
+       endif
+       if (order.gt.1) then
+          mu(m,m,s1,s2)=2.0d0*coeff(3)
+          mu(m,m,s2,s1)=mu(m,m,s1,s2)
+       endif
+       if (order.gt.2) then
+          tau(m,s1,s2)=6.0d0*coeff(4)
+          tau(m,s2,s1)=tau(m,s1,s2)
+       endif
+       if (order.gt.3) then
+          xi(m,s1,s2)=24.0d0*coeff(5)
+          xi(m,s2,s1)=xi(m,s1,s2)
+       endif
+    endif
+    
+    return
+    
+  end subroutine fill_coeffs1d
+    
 !######################################################################
   
 end module nmeqmod

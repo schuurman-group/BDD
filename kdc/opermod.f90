@@ -22,6 +22,14 @@ contains
     implicit none
 
     integer             :: unit,m,m1,m2,s,s1,s2,i,j,k,c,nl,ncurr,fel
+    integer             :: nzkappa
+    integer             :: nzlambda
+    integer             :: nzgamma1,nzgamma2
+    integer             :: nzmu1,nzmu2
+    integer             :: nziota
+    integer             :: nztau
+    integer             :: nzepsilon
+    integer             :: nzxi
     real(dp), parameter :: thrsh=5e-4
     character(len=2)    :: am,am1,am2,as,as1,as2,afel
     character(len=5)    :: aunit
@@ -30,7 +38,13 @@ contains
     character(len=8)    :: atmp
 
 !----------------------------------------------------------------------
-! nit label
+! Determine the no. non-zero coupling coefficients in each class
+!----------------------------------------------------------------------
+    call get_nzpar(nzkappa,nzlambda,nzgamma1,nzgamma2,nzmu1,nzmu2,&
+         nziota,nztau,nzepsilon,nzxi,thrsh)
+
+!----------------------------------------------------------------------
+! Unit label
 !----------------------------------------------------------------------
     aunit=' , ev'
 
@@ -72,111 +86,195 @@ contains
     enddo
 
     ! 1st-order intrastate coupling constants (kappa)
-    write(iop,'(/,a)') '# 1st-order intrastate coupling &
-         constants (kappa)'
-    do s=1,nsta
-       write(as,'(i2)') s
-       do m=1,nmodes
-          if (kappa_mask(m,s).eq.0) cycle
-          if (abs(kappa(m,s)).lt.thrsh) cycle
-          write(am,'(i2)') m
-          write(iop,'(a,F9.6,a)') 'kappa'//trim(adjustl(as))&
-               //'_'//adjustl(am)//' = ',kappa(m,s),aunit
+    if (nzkappa.gt.0) then
+       write(iop,'(/,a)') '# 1st-order intrastate coupling &
+            constants (kappa)'
+       do s=1,nsta
+          write(as,'(i2)') s
+          do m=1,nmodes
+             if (kappa_mask(m,s).eq.0) cycle
+             if (abs(kappa(m,s)).lt.thrsh) cycle
+             write(am,'(i2)') m
+             write(iop,'(a,F9.6,a)') 'kappa'//trim(adjustl(as))&
+                  //'_'//adjustl(am)//' = ',kappa(m,s),aunit
+          enddo
        enddo
-    enddo
-
+    endif
+       
     ! 1st-order intrastate coupling constants (lambda)
-    write(iop,'(/,a)') '# 1st-order interstate coupling &
-         constants (lambda)'
-    do s1=1,nsta-1
-       write(as1,'(i2)') s1
-       do s2=s1+1,nsta
-          write(as2,'(i2)') s2
-          do m=1,nmodes
-             if (lambda_mask(m,s1,s2).eq.0) cycle
-             if (abs(lambda(m,s1,s2)).lt.thrsh) cycle
-             write(am,'(i2)') m
-             write(iop,'(a,F9.6,a)') 'lambda'//trim(adjustl(as1))&
-               //'_'//trim(adjustl(as2))//'_'//adjustl(am)//&
-               ' = ',lambda(m,s1,s2),aunit
-          enddo
-       enddo
-    enddo
-
-    ! Quadratic 2nd-order intrastate coupling constants (gamma)
-    write(iop,'(/,a)') '# Quadratic 2nd-order intrastate &
-         coupling constants (gamma)'
-    do s=1,nsta
-       write(as,'(i2)') s
-       do m=1,nmodes
-          if (gamma_mask(m,m,s).eq.0) cycle
-          if (abs(gamma(m,m,s)).lt.thrsh) cycle
-          write(am,'(i2)') m
-          write(iop,'(a,F9.6,a)') 'gamma'//trim(adjustl(as))&
-               //'_'//trim(adjustl(am))//'_'//adjustl(am)&
-               //' = ',gamma(m,m,s),aunit
-       enddo
-    enddo
-
-    ! Bi-linear 2nd-order intrastate coupling constants (gamma)
-    write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
-         coupling constants (gamma)'
-    do s=1,nsta
-       write(as,'(i2)') s
-       do m1=1,nmodes-1
-          do m2=m1+1,nmodes
-             if (gamma_mask(m1,m2,s).eq.0) cycle
-             if (abs(gamma(m1,m2,s)).lt.thrsh) cycle
-             write(am1,'(i2)') m1
-             write(am2,'(i2)') m2
-             write(iop,'(a,F9.6,a)') 'gamma'//trim(adjustl(as))&
-                  //'_'//trim(adjustl(am1))//'_'//adjustl(am2)&
-                  //' = ',gamma(m1,m2,s),aunit
-          enddo
-       enddo
-    enddo
-
-    ! Quadratic 2nd-order interstate coupling constants (mu)
-    write(iop,'(/,a)') '# Quadratic 2nd-order interstate &
-         coupling constants (mu)'
-    do s1=1,nsta-1
-       write(as1,'(i2)') s1
-       do s2=s1+1,nsta
-          write(as2,'(i2)') s2          
-          do m=1,nmodes
-             if (mu_mask(m,m,s1,s2).eq.0) cycle
-             if (abs(mu(m,m,s1,s2)).lt.thrsh) cycle
-             write(am,'(i2)') m
-             write(iop,'(a,F9.6,a)') 'mu'//trim(adjustl(as1))&
-                  //'_'//trim(adjustl(as2))//'_'//&
-                  trim(adjustl(am))//'_'//adjustl(am)//' = ',&
-                  mu(m,m,s1,s2),aunit
-          enddo
-       enddo
-    enddo
-
-    ! Bi-linear 2nd-order interstate coupling constants (mu)
-    write(iop,'(/,a)') '# Bi-linear 2nd-order interstate &
-         coupling constants (mu)'
-    do s1=1,nsta-1
-       write(as1,'(i2)') s1
-       do s2=s1+1,nsta
-          write(as2,'(i2)') s2          
-          do m1=1,nmodes-1
-             do m2=m1+1,nmodes
-                if (mu_mask(m1,m2,s1,s2).eq.0) cycle
-                if (abs(mu(m1,m2,s1,s2)).lt.thrsh) cycle
-                write(am1,'(i2)') m1
-                write(am2,'(i2)') m2
-                write(iop,'(a,F9.6,a)') 'mu'//trim(adjustl(as1))&
-                     //'_'//trim(adjustl(as2))//'_'//&
-                     trim(adjustl(am1))//'_'//adjustl(am2)//&
-                     ' = ',mu(m1,m2,s1,s2),aunit
+    if (nzlambda.gt.0) then
+       write(iop,'(/,a)') '# 1st-order interstate coupling &
+            constants (lambda)'
+       do s1=1,nsta-1
+          write(as1,'(i2)') s1
+          do s2=s1+1,nsta
+             write(as2,'(i2)') s2
+             do m=1,nmodes
+                if (lambda_mask(m,s1,s2).eq.0) cycle
+                if (abs(lambda(m,s1,s2)).lt.thrsh) cycle
+                write(am,'(i2)') m
+                write(iop,'(a,F9.6,a)') 'lambda'//trim(adjustl(as1))&
+                     //'_'//trim(adjustl(as2))//'_'//adjustl(am)//&
+                     ' = ',lambda(m,s1,s2),aunit
              enddo
           enddo
        enddo
-    enddo
+    endif
 
+    ! Quadratic (aa) 2nd-order intrastate coupling constants (gamma)
+    if (nzgamma1.gt.0) then
+       write(iop,'(/,a)') '# Quadratic 2nd-order intrastate &
+            coupling constants (gamma)'
+       do s=1,nsta
+          write(as,'(i2)') s
+          do m=1,nmodes
+             if (gamma_mask(m,m,s).eq.0) cycle
+             if (abs(gamma(m,m,s)).lt.thrsh) cycle
+             write(am,'(i2)') m
+             write(iop,'(a,F9.6,a)') 'gamma'//trim(adjustl(as))&
+                  //'_'//trim(adjustl(am))//'_'//adjustl(am)&
+                  //' = ',gamma(m,m,s),aunit
+          enddo
+       enddo
+    endif
+       
+    ! Bi-linear (ab) 2nd-order intrastate coupling constants (gamma)
+    if (nzgamma2.gt.0) then
+       write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
+            coupling constants (gamma)'
+       do s=1,nsta
+          write(as,'(i2)') s
+          do m1=1,nmodes-1
+             do m2=m1+1,nmodes
+                if (gamma_mask(m1,m2,s).eq.0) cycle
+                if (abs(gamma(m1,m2,s)).lt.thrsh) cycle
+                write(am1,'(i2)') m1
+                write(am2,'(i2)') m2
+                write(iop,'(a,F9.6,a)') 'gamma'//trim(adjustl(as))&
+                     //'_'//trim(adjustl(am1))//'_'//adjustl(am2)&
+                     //' = ',gamma(m1,m2,s),aunit
+             enddo
+          enddo
+       enddo
+    endif
+       
+    ! Quadratic (aa) 2nd-order interstate coupling constants (mu)
+    if (nzmu1.gt.0) then
+       write(iop,'(/,a)') '# Quadratic 2nd-order interstate &
+            coupling constants (mu)'
+       do s1=1,nsta-1
+          write(as1,'(i2)') s1
+          do s2=s1+1,nsta
+             write(as2,'(i2)') s2          
+             do m=1,nmodes
+                if (mu_mask(m,m,s1,s2).eq.0) cycle
+                if (abs(mu(m,m,s1,s2)).lt.thrsh) cycle
+                write(am,'(i2)') m
+                write(iop,'(a,F9.6,a)') 'mu'//trim(adjustl(as1))&
+                     //'_'//trim(adjustl(as2))//'_'//&
+                     trim(adjustl(am))//'_'//adjustl(am)//' = ',&
+                     mu(m,m,s1,s2),aunit
+             enddo
+          enddo
+       enddo
+    endif
+       
+    ! Bi-linear (ab) 2nd-order interstate coupling constants (mu)
+    if (nzmu2.gt.0) then
+       write(iop,'(/,a)') '# Bi-linear 2nd-order interstate &
+            coupling constants (mu)'
+       do s1=1,nsta-1
+          write(as1,'(i2)') s1
+          do s2=s1+1,nsta
+             write(as2,'(i2)') s2          
+             do m1=1,nmodes-1
+                do m2=m1+1,nmodes
+                   if (mu_mask(m1,m2,s1,s2).eq.0) cycle
+                   if (abs(mu(m1,m2,s1,s2)).lt.thrsh) cycle
+                   write(am1,'(i2)') m1
+                   write(am2,'(i2)') m2
+                   write(iop,'(a,F9.6,a)') 'mu'//trim(adjustl(as1))&
+                        //'_'//trim(adjustl(as2))//'_'//&
+                        trim(adjustl(am1))//'_'//adjustl(am2)//&
+                        ' = ',mu(m1,m2,s1,s2),aunit
+                enddo
+             enddo
+          enddo
+       enddo
+    endif
+       
+    ! Cubic (aaa) 3rd-order intrastate coupling constants (iota)
+    if (nziota.gt.0) then
+       write(iop,'(/,a)') '# Cubic 3rd-order intrastate coupling &
+            constants (iota)'
+       do s=1,nsta
+          write(as,'(i2)') s
+          do m=1,nmodes
+             if (iota_mask(m,s).eq.0) cycle
+             if (abs(iota(m,s)).lt.thrsh) cycle
+             write(am,'(i2)') m
+             write(iop,'(a,F9.6,a)') 'iota'//trim(adjustl(as))&
+                  //'_'//trim(adjustl(am))//' = ',iota(m,s),aunit
+          enddo
+       enddo
+    endif
+       
+    ! Cubic (aaa) 3rd-order interstate coupling constants (tau)
+    if (nztau.gt.0) then
+       write(iop,'(/,a)') '# Cubic 3rd-order interstate coupling &
+            constants (tau)'
+       do s1=1,nsta-1
+          write(as1,'(i2)') s1
+          do s2=s1+1,nsta
+             write(as2,'(i2)') s2          
+             do m=1,nmodes
+                if (tau_mask(m,s1,s2).eq.0) cycle
+                if (abs(tau(m,s1,s2)).lt.thrsh) cycle
+                write(am,'(i2)') m
+                write(iop,'(a,F9.6,a)') 'tau'//trim(adjustl(as1))&
+                     //'_'//trim(adjustl(as2))//'_'//&
+                     trim(adjustl(am))//' = ',tau(m,s1,s2),aunit
+             enddo
+          enddo
+       enddo
+    endif
+       
+    ! Quartic (aaaa) 4rd-order intrastate coupling constants (epsilon)
+    if (nzepsilon.gt.0) then
+       write(iop,'(/,a)') '# Cubic 4rd-order intrastate coupling &
+            constants (epsilon)'
+       do s=1,nsta
+          write(as,'(i2)') s
+          do m=1,nmodes
+             if (epsilon_mask(m,s).eq.0) cycle
+             if (abs(epsilon(m,s)).lt.thrsh) cycle
+             write(am,'(i2)') m
+             write(iop,'(a,F9.6,a)') 'epsilon'//trim(adjustl(as))&
+                  //'_'//trim(adjustl(am))//' = ',epsilon(m,s),aunit
+          enddo
+       enddo
+    endif
+       
+    ! Quartic (aaaa) 4rd-order interstate coupling constants (xi)
+    if (nzxi.gt.0) then
+       write(iop,'(/,a)') '# Cubic 3rd-order interstate coupling &
+            constants (xi)'
+       do s1=1,nsta-1
+          write(as1,'(i2)') s1
+          do s2=s1+1,nsta
+             write(as2,'(i2)') s2          
+             do m=1,nmodes
+                if (xi_mask(m,s1,s2).eq.0) cycle
+                if (abs(xi(m,s1,s2)).lt.thrsh) cycle
+                write(am,'(i2)') m
+                write(iop,'(a,F9.6,a)') 'xi'//trim(adjustl(as1))&
+                     //'_'//trim(adjustl(as2))//'_'//&
+                     trim(adjustl(am))//' = ',xi(m,s1,s2),aunit
+             enddo
+          enddo
+       enddo
+    endif
+       
     ! Finishing line
     write(iop,'(/,a)') 'end-parameter-section'
 
@@ -242,122 +340,220 @@ contains
     enddo
 
     ! 1st-order intrastate coupling terms (kappa)
-    write(iop,'(/,a)') '# 1st-order intrastate coupling &
-         constants (kappa)'
-    do m=1,nmodes
-       write(am,'(i2)') m
-       do s=1,nsta
-          if (kappa_mask(m,s).eq.0) cycle
-          if (abs(kappa(m,s)).lt.thrsh) cycle
-          write(as,'(i2)') s
-          write(iop,'(a)') 'kappa'//trim(adjustl(as))&
-               //'_'//adjustl(am)&
-               //'  |'//adjustl(am)//'  q'//'  |'//adjustl(afel)&
-               //'  S'//trim(adjustl(as))//'&'//trim(adjustl(as))
-       enddo
-    enddo
-
-    ! 1st-order interstate coupling terms (lambda)
-    write(iop,'(/,a)') '# 1st-order interstate coupling &
-         constants (lambda)'
-    do m=1,nmodes
-       write(am,'(i2)') m
-       do s1=1,nsta-1
-          write(as1,'(i2)') s1
-          do s2=s1+1,nsta
-             if (lambda_mask(m,s1,s2).eq.0) cycle
-             if (abs(lambda(m,s1,s2)).lt.thrsh) cycle
-             write(as2,'(i2)') s2
-             write(iop,'(a)') 'lambda'//trim(adjustl(as1)) &
-                  //'_'//trim(adjustl(as2))//'_'//adjustl(am) &
-                  //'  |'//adjustl(am)//'  q'//'  |'//adjustl(afel)&
-                  //'  S'//trim(adjustl(as1))//'&'//trim(adjustl(as2))
-          enddo
-       enddo
-    enddo
-
-    ! Quadratic 2nd-order intrastate coupling constants (gamma)
-    write(iop,'(/,a)') '# Quadratic 2nd-order intrastate &
-         coupling constants (gamma)'
-    do m=1,nmodes
-       write(am,'(i2)') m
-       do s=1,nsta
-          if (gamma_mask(m,m,s).eq.0) cycle
-          if (abs(gamma(m,m,s)).lt.thrsh) cycle
-          write(as,'(i2)') s
-          write(iop,'(a)') '0.5*gamma'//trim(adjustl(as))&
-               //'_'//trim(adjustl(am))//'_'//adjustl(am)&
-               //'  |'//adjustl(am)//'  q^2'//'  |'//adjustl(afel)&
-               //'  S'//trim(adjustl(as))//'&'//trim(adjustl(as))
-       enddo
-    enddo
-
-    ! Bi-linear 2nd-order intrastate coupling constants (gamma)
-    write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
-         coupling constants (gamma)'
-    do m1=1,nmodes-1
-       do m2=m1+1,nmodes
+    if (nzkappa.gt.0) then
+       write(iop,'(/,a)') '# 1st-order intrastate coupling &
+            constants (kappa)'
+       do m=1,nmodes
+          write(am,'(i2)') m
           do s=1,nsta
-             if (gamma_mask(m1,m2,s).eq.0) cycle
-             if (abs(gamma(m1,m2,s)).lt.thrsh) cycle
-             write(am1,'(i2)') m1
-             write(am2,'(i2)') m2
+             if (kappa_mask(m,s).eq.0) cycle
+             if (abs(kappa(m,s)).lt.thrsh) cycle
              write(as,'(i2)') s
-             write(iop,'(a)') 'gamma'//trim(adjustl(as))&
-                  //'_'//trim(adjustl(am1))//'_'//adjustl(am2)&
-                  //'  |'//adjustl(am1)//'  q'&
-                  //'  |'//adjustl(am2)//'  q'&
-                  //'  |'//adjustl(afel)&
+             write(iop,'(a)') 'kappa'//trim(adjustl(as))&
+                  //'_'//adjustl(am)&
+                  //'  |'//adjustl(am)//'  q'//'  |'//adjustl(afel)&
                   //'  S'//trim(adjustl(as))//'&'//trim(adjustl(as))
           enddo
        enddo
-    enddo
-
-    ! Quadratic 2nd-order interstate coupling constants (mu)
-    write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
-         coupling constants (gamma)'
-    do m=1,nmodes
-       write(am,'(i2)') m
-       do s1=1,nsta-1
-          do s2=s1+1,nsta
-             if (mu_mask(m,m,s1,s2).eq.0) cycle
-             if (abs(mu(m,m,s1,s2)).lt.thrsh) cycle
-             write(as1,'(i2)') s1
-             write(as2,'(i2)') s2
-             write(iop,'(a)') '0.5*mu'//trim(adjustl(as1))&
-                  //'_'//trim(adjustl(as2))&
-                  //'_'//trim(adjustl(am))//'_'//adjustl(am)&
-                  //'  |'//adjustl(am)//'  q^2'//'  |'//adjustl(afel)&
-                  //'  S'//trim(adjustl(as1))//'&'//trim(adjustl(as2))
-          enddo
-       enddo
-    enddo
-
-    ! Bi-linear 2nd-order interstate coupling constants (mu)
-    write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
-         coupling constants (gamma)'
-    do m1=1,nmodes-1
-       write(am1,'(i2)') m1
-       do m2=m1+1,nmodes
-          write(am2,'(i2)') m2
+    endif
+       
+    ! 1st-order interstate coupling terms (lambda)
+    if (nzlambda.gt.0) then
+       write(iop,'(/,a)') '# 1st-order interstate coupling &
+            constants (lambda)'
+       do m=1,nmodes
+          write(am,'(i2)') m
           do s1=1,nsta-1
              write(as1,'(i2)') s1
              do s2=s1+1,nsta
-                write(as1,'(i2)') s1
-                if (mu_mask(m1,m2,s1,s2).eq.0) cycle
-                if (abs(mu(m1,m2,s1,s2)).lt.thrsh) cycle
-                write(iop,'(a)') 'mu'//trim(adjustl(as1))&
-                     //'_'//trim(adjustl(as2))&
+                if (lambda_mask(m,s1,s2).eq.0) cycle
+                if (abs(lambda(m,s1,s2)).lt.thrsh) cycle
+                write(as2,'(i2)') s2
+                write(iop,'(a)') 'lambda'//trim(adjustl(as1)) &
+                     //'_'//trim(adjustl(as2))//'_'//adjustl(am) &
+                     //'  |'//adjustl(am)//'  q'//'  |'//adjustl(afel)&
+                     //'  S'//trim(adjustl(as1))//'&'&
+                     //trim(adjustl(as2))
+             enddo
+          enddo
+       enddo
+    endif
+       
+    ! Quadratic 2nd-order intrastate coupling constants (gamma)
+    if (nzgamma1.gt.0) then
+       write(iop,'(/,a)') '# Quadratic 2nd-order intrastate &
+            coupling constants (gamma)'
+       do m=1,nmodes
+          write(am,'(i2)') m
+          do s=1,nsta
+             if (gamma_mask(m,m,s).eq.0) cycle
+             if (abs(gamma(m,m,s)).lt.thrsh) cycle
+             write(as,'(i2)') s
+             write(iop,'(a)') '0.5*gamma'//trim(adjustl(as))&
+                  //'_'//trim(adjustl(am))//'_'//adjustl(am)&
+                  //'  |'//adjustl(am)//'  q^2'//'  |'//adjustl(afel)&
+                  //'  S'//trim(adjustl(as))//'&'//trim(adjustl(as))
+          enddo
+       enddo
+    endif
+       
+    ! Bi-linear 2nd-order intrastate coupling constants (gamma)
+    if (nzgamma2.gt.0) then
+       write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
+            coupling constants (gamma)'
+       do m1=1,nmodes-1
+          do m2=m1+1,nmodes
+             do s=1,nsta
+                if (gamma_mask(m1,m2,s).eq.0) cycle
+                if (abs(gamma(m1,m2,s)).lt.thrsh) cycle
+                write(am1,'(i2)') m1
+                write(am2,'(i2)') m2
+                write(as,'(i2)') s
+                write(iop,'(a)') 'gamma'//trim(adjustl(as))&
                      //'_'//trim(adjustl(am1))//'_'//adjustl(am2)&
                      //'  |'//adjustl(am1)//'  q'&
                      //'  |'//adjustl(am2)//'  q'&
                      //'  |'//adjustl(afel)&
-                     //'  S'//trim(adjustl(as1))//'&'//trim(adjustl(as2))
+                     //'  S'//trim(adjustl(as))//'&'&
+                     //trim(adjustl(as))
              enddo
           enddo
        enddo
-    enddo
+    endif
        
+    ! Quadratic 2nd-order interstate coupling constants (mu)
+    if (nzmu1.gt.0) then
+       write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
+            coupling constants (gamma)'
+       do m=1,nmodes
+          write(am,'(i2)') m
+          do s1=1,nsta-1
+             do s2=s1+1,nsta
+                if (mu_mask(m,m,s1,s2).eq.0) cycle
+                if (abs(mu(m,m,s1,s2)).lt.thrsh) cycle
+                write(as1,'(i2)') s1
+                write(as2,'(i2)') s2
+                write(iop,'(a)') '0.5*mu'//trim(adjustl(as1))&
+                     //'_'//trim(adjustl(as2))&
+                     //'_'//trim(adjustl(am))//'_'//adjustl(am)&
+                     //'  |'//adjustl(am)//'  q^2'//'  |'&
+                     //adjustl(afel)//'  S'//trim(adjustl(as1))&
+                     //'&'//trim(adjustl(as2))
+             enddo
+          enddo
+       enddo
+    endif
+       
+    ! Bi-linear 2nd-order interstate coupling constants (mu)
+    if (nzmu2.gt.0) then
+       write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
+            coupling constants (gamma)'
+       do m1=1,nmodes-1
+          write(am1,'(i2)') m1
+          do m2=m1+1,nmodes
+             write(am2,'(i2)') m2
+             do s1=1,nsta-1
+                write(as1,'(i2)') s1
+                do s2=s1+1,nsta
+                   write(as1,'(i2)') s1
+                   if (mu_mask(m1,m2,s1,s2).eq.0) cycle
+                   if (abs(mu(m1,m2,s1,s2)).lt.thrsh) cycle
+                   write(iop,'(a)') 'mu'//trim(adjustl(as1))&
+                        //'_'//trim(adjustl(as2))&
+                        //'_'//trim(adjustl(am1))//'_'//adjustl(am2)&
+                        //'  |'//adjustl(am1)//'  q'&
+                        //'  |'//adjustl(am2)//'  q'&
+                        //'  |'//adjustl(afel)&
+                        //'  S'//trim(adjustl(as1))//'&'&
+                        //trim(adjustl(as2))
+                enddo
+             enddo
+          enddo
+       enddo
+    endif
+
+    ! Cubic (aaa) 3rd-order intrastate coupling constants (iota)
+    if (nziota.gt.0) then
+       write(iop,'(/,a)') '# Cubic 3rd-order intrastate coupling &
+            constants (iota)'
+       do m=1,nmodes
+          write(am,'(i2)') m
+          do s=1,nsta
+             if (iota_mask(m,s).eq.0) cycle
+             if (abs(iota(m,s)).lt.thrsh) cycle
+             write(as,'(i2)') s
+             write(iop,'(a)') '0.166667*iota'//trim(adjustl(as))&
+                  //'_'//trim(adjustl(am))&
+                  //'  |'//adjustl(am)//'  q^3'//'  |'//adjustl(afel)&
+                  //'  S'//trim(adjustl(as))//'&'//trim(adjustl(as))
+          enddo
+       enddo
+    endif
+
+    ! Cubic (aaa) 3rd-order interstate coupling constants (tau)
+    if (nztau.gt.0) then
+       write(iop,'(/,a)') '# Cubic 3rd-order interstate coupling &
+            constants (tau)'
+       do m=1,nmodes
+          write(am,'(i2)') m
+          do s1=1,nsta-1
+             do s2=s1+1,nsta
+                if (tau_mask(m,s1,s2).eq.0) cycle
+                if (abs(tau(m,s1,s2)).lt.thrsh) cycle
+                write(as1,'(i2)') s1
+                write(as2,'(i2)') s2
+                write(iop,'(a)') '0.166667*tau'//trim(adjustl(as1))&
+                     //'_'//trim(adjustl(as2))&
+                     //'_'//trim(adjustl(am))&
+                     //'  |'//adjustl(am)//'  q^3'//'  |'&
+                     //adjustl(afel)//'  S'//trim(adjustl(as1))&
+                     //'&'//trim(adjustl(as2))
+             enddo
+          enddo
+       enddo
+    endif
+
+     ! Quartic (aaaa) 4rd-order intrastate coupling constants (epsilon)
+    if (nzepsilon.gt.0) then
+       write(iop,'(/,a)') '# Cubic 4rd-order intrastate coupling &
+            constants (epsilon)'
+       do m=1,nmodes
+          write(am,'(i2)') m
+          do s=1,nsta
+             if (epsilon_mask(m,s).eq.0) cycle
+             if (abs(epsilon(m,s)).lt.thrsh) cycle
+             write(as,'(i2)') s
+             write(iop,'(a)') '0.041666*epsilon'//trim(adjustl(as))&
+                  //'_'//trim(adjustl(am))&
+                  //'  |'//adjustl(am)//'  q^4'//'  |'//adjustl(afel)&
+                  //'  S'//trim(adjustl(as))//'&'//trim(adjustl(as))
+          enddo
+       enddo
+    endif
+
+    ! Quartic (aaaa) 4rd-order interstate coupling constants (xi)
+    if (nzxi.gt.0) then
+       write(iop,'(/,a)') '# Cubic 3rd-order interstate coupling &
+            constants (xi)'
+       do m=1,nmodes
+          write(am,'(i2)') m
+          do s1=1,nsta-1
+             do s2=s1+1,nsta
+                if (xi_mask(m,s1,s2).eq.0) cycle
+                if (abs(xi(m,s1,s2)).lt.thrsh) cycle
+                write(as1,'(i2)') s1
+                write(as2,'(i2)') s2
+                write(iop,'(a)') '0.041666*xi'//trim(adjustl(as1))&
+                     //'_'//trim(adjustl(as2))&
+                     //'_'//trim(adjustl(am))&
+                     //'  |'//adjustl(am)//'  q^4'//'  |'&
+                     //adjustl(afel)//'  S'//trim(adjustl(as1))&
+                     //'&'//trim(adjustl(as2))
+             enddo
+          enddo
+       enddo
+    endif
+    
     ! Finishing line
     write(iop,'(/,a)') 'end-hamiltonian-section'
 
@@ -374,6 +570,147 @@ contains
     return
     
   end subroutine wroper
+
+!######################################################################
+
+  subroutine get_nzpar(nzkappa,nzlambda,nzgamma1,nzgamma2,nzmu1,&
+       nzmu2,nziota,nztau,nzepsilon,nzxi,thrsh)
+
+    use constants
+    use sysinfo
+    use symmetry
+    use kdcglobal
+    
+    implicit none
+
+    integer              :: nzkappa
+    integer              :: nzlambda
+    integer              :: nzgamma1,nzgamma2
+    integer              :: nzmu1,nzmu2
+    integer              :: nziota
+    integer              :: nztau
+    integer              :: nzepsilon
+    integer              :: nzxi
+    integer              :: m,s,m1,m2,s1,s2
+    real(dp), intent(in) :: thrsh
+
+    ! 1st-order intrastate coupling constants (kappa)
+    nzkappa=0
+    do s=1,nsta
+       do m=1,nmodes
+          if (kappa_mask(m,s).eq.0) cycle
+          if (abs(kappa(m,s)).lt.thrsh) cycle
+          nzkappa=nzkappa+1
+       enddo
+    enddo
+
+    ! 1st-order intrastate coupling constants (lambda)
+    nzlambda=0
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (lambda_mask(m,s1,s2).eq.0) cycle
+             if (abs(lambda(m,s1,s2)).lt.thrsh) cycle
+             nzlambda=nzlambda+1
+          enddo
+       enddo
+    enddo
+
+    ! Quadratic (aa) 2nd-order intrastate coupling constants (gamma)
+    nzgamma1=0
+    do s=1,nsta
+       do m=1,nmodes
+          if (gamma_mask(m,m,s).eq.0) cycle
+          if (abs(gamma(m,m,s)).lt.thrsh) cycle
+          nzgamma1=nzgamma1+1
+       enddo
+    enddo
+
+    ! Bi-linear (ab) 2nd-order intrastate coupling constants (gamma)
+    nzgamma2=0
+    do s=1,nsta
+       do m1=1,nmodes-1
+          do m2=m1+1,nmodes
+             if (gamma_mask(m1,m2,s).eq.0) cycle
+             if (abs(gamma(m1,m2,s)).lt.thrsh) cycle
+             nzgamma2=nzgamma2+1
+          enddo
+       enddo
+    enddo
+
+    ! Quadratic (aa) 2nd-order interstate coupling constants (mu)
+    nzmu1=0
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (mu_mask(m,m,s1,s2).eq.0) cycle
+             if (abs(mu(m,m,s1,s2)).lt.thrsh) cycle
+             nzmu1=nzmu1+1
+          enddo
+       enddo
+    enddo
+
+    ! Bi-linear (ab) 2nd-order interstate coupling constants (mu)
+    nzmu2=0
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m1=1,nmodes-1
+             do m2=m1+1,nmodes
+                if (mu_mask(m1,m2,s1,s2).eq.0) cycle
+                if (abs(mu(m1,m2,s1,s2)).lt.thrsh) cycle
+                nzmu2=nzmu2+1
+             enddo
+          enddo
+       enddo
+    enddo
+
+    ! Cubic (aaa) 3rd-order intrastate coupling constants (iota)
+    nziota=0
+    do s=1,nsta
+       do m=1,nmodes
+          if (iota_mask(m,s).eq.0) cycle
+          if (abs(iota(m,s)).lt.thrsh) cycle
+          nziota=nziota+1
+       enddo
+    enddo
+    
+    ! Cubic (aaa) 3rd-order interstate coupling constants (tau)
+    nztau=0
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (tau_mask(m,s1,s2).eq.0) cycle
+             if (abs(tau(m,s1,s2)).lt.thrsh) cycle
+             nztau=nztau+1
+          enddo
+       enddo
+    enddo
+
+    ! Quartic (aaaa) 4rd-order intrastate coupling constants (epsilon)
+    nzepsilon=0
+    do s=1,nsta
+       do m=1,nmodes
+          if (epsilon_mask(m,s).eq.0) cycle
+          if (abs(epsilon(m,s)).lt.thrsh) cycle
+          nzepsilon=nzepsilon+1
+       enddo
+    enddo
+
+    ! Quartic (aaaa) 4rd-order interstate coupling constants (xi)
+    nzxi=0
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (xi_mask(m,s1,s2).eq.0) cycle
+             if (abs(xi(m,s1,s2)).lt.thrsh) cycle
+             nzxi=nzxi+1
+          enddo
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine get_nzpar
     
 !######################################################################
 

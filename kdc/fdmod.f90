@@ -297,21 +297,6 @@ contains
 !**********************************************************************
     
 !----------------------------------------------------------------------
-! Allocate arrays
-!----------------------------------------------------------------------
-    allocate(kappa(nmodes,nsta))
-    kappa=0.0d0
-
-    allocate(lambda(nmodes,nsta,nsta))
-    lambda=0.0d0
-
-    allocate(gamma(nmodes,nmodes,nsta))
-    gamma=0.0d0
-
-    allocate(mu(nmodes,nmodes,nsta,nsta))
-    mu=0.0d0
-    
-!----------------------------------------------------------------------
 ! First-order and quadratic terms: kappa_a, lambda_a, gamma_aa, mu_aa
 !----------------------------------------------------------------------
     do m1=1,nmodes

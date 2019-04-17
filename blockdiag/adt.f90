@@ -15,6 +15,7 @@ contains
     use constants
     use channels
     use iomod
+    use utils
     use bdglobal
     
     implicit none
@@ -66,98 +67,6 @@ contains
     
   end subroutine get_adt
   
-!######################################################################
-
-  subroutine invert_matrix(mat,invmat,dim,pseudo)
-
-    use constants
-    use channels
-    use iomod
-    
-    implicit none
-
-    integer                      :: dim,info,i
-    real(dp), dimension(dim,dim) :: mat,invmat,tmp,umat,vtmat,&
-                                    sigmaplus
-    real(dp), dimension(dim)     :: sigma
-    real(dp), dimension(5*dim)   :: work
-    real(dp), parameter          :: thrsh=1e-10_dp
-    logical                      :: pseudo
-    
-!----------------------------------------------------------------------    
-! SVD of the input matrix
-!----------------------------------------------------------------------
-    tmp=mat
-    call dgesvd('A','A',dim,dim,tmp,dim,sigma,umat,dim,vtmat,dim,&
-         work,5*dim,info)
-
-    ! Exit if the SVD failed
-    if (info.ne.0) then
-       errmsg='SVD failed in subroutine invert_matrix'
-       call error_control
-    endif
-
-!----------------------------------------------------------------------
-! Moore-Penrose inverse
-!----------------------------------------------------------------------
-    sigmaplus=0.0d0
-    pseudo=.false.
-    do i=1,dim
-       if (abs(sigma(i)).lt.thrsh) then
-          sigmaplus(i,i)=0.0d0
-          pseudo=.true.
-       else
-          sigmaplus(i,i)=1.0d0/sigma(i)
-       endif
-    enddo
-
-    invmat=matmul(transpose(vtmat),matmul(sigmaplus,transpose(umat)))
-    
-    return
-    
-  end subroutine invert_matrix
-
-!######################################################################
-
-  subroutine sqrt_matrix(mat,sqrtmat,dim)
-
-    use constants
-    use channels
-    use iomod
-    
-    implicit none
-
-    integer                      :: dim,info,i
-    real(dp), dimension(dim,dim) :: mat,sqrtmat,eigvec,dmat
-    real(dp), dimension(dim)     :: lambda
-    real(dp), dimension(3*dim)   :: work
-
-!----------------------------------------------------------------------
-! Diagonalisation of the input matrix
-!----------------------------------------------------------------------
-    eigvec=mat
-    call dsyev('V','U',dim,eigvec,dim,lambda,work,3*dim,info)
-
-    ! Exit if the diagonalisation failed
-    if (info.ne.0) then
-       errmsg='Diagonalisation failed in subroutine sqrt_matrix'
-       call error_control
-    endif
-
-!----------------------------------------------------------------------
-! Square root of the input matrix
-!----------------------------------------------------------------------
-    dmat=0.0d0
-    do i=1,dim
-       dmat(i,i)=sqrt(lambda(i))
-    enddo
-
-    sqrtmat=matmul(eigvec,matmul(dmat,transpose(eigvec)))
-
-    return
-    
-  end subroutine sqrt_matrix
-    
 !######################################################################
   
 end module adtmod

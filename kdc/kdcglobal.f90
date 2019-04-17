@@ -34,7 +34,11 @@ module kdcglobal
   real(dp), allocatable           :: lambda(:,:,:)
   real(dp), allocatable           :: gamma(:,:,:)
   real(dp), allocatable           :: mu(:,:,:,:)
-
+  real(dp), allocatable           :: iota(:,:)
+  real(dp), allocatable           :: tau(:,:,:)
+  real(dp), allocatable           :: epsilon(:,:)
+  real(dp), allocatable           :: xi(:,:,:)
+  
   ! Parameterisation algorithm
   integer                         :: ialgor
   

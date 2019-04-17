@@ -249,10 +249,18 @@ contains
     allocate(lambda(nmodes,nsta,nsta))
     allocate(gamma(nmodes,nmodes,nsta))
     allocate(mu(nmodes,nmodes,nsta,nsta))
+    allocate(iota(nmodes,nsta))
+    allocate(tau(nmodes,nsta,nsta))
+    allocate(epsilon(nmodes,nsta))
+    allocate(xi(nmodes,nsta,nsta))
     allocate(kappa_mask(nmodes,nsta))
     allocate(lambda_mask(nmodes,nsta,nsta))
     allocate(gamma_mask(nmodes,nmodes,nsta))
     allocate(mu_mask(nmodes,nmodes,nsta,nsta))
+    allocate(iota_mask(nmodes,nsta))
+    allocate(tau_mask(nmodes,nsta,nsta))
+    allocate(epsilon_mask(nmodes,nsta))
+    allocate(xi_mask(nmodes,nsta,nsta))
     
 !----------------------------------------------------------------------
 ! Vertical excitation energies
@@ -271,7 +279,11 @@ contains
     read(ibin) lambda
     read(ibin) gamma
     read(ibin) mu
-
+    read(ibin) iota
+    read(ibin) tau
+    read(ibin) epsilon
+    read(ibin) xi
+    
 !----------------------------------------------------------------------
 ! Masks
 !----------------------------------------------------------------------
@@ -279,7 +291,11 @@ contains
     read(ibin) lambda_mask
     read(ibin) gamma_mask
     read(ibin) mu_mask
-
+    read(ibin) iota_mask
+    read(ibin) tau_mask
+    read(ibin) epsilon_mask
+    read(ibin) xi_mask
+    
 !----------------------------------------------------------------------
 ! Close the parameter file
 !----------------------------------------------------------------------
@@ -346,7 +362,7 @@ contains
 ! Write the data file
 !----------------------------------------------------------------------
     do i=1,npnts
-       write(unit,*) qi+(i-1)*dq,(surf(i,j),j=1,nsta)
+       write(unit,'(20(x,F10.7))') qi+(i-1)*dq,(surf(i,j),j=1,nsta)
     enddo
 
 !----------------------------------------------------------------------
@@ -537,7 +553,51 @@ contains
           enddo
        enddo
     enddo
-          
+
+!----------------------------------------------------------------------
+! Third-order contributions
+!----------------------------------------------------------------------
+    ! iota
+    do s=1,nsta
+       do m=1,nmodes
+          if (iota_mask(m,s).eq.0) cycle
+          w(s,s)=w(s,s)+(1.0d0/6.0d0)*iota(m,s)*q(m)**3
+       enddo
+    enddo
+
+    ! tau
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (tau_mask(m,s1,s2).eq.0) cycle
+             w(s1,s2)=w(s1,s2)+(1.0d0/6.0d0)*tau(m,s1,s2)*q(m)**3
+             w(s2,s1)=w(s2,s1)+(1.0d0/6.0d0)*tau(m,s1,s2)*q(m)**3
+          enddo
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Fourth-order contributions
+!----------------------------------------------------------------------
+    ! epsilon
+    do s=1,nsta
+       do m=1,nmodes
+          if (epsilon_mask(m,s).eq.0) cycle
+          w(s,s)=w(s,s)+(1.0d0/24.0d0)*epsilon(m,s)*q(m)**4
+       enddo
+    enddo
+
+    ! xi
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (tau_mask(m,s1,s2).eq.0) cycle
+             w(s1,s2)=w(s1,s2)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
+             w(s2,s1)=w(s2,s1)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
+          enddo
+       enddo
+    enddo
+    
     return
 
   end function pot

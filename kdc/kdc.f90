@@ -643,12 +643,51 @@ contains
   subroutine get_coefficients
 
     use constants
+    use sysinfo
     use kdcglobal
     use fdmod
     use nmeqmod
     
     implicit none
 
+!----------------------------------------------------------------------
+! Allocate and initialise arrays
+!----------------------------------------------------------------------
+    ! First-order, intrastate
+    allocate(kappa(nmodes,nsta))
+    kappa=0.0d0
+
+    ! First-order, interstate
+    allocate(lambda(nmodes,nsta,nsta))
+    lambda=0.0d0
+
+    ! Second-order, intrastate
+    allocate(gamma(nmodes,nmodes,nsta))
+    gamma=0.0d0
+
+    ! Second-order, interstate
+    allocate(mu(nmodes,nmodes,nsta,nsta))
+    mu=0.0d0
+
+    ! Third-order, cubic, intrastate
+    allocate(iota(nmodes,nsta))
+    iota=0.0d0
+
+    ! Third-order, cubic, interstate
+    allocate(tau(nmodes,nsta,nsta))
+    tau=0.0d0
+
+    ! Fourth-order, quartic, intrastate
+    allocate(epsilon(nmodes,nsta))
+    epsilon=0.0d0
+
+    ! Fourth-order, quartic, interstate
+    allocate(xi(nmodes,nsta,nsta))
+    xi=0.0d0
+    
+!----------------------------------------------------------------------
+! Calculate the coupling coefficients
+!----------------------------------------------------------------------
     if (ialgor.eq.1) then
        ! Finite differences
        call get_coefficients_fd
@@ -732,26 +771,38 @@ contains
 
     ! Output the total and symmetry-allowed number of coupling
     ! coefficients to the log file
-    write(ilog,'(/,41a)') ('-',i=1,41)
-    write(ilog,'(a)') ' Type  | Total number | Symmetry allowed'
-    write(ilog,'(41a)') ('-',i=1,41)
+    write(ilog,'(/,42a)') ('-',i=1,42)
+    write(ilog,'(a)') ' Type   | Total number | Symmetry allowed'
+    write(ilog,'(42a)') ('-',i=1,42)
 
-    write(ilog,'(a,2x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,3x,a,4x,i4,6x,a1,4x,i4)') &
          'kappa','|',nkappa(1),'|',nkappa(2)
 
-    write(ilog,'(a,1x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,2x,a,4x,i4,6x,a1,4x,i4)') &
          'lambda','|',nlambda(1),'|',nlambda(2)
 
-    write(ilog,'(a,2x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,3x,a,4x,i4,6x,a1,4x,i4)') &
          'gamma','|',ngamma(1),'|',ngamma(2)
 
-    write(ilog,'(a,5x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,6x,a,4x,i4,6x,a1,4x,i4)') &
          'mu','|',nmu(1),'|',nmu(2)
 
     write(ilog,'(a,4x,a,4x,i4,6x,a1,4x,i4)') &
+         'iota','|',niota(1),'|',niota(2)
+
+    write(ilog,'(a,5x,a,4x,i4,6x,a1,4x,i4)') &
+         'tau','|',ntau(1),'|',ntau(2)
+
+    write(ilog,'(a,1x,a,4x,i4,6x,a1,4x,i4)') &
+         'epsilon','|',nepsilon(1),'|',nepsilon(2)
+
+    write(ilog,'(a,6x,a,4x,i4,6x,a1,4x,i4)') &
+         'xi','|',nxi(1),'|',nxi(2)
+    
+    write(ilog,'(a,5x,a,4x,i4,6x,a1,4x,i4)') &
          'all','|',ntot(1),'|',ntot(2)
 
-    write(ilog,'(41a,/)') ('-',i=1,41)
+    write(ilog,'(42a,/)') ('-',i=1,42)
     
 !----------------------------------------------------------------------
 ! Check for any non-zero coupling coefficients that should be zero
@@ -812,7 +863,63 @@ contains
           enddo
        enddo
     enddo
-       
+
+    ! iota
+    do s=1,nsta
+       do m=1,nmodes
+          if (abs(iota(m,s)).gt.thrsh&
+               .and.iota_mask(m,s).eq.0) then
+             write(ilog,'(a,2x,a,2(x,i2),2x,F10.7)') &
+                  'WARNING non-zero parameter that should be &
+                  zero by symmetry:','iota',m,s,&
+                  iota(m,s)
+          endif
+       enddo
+    enddo
+
+    ! tau
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (abs(tau(m,s1,s2)).gt.thrsh&
+                  .and.tau_mask(m,s1,s2).eq.0) then
+                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
+                     'WARNING non-zero parameter that should be &
+                     zero by symmetry:','tau',m,s1,s2,&
+                     tau(m,s1,s2)
+             endif
+          enddo
+       enddo
+    enddo
+
+    ! espilon
+    do s=1,nsta
+       do m=1,nmodes
+          if (abs(epsilon(m,s)).gt.thrsh&
+               .and.epsilon_mask(m,s).eq.0) then
+             write(ilog,'(a,2x,a,2(x,i2),2x,F10.7)') &
+                  'WARNING non-zero parameter that should be &
+                  zero by symmetry:','epsilon',m,s,&
+                  epsilon(m,s)
+          endif
+       enddo
+    enddo
+
+    ! xi
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (abs(xi(m,s1,s2)).gt.thrsh&
+                  .and.xi_mask(m,s1,s2).eq.0) then
+                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
+                     'WARNING non-zero parameter that should be &
+                     zero by symmetry:','xi',m,s1,s2,&
+                     xi(m,s1,s2)
+             endif
+          enddo
+       enddo
+    enddo
+    
     return
     
   end subroutine check_coefficients
@@ -856,7 +963,11 @@ contains
     write(ibin) lambda
     write(ibin) gamma
     write(ibin) mu
-
+    write(ibin) iota
+    write(ibin) tau
+    write(ibin) epsilon
+    write(ibin) xi
+    
 !----------------------------------------------------------------------
 ! Masks
 !----------------------------------------------------------------------
@@ -864,6 +975,10 @@ contains
     write(ibin) lambda_mask
     write(ibin) gamma_mask
     write(ibin) mu_mask
+    write(ibin) iota_mask
+    write(ibin) tau_mask
+    write(ibin) epsilon_mask
+    write(ibin) xi_mask
     
     return
     

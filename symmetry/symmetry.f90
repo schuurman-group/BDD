@@ -12,17 +12,25 @@ module symmetry
   !----------------------------------------------------------------------
   ! Symmetry information
   !----------------------------------------------------------------------
-  integer, allocatable            :: kappa_mask(:,:)
-  integer, allocatable            :: lambda_mask(:,:,:)
-  integer, allocatable            :: gamma_mask(:,:,:)
-  integer, allocatable            :: mu_mask(:,:,:,:)
-  integer, dimension(2)           :: nkappa
-  integer, dimension(2)           :: nlambda
-  integer, dimension(2)           :: ngamma
-  integer, dimension(2)           :: nmu
-  integer, dimension(2)           :: ntot
-  integer, allocatable            :: cut_mask(:,:)
-  character(len=3), allocatable   :: stalab(:)
+  integer, allocatable          :: kappa_mask(:,:)
+  integer, allocatable          :: lambda_mask(:,:,:)
+  integer, allocatable          :: gamma_mask(:,:,:)
+  integer, allocatable          :: mu_mask(:,:,:,:)
+  integer, allocatable          :: iota_mask(:,:)
+  integer, allocatable          :: tau_mask(:,:,:)
+  integer, allocatable          :: epsilon_mask(:,:)
+  integer, allocatable          :: xi_mask(:,:,:)
+  integer, dimension(2)         :: nkappa
+  integer, dimension(2)         :: nlambda
+  integer, dimension(2)         :: ngamma
+  integer, dimension(2)         :: nmu
+  integer, dimension(2)         :: niota
+  integer, dimension(2)         :: ntau
+  integer, dimension(2)         :: nepsilon
+  integer, dimension(2)         :: nxi
+  integer, dimension(2)         :: ntot
+  integer, allocatable          :: cut_mask(:,:)
+  character(len=3), allocatable :: stalab(:)
   
 !----------------------------------------------------------------------
 ! Point group information
@@ -56,17 +64,37 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
+    ! First-order, intrastate
     allocate(kappa_mask(nmodes,nsta))
     kappa_mask=0
 
+    ! First-order, interstate
     allocate(lambda_mask(nmodes,nsta,nsta))
     lambda_mask=0
 
+    ! Second-order, intrastate
     allocate(gamma_mask(nmodes,nmodes,nsta))
     gamma_mask=0
 
+    ! Second-order, interstate
     allocate(mu_mask(nmodes,nmodes,nsta,nsta))
     mu_mask=0
+
+    ! Third-order, cubic-only, intrastate
+    allocate(iota_mask(nmodes,nsta))
+    iota_mask=0
+
+    ! Third-order, cubic-only, interstate
+    allocate(tau_mask(nmodes,nsta,nsta))
+    tau_mask=0
+
+    ! Fourth-order, quartic-only, intrastate
+    allocate(epsilon_mask(nmodes,nsta))
+    epsilon_mask=0
+
+    ! Fourth-order, quartic-only, interstate
+    allocate(xi_mask(nmodes,nsta,nsta))
+    xi_mask=0
     
 !----------------------------------------------------------------------
 ! First, convert the user specified symmetry labels to the format used
@@ -149,6 +177,58 @@ contains
                 mu_mask(m1,m2,s1,s2)=mu_mask(m1,m2,s1,s2)
                 mu_mask(m2,m1,s2,s1)=mu_mask(m1,m2,s1,s2)
              enddo
+          enddo
+       enddo
+    enddo
+
+    ! iota
+    do s1=1,nsta
+       do m1=1,nmodes
+          nmchk=0
+          stachk=0
+          nmchk(m1)=3
+          stachk(s1)=2
+          iota_mask(m1,s1)=integralsym(nmchk,stachk,axchk)
+       enddo
+    enddo
+    
+    ! tau
+    do s1=1,nsta
+       do s2=s1+1,nsta
+          do m1=1,nmodes
+             nmchk=0
+             stachk=0
+             nmchk(m1)=3
+             stachk(s1)=stachk(s1)+1
+             stachk(s2)=stachk(s2)+1
+             tau_mask(m1,s1,s2)=integralsym(nmchk,stachk,axchk)
+             tau_mask(m1,s2,s1)=tau_mask(m1,s1,s2)
+          enddo
+       enddo
+    enddo
+
+    ! epsilon
+    do s1=1,nsta
+       do m1=1,nmodes
+          nmchk=0
+          stachk=0
+          nmchk(m1)=4
+          stachk(s1)=2
+          epsilon_mask(m1,s1)=integralsym(nmchk,stachk,axchk)
+       enddo
+    enddo
+
+    ! xi
+    do s1=1,nsta
+       do s2=s1+1,nsta
+          do m1=1,nmodes
+             nmchk=0
+             stachk=0
+             nmchk(m1)=4
+             stachk(s1)=stachk(s1)+1
+             stachk(s2)=stachk(s2)+1
+             xi_mask(m1,s1,s2)=integralsym(nmchk,stachk,axchk)
+             xi_mask(m1,s2,s1)=xi_mask(m1,s1,s2)
           enddo
        enddo
     enddo
@@ -670,10 +750,54 @@ contains
           enddo
        enddo
     enddo
-       
-    ! Total
-    ntot=nkappa+nlambda+ngamma+nmu
 
+    ! iota
+    do s1=1,nsta-1
+       do m1=1,nmodes
+          ! Total number
+          niota(1)=niota(1)+1
+          ! Symmetry allowed
+          if (iota_mask(m1,s1).eq.1) niota(2)=niota(2)+1
+       enddo
+    enddo
+
+    ! tau
+    do s1=1,nsta
+       do s2=s1+1,nsta
+          do m1=1,nmodes
+             ! Total number
+             ntau(1)=ntau(1)+1
+             ! Symmetry allowed
+             if (tau_mask(m1,s1,s2).eq.1) ntau(2)=ntau(2)+1
+          enddo
+       enddo
+    enddo
+
+    ! epsilon
+    do s1=1,nsta-1
+       do m1=1,nmodes
+          ! Total number
+          nepsilon(1)=nepsilon(1)+1
+          ! Symmetry allowed
+          if (epsilon_mask(m1,s1).eq.1) nepsilon(2)=nepsilon(2)+1
+       enddo
+    enddo
+
+    ! xi
+    do s1=1,nsta
+       do s2=s1+1,nsta
+          do m1=1,nmodes
+             ! Total number
+             nxi(1)=nxi(1)+1
+             ! Symmetry allowed
+             if (xi_mask(m1,s1,s2).eq.1) nxi(2)=nxi(2)+1
+          enddo
+       enddo
+    enddo
+    
+    ! Total
+    ntot=nkappa+nlambda+ngamma+nmu+niota+ntau+nepsilon+nxi
+    
     return
     
   end subroutine getnpar
