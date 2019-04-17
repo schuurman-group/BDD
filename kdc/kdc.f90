@@ -83,9 +83,7 @@ program kdc
 ! Determine the coupling coefficients
 !----------------------------------------------------------------------
   call get_coefficients
-  
-
-
+ 
 !----------------------------------------------------------------------
 ! Check to see if symmetry constraints are being satisfied
 !----------------------------------------------------------------------
