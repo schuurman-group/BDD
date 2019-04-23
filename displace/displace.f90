@@ -182,6 +182,10 @@ contains
              else if (keyword(i).eq.'all_2d') then
                 ! All cuts (1D and 2D)
                 icut=2
+             else if (keyword(i).eq.'gamma_2d') then
+                ! 2D cuts needed for the determination of
+                ! quadratic (alpha,alpha) gamma terms
+                icut=3
              else
                 goto 100
           endif
@@ -274,9 +278,8 @@ contains
     endif
 
     ! Name of the point group
-    if (icut.eq.2.and.pntgrp.eq.'') then
-       errmsg='For full cuts ($cut=all_2d), the point group must &
-            be specified'
+    if (icut.gt.1.and.pntgrp.eq.'') then
+       errmsg='For 2D cuts, the point group must be specified'
        call error_control
     endif
     
@@ -305,12 +308,14 @@ contains
 !----------------------------------------------------------------------
 ! 1D cuts: all included
 !----------------------------------------------------------------------
-    do n=1,nmodes
-       call makecut_1d(n)
-    enddo
-
+    if (icut.eq.1.or.icut.eq.2) then
+       do n=1,nmodes
+          call makecut_1d(n)
+       enddo
+    endif
+       
 !----------------------------------------------------------------------
-! 2D cuts: only pairs of modes corresponding to symmetry-allowed
+! Full 2D cuts: only pairs of modes corresponding to symmetry-allowed
 ! coupling coefficients are included
 !----------------------------------------------------------------------
     if (icut.eq.2) then
@@ -329,7 +334,25 @@ contains
        enddo
        
     endif
+
+!----------------------------------------------------------------------
+! Subset of 2D cuts needed for the determination of quadratic
+! (alpha,alpha) gamma terms
+!----------------------------------------------------------------------
+    if (icut.eq.3) then
+
+       ! Determine which coupling coefficients are zero by symmetry
+       call create_mask
+
+       ! Make the cuts
+       do n1=1,nmodes-1
+          do n2=n1+1,nmodes
+             if (gamma_mask(n1,n2,1).ne.0) call makecut_2d(n1,n2)
+          enddo
+       enddo
        
+    endif
+    
     return
     
   end subroutine makecut

@@ -558,10 +558,61 @@ contains
     write(iop,'(/,a)') 'end-hamiltonian-section'
 
 !----------------------------------------------------------------------
+! Vertical excitation operators
+!----------------------------------------------------------------------
+    if (nsta.gt.1) then
+       do s=2,nsta
+
+          write(as,'(i2)') s
+
+          ! Starting line
+          write(iop,'(/,a)') 'hamiltonian-section_excite'&
+               //trim(adjustl(as))
+
+          ! Modes
+          write(iop,'(38a)') ('-',i=1,38)
+          m=0    
+          nl=ceiling((real(nmodes+1))/10.0d0)
+          do i=1,nl
+             ncurr=min(10,nmodes+1-10*(i-1))
+             string='modes|'
+             do k=1,ncurr
+                m=m+1
+                if (m.lt.nmodes+1) then
+                   write(amode,'(i3)') m
+                   write(atmp,'(a)') ' Q'//adjustl(amode)//' '
+                   if (m.lt.10) then
+                      string=trim(string)//trim(atmp)//'  |'
+                   else
+                      string=trim(string)//trim(atmp)//' |'
+                   endif
+                else
+                   if (m.eq.nmodes+1) then
+                      string=trim(string)//' el'
+                   else
+                      string=trim(string)//'  | Time'
+                   endif
+                endif
+             enddo
+             write(iop,'(a)') trim(string)
+          enddo
+          write(iop,'(38a)') ('-',i=1,38)
+
+          ! Vertical excitation operator
+          write(iop,'(a)') '1.0 |'//adjustl(afel)//'  S1'&
+               //'&'//trim(adjustl(as))
+
+          ! Finishing line
+          write(iop,'(a)') 'end-hamiltonian-section'
+          
+       enddo
+    endif
+
+!----------------------------------------------------------------------
 ! End line
 !----------------------------------------------------------------------
     write(iop,'(/,a)') 'end-operator'
-
+    
 !----------------------------------------------------------------------
 ! Close the MCTDH operator file
 !----------------------------------------------------------------------
