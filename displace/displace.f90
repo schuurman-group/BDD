@@ -113,7 +113,11 @@ contains
 !----------------------------------------------------------------------
 ! Create the geometries directory
 !----------------------------------------------------------------------
-    inquire(file='geoms/.',exist=found)
+    ! Works with ifort
+    inquire(directory='geoms',exist=found)
+
+    ! Works with gfortran
+    !inquire(file='geoms/.',exist=found)
 
     if (found) then
        call system('rm -rf geoms/*')
@@ -186,6 +190,10 @@ contains
                 ! 2D cuts needed for the determination of
                 ! quadratic (alpha,alpha) gamma terms
                 icut=3
+             else if (keyword(i).eq.'gamma_diag_2d') then
+                ! Diagonal 2D cuts needed for the determination
+                ! of quadratic (alpha,alpha) gamma terms
+                icut=4
              else
                 goto 100
           endif
@@ -352,6 +360,24 @@ contains
        enddo
        
     endif
+
+!----------------------------------------------------------------------
+! Subset of diagonal 2D cuts needed for the determination of quadratic
+! (alpha,alpha) gamma terms
+!----------------------------------------------------------------------
+    if (icut.eq.4) then
+
+       ! Determine which coupling coefficients are zero by symmetry
+       call create_mask
+
+       ! Make the cuts
+       do n1=1,nmodes-1
+          do n2=n1+1,nmodes
+             if (gamma_mask(n1,n2,1).ne.0) call makecut_2d_diag(n1,n2)
+          enddo
+       enddo
+       
+    endif
     
     return
     
@@ -473,12 +499,84 @@ contains
            call write_1file(x,filename)
           
        enddo
+
     enddo
     
     return
     
   end subroutine makecut_2d
 
+!######################################################################
+
+   subroutine makecut_2d_diag(n1,n2)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use dispglobal
+    
+    implicit none
+
+    integer, intent(in)         :: n1,n2
+    integer                     :: i,j
+    real(dp), dimension(nmodes) :: q
+    real(dp), dimension(ncoo)   :: x
+    character(len=60)           :: filename
+    character(len=3)            :: aq1,aq2,ai,aj
+    character(len=1)            :: ad1,ad2
+
+    write(aq1,'(i3)') n1
+    write(aq2,'(i3)') n2
+
+    ! Loop over displacements
+    do i=-npnts,npnts
+
+       if (i.eq.0) cycle
+
+       do j=-npnts,npnts
+
+          if (j.eq.0) cycle
+
+          ! Skip non-diagonal points
+          if (abs(i).ne.abs(j)) cycle
+
+          ! Point in normal modes
+          q=0.0d0
+          q(n1)=i*dq
+          q(n2)=j*dq
+
+          ! Cartesian coordinates
+          x=xcoo0/ang2bohr+matmul(nmcoo,q)
+
+          ! Filename
+          write(ai,'(i3)') abs(i)
+          write(aj,'(i3)') abs(j)
+          if (i.lt.0) then
+             ad1='l'
+          else if (i.gt.0) then
+             ad1='r'
+          endif
+          if (j.lt.0) then
+             ad2='l'
+          else if (j.gt.0) then
+             ad2='r'
+          endif
+          filename='q'//trim(adjustl(aq1))//'_'//trim(adjustl(ai)) &
+               //ad1//'_q'//trim(adjustl(aq2))//'_' &
+               //trim(adjustl(aj))//ad2//'.xyz'
+
+           ! Write the Cartesian coordinates to file
+           call write_1file(x,filename)
+          
+       enddo
+
+    enddo
+    
+    return
+    
+  end subroutine makecut_2d_diag
+    
 !######################################################################
 
   subroutine write_1file(x,filename)
