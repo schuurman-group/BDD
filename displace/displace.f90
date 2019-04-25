@@ -519,11 +519,11 @@ contains
     implicit none
 
     integer, intent(in)         :: n1,n2
-    integer                     :: i,j
+    integer                     :: i
     real(dp), dimension(nmodes) :: q
     real(dp), dimension(ncoo)   :: x
     character(len=60)           :: filename
-    character(len=3)            :: aq1,aq2,ai,aj
+    character(len=3)            :: aq1,aq2,ai
     character(len=1)            :: ad1,ad2
 
     write(aq1,'(i3)') n1
@@ -532,47 +532,33 @@ contains
     ! Loop over displacements
     do i=-npnts,npnts
 
+       ! Skip the Q0 geometry
        if (i.eq.0) cycle
 
-       do j=-npnts,npnts
+       ! Point in normal modes
+       q=0.0d0
+       q(n1)=i*dq
+       q(n2)=i*dq
 
-          if (j.eq.0) cycle
-
-          ! Skip non-diagonal points
-          if (abs(i).ne.abs(j)) cycle
-
-          ! Point in normal modes
-          q=0.0d0
-          q(n1)=i*dq
-          q(n2)=j*dq
-
-          ! Cartesian coordinates
-          x=xcoo0/ang2bohr+matmul(nmcoo,q)
-
-          ! Filename
-          write(ai,'(i3)') abs(i)
-          write(aj,'(i3)') abs(j)
-          if (i.lt.0) then
-             ad1='l'
-          else if (i.gt.0) then
-             ad1='r'
-          endif
-          if (j.lt.0) then
-             ad2='l'
-          else if (j.gt.0) then
-             ad2='r'
-          endif
-          filename='q'//trim(adjustl(aq1))//'_'//trim(adjustl(ai)) &
-               //ad1//'_q'//trim(adjustl(aq2))//'_' &
-               //trim(adjustl(aj))//ad2//'.xyz'
-
-           ! Write the Cartesian coordinates to file
-           call write_1file(x,filename)
-          
-       enddo
-
+       ! Cartesian coordinates
+       x=xcoo0/ang2bohr+matmul(nmcoo,q)
+       
+       ! Filename
+       write(ai,'(i3)') abs(i)
+       if (i.lt.0) then
+          ad1='l'
+       else if (i.gt.0) then
+          ad1='r'
+       endif
+       filename='q'//trim(adjustl(aq1))//'_'//trim(adjustl(ai)) &
+            //ad1//'_q'//trim(adjustl(aq2))//'_' &
+            //trim(adjustl(ai))//ad1//'.xyz'
+       
+       ! Write the Cartesian coordinates to file
+       call write_1file(x,filename)
+       
     enddo
-    
+
     return
     
   end subroutine makecut_2d_diag
