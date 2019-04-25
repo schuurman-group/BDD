@@ -17,7 +17,8 @@ module kdcglobal
   integer, allocatable            :: findx1m(:,:)
   integer, allocatable            :: findx2m(:,:,:)
   integer, allocatable            :: nfiles1m(:)
-  integer                         :: maxfiles
+  integer, allocatable            :: nfiles2m(:,:)
+  integer                         :: maxfiles1m,maxfiles2m
   logical                         :: lbilinear
   
   ! Adiabatic potential at Q0

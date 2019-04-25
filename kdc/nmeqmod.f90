@@ -22,6 +22,13 @@ contains
     call fit_1mode_terms
 
 !----------------------------------------------------------------------
+! Perform the fitting of the 2-mode terms
+! Note that this has to be done after the 1-mode terms have been
+! calculated
+!----------------------------------------------------------------------
+    call fit_2mode_terms
+    
+!----------------------------------------------------------------------
 ! Convert all coupling coefficients to units of eV
 !----------------------------------------------------------------------
     kappa=kappa*eh2ev
@@ -71,8 +78,8 @@ contains
     coeff=0.0d0
 
     ! Input coordinates and diabatic potential values
-    allocate(q(maxfiles))
-    allocate(w(maxfiles))
+    allocate(q(maxfiles1m))
+    allocate(w(maxfiles1m))
     q=0.0d0
     w=0.0d0
     
@@ -150,7 +157,7 @@ contains
 !----------------------------------------------------------------------
     ! Allocate arrays
     allocate(nfiles1m(nmodes))
-    nfiles1m=0.0d0
+    nfiles1m=0
 
     ! Loop over displaced geometries
     do n=1,nfiles
@@ -175,8 +182,8 @@ contains
 ! displacements
 !----------------------------------------------------------------------
     ! Allocate arrays
-    maxfiles=maxval(nfiles1m)
-    allocate(findx1m(nmodes,maxfiles))
+    maxfiles1m=maxval(nfiles1m)
+    allocate(findx1m(nmodes,maxfiles1m))
     findx1m=0
 
     ! Reset the nfiles1m array to act as a counter (it will also be
@@ -298,6 +305,340 @@ contains
     return
     
   end subroutine fill_coeffs1d
+
+!######################################################################
+
+  subroutine fit_2mode_terms
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer               :: n,m1,m2,s1,s2,ndat
+    real(dp), allocatable :: q(:,:),w(:)
+    real(dp)              :: coeff
+    logical               :: present
+
+!----------------------------------------------------------------------
+! Determine the sets of files corresponding to single mode
+! displacements
+!----------------------------------------------------------------------
+    call get_indices_2modes(present)
+
+!----------------------------------------------------------------------
+! Return here if no files containing two-mode displacements were found
+!----------------------------------------------------------------------
+    if (.not.present) return
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    ! Input coordinates and diabatic potential values
+    allocate(q(2,maxfiles2m))
+    allocate(w(maxfiles2m))
+    q=0.0d0
+    w=0.0d0
+
+!----------------------------------------------------------------------
+! Perform the fits of the 2-mode terms
+!----------------------------------------------------------------------
+    ! Loop over pairs of modes
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+
+          ! Cycle if there are no points for the current pair of modes
+          ndat=nfiles2m(m1,m2)
+          if (ndat.eq.0) cycle
+
+          ! Loop over elements of the diabatic potential matrix
+          do s1=1,nsta
+             do s2=s1,nsta
+
+                ! Fill in the coordinate and potential vectors to be
+                ! sent to the fitting routine
+                q=0.0d0
+                w=0.0d0
+                do n=1,ndat
+                   q(1,n)=qvec(m1,findx2m(m1,m2,n))
+                   q(2,n)=qvec(m2,findx2m(m1,m2,n))
+                   w(n)=diabpot(s1,s2,findx2m(m1,m2,n))
+                enddo
+
+                ! Subtract off the one-mode contributions to the
+                ! potential to get the correlated contribution
+                call get_2mode_contrib(w(1:ndat),q(:,1:ndat),ndat,m1,&
+                     m2,s1,s2)
+                
+                ! Perform the fitting for the current pair of modes and
+                ! diabatic potential matrix element
+                call nmeq_bilinear(coeff,ndat,q(:,1:ndat),w(1:ndat))
+
+                ! Fill in the global coefficient arrays
+                call fill_coeffs2d(coeff,m1,m2,s1,s2)
+                
+             enddo
+          enddo
+                
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine fit_2mode_terms
+
+!######################################################################
+
+  subroutine get_indices_2modes(present)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer             :: m,n,mindx1,mindx2,ndisp
+    real(dp), parameter :: thrsh=1e-4_dp
+    logical :: present
+
+!----------------------------------------------------------------------
+! Determine the no. files/geometries corresponding to two-mode
+! displacements for each mode
+!----------------------------------------------------------------------
+    ! Allocate arrays
+    allocate(nfiles2m(nmodes,nmodes))
+    nfiles2m=0
+
+    ! Loop over displaced geometries
+    do n=1,nfiles
+
+       ! Determine the no. displaced modes
+       ndisp=0
+       do m=1,nmodes
+          if (abs(qvec(m,n)).gt.thrsh) then
+             if (ndisp.eq.0) then
+                mindx1=m                
+             else
+                mindx2=m
+             endif
+             ndisp=ndisp+1
+          endif
+       enddo
+
+       ! If only two modes are displaced, then update the
+       ! corresponding element of nfiles2m
+       if (ndisp.eq.2) then
+          nfiles2m(mindx1,mindx2)=nfiles2m(mindx1,mindx2)+1
+          nfiles2m(mindx2,mindx1)=nfiles2m(mindx1,mindx2)
+       endif
+          
+    enddo
+
+!----------------------------------------------------------------------
+! Return if no files containing two-mode displacements were found
+!----------------------------------------------------------------------
+    if (maxval(nfiles2m).gt.0) then
+       present=.true.
+    else
+       present=.false.
+       return
+    endif
+       
+!----------------------------------------------------------------------
+! Determine the sets of files corresponding to two-mode displacements
+!----------------------------------------------------------------------
+    ! Allocate arrays
+    maxfiles2m=maxval(nfiles2m)
+    allocate(findx2m(nmodes,nmodes,maxfiles2m))
+    findx2m=0
+
+    ! Reset the nfiles1m array to act as a counter (it will also be
+    ! re-filled in in the following)
+    nfiles2m=0
+
+    ! Loop over displaced geometries
+    do n=1,nfiles
+
+       ! Determine the no. displaced modes
+       ndisp=0
+       do m=1,nmodes
+          if (abs(qvec(m,n)).gt.thrsh) then
+             if (ndisp.eq.0) then
+                mindx1=m                
+             else
+                mindx2=m
+             endif
+             ndisp=ndisp+1
+          endif
+       enddo
+       
+       ! Fill in the findx2m array
+       if (ndisp.eq.2) then
+          nfiles2m(mindx1,mindx2)=nfiles2m(mindx1,mindx2)+1
+          nfiles2m(mindx2,mindx1)=nfiles2m(mindx1,mindx2)
+          findx2m(mindx1,mindx2,nfiles2m(mindx1,mindx2))=n
+          findx2m(mindx2,mindx1,nfiles2m(mindx1,mindx2))=n
+       endif
+       
+    enddo
+       
+    return
+    
+  end subroutine get_indices_2modes
+
+!######################################################################
+
+  subroutine get_2mode_contrib(w,q,ndat,m1,m2,s1,s2)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer, intent(in)                     :: ndat,m1,m2,s1,s2
+    integer                                 :: n
+    real(dp), dimension(ndat)               :: w
+    real(dp), dimension(2,ndat), intent(in) :: q
+
+!----------------------------------------------------------------------
+! On-diagonal diabatic potential matrix element
+!----------------------------------------------------------------------
+    if (s1.eq.s2) then
+
+       ! Loop over points
+       do n=1,ndat
+
+          ! Zeroth-order contributions
+          w(n)=w(n)-q0pot(s1)
+          w(n)=w(n)-0.5d0*(freq(m1)*q(1,n)**2+freq(m2)*q(2,n)**2)/eh2ev
+          
+          ! First-order contributions
+          w(n)=w(n)-kappa(m1,s1)*q(1,n)-kappa(m2,s1)*q(2,n)
+
+          ! Second-order contributions
+          w(n)=w(n)-0.5d0*(gamma(m1,m1,s1)*q(1,n)**2 &
+               +gamma(m2,m2,s1)*q(2,n)**2)
+
+          ! Third-order contributions
+          w(n)=w(n)-(1.0d0/6.0d0)*(iota(m1,s1)*q(1,n)**3 &
+              +iota(m2,s1)*q(2,n)**3)
+
+          ! Fourth-order contributions
+          w(n)=w(n)-(1.0d0/24.0d0)*(epsilon(m1,s1)*q(1,n)**4 &
+              +epsilon(m2,s1)*q(2,n)**4)
+          
+       enddo
+       
+    endif
+
+!----------------------------------------------------------------------
+! Off-diagonal diabatic potential matrix element
+!----------------------------------------------------------------------
+    if (s1.ne.s2) then
+
+       ! Loop over points
+       do n=1,ndat
+          
+          ! First-order contributions
+          w(n)=w(n)-lambda(m1,s1,s2)*q(1,n)-lambda(m2,s1,s2)*q(2,n)
+
+          ! Second-order contributions
+          w(n)=w(n)-0.5d0*(mu(m1,m1,s1,s2)*q(1,n)**2 &
+               +mu(m2,m2,s1,s2)*q(2,n)**2)
+          
+          ! Third-order contributions
+          w(n)=w(n)-(1.0d0/6.0d0)*(tau(m1,s1,s2)*q(1,n)**3 &
+               +tau(m2,s1,s2)*q(2,n)**3)
+          
+          ! Fourth-order contributions
+          w(n)=w(n)-(1.0d0/24.0d0)*(xi(m1,s1,s2)*q(1,n)**4 &
+               +xi(m2,s1,s2)*q(2,n)**4)
+
+       enddo
+          
+    endif
+       
+    return
+    
+  end subroutine get_2mode_contrib
+    
+!######################################################################
+
+  subroutine nmeq_bilinear(coeff,ndat,q,w)
+
+    use constants
+    use channels
+    use iomod
+    use utils
+    
+    implicit none
+
+    integer, intent(in)                     :: ndat
+    integer                                 :: i
+    real(dp)                                :: coeff
+    real(dp), dimension(2,ndat), intent(in) :: q
+    real(dp), dimension(ndat), intent(in)   :: w
+    real(dp)                                :: numer,denom
+    
+!----------------------------------------------------------------------
+! Calculate the bi-linear coefficient
+!----------------------------------------------------------------------
+    numer=sum(w)
+
+    denom=0.0d0
+    do i=1,ndat
+       denom=denom+q(1,i)*q(2,i)
+    enddo
+
+    coeff=numer/denom
+    
+    return
+    
+  end subroutine nmeq_bilinear
+
+!######################################################################
+
+  subroutine fill_coeffs2d(coeff,m1,m2,s1,s2)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer, intent(in)  :: m1,m2,s1,s2
+    real(dp), intent(in) :: coeff
+    
+!----------------------------------------------------------------------
+! Intrastate coupling coefficients
+!----------------------------------------------------------------------
+    if (s1.eq.s2) then
+       gamma(m1,m2,s1)=coeff
+       gamma(m2,m1,s1)=gamma(m1,m2,s1)
+    endif 
+
+!----------------------------------------------------------------------
+! Interstate coupling coefficients
+!----------------------------------------------------------------------
+    if (s1.ne.s2) then
+       mu(m1,m2,s1,s2)=coeff
+       mu(m2,m1,s1,s2)=mu(m1,m2,s1,s2)
+       mu(m2,m1,s2,s1)=mu(m1,m2,s1,s2)
+    endif
+    
+    return
+    
+  end subroutine fill_coeffs2d
     
 !######################################################################
   
