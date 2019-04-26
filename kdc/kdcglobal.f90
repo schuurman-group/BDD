@@ -29,18 +29,13 @@ module kdcglobal
 
   ! Normal mode coordinates
   real(dp), allocatable           :: qvec(:,:)
-  
-  ! Coupling coeffients
-  real(dp), allocatable           :: kappa(:,:)
-  real(dp), allocatable           :: lambda(:,:,:)
-  real(dp), allocatable           :: gamma(:,:,:)
-  real(dp), allocatable           :: mu(:,:,:,:)
-  real(dp), allocatable           :: iota(:,:)
-  real(dp), allocatable           :: tau(:,:,:)
-  real(dp), allocatable           :: epsilon(:,:)
-  real(dp), allocatable           :: xi(:,:,:)
-  
+    
   ! Parameterisation algorithm
   integer                         :: ialgor
+
+  ! RMSDs of the normal equations fit
+  real(dp)                        :: rmsd
+  real(dp), allocatable           :: rmsd1m(:)
+  real(dp), allocatable           :: rmsd2m(:,:)
   
 end module kdcglobal

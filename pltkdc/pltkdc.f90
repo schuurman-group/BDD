@@ -223,8 +223,9 @@ contains
     use channels
     use iomod
     use sysinfo
-    use pltglobal    
+    use pltglobal
     use symmetry
+    use parameters
     
     implicit none
 
@@ -380,227 +381,32 @@ contains
 
     use constants
     use sysinfo
+    use potfuncs
     use pltglobal
 
     implicit none
-    
-    real(dp), dimension(nmodes) :: q
-    real(dp), dimension(nsta)   :: func
 
+    integer                        :: s
+    real(dp), dimension(nmodes)    :: q
+    real(dp), dimension(nsta)      :: func
+    real(dp), dimension(nsta,nsta) :: wmat
+    
     select case(surftyp)
 
     case(1) ! adiabatic potentials
-       func=adiabpot(q)
+       func=adiabaticpot(q)
 
     case(2) ! diabatic potentials
-       func=diabpot(q)
-
+       wmat=diabaticpot(q)
+       do s=1,nsta
+          func(s)=wmat(s,s)
+       enddo
+          
     end select
 
     return
 
   end function surface
-
-!######################################################################
-
-  function adiabpot(q) result(v)
-
-    use constants
-    use iomod
-    use sysinfo
-    use pltglobal
-    
-    implicit none
-
-    integer                        :: e2,error
-    real(dp), dimension(nmodes)    :: q
-    real(dp), dimension(nsta)      :: v
-    real(dp), dimension(nsta,nsta) :: w
-    real(dp), dimension(3*nsta)    :: work
-
-!----------------------------------------------------------------------
-! Construct the model potential
-!----------------------------------------------------------------------
-    w=pot(q)
-
-!----------------------------------------------------------------------
-! Diagonalise the model potential to yield the model adiabatic
-! potentials
-!----------------------------------------------------------------------
-    e2=3*nsta
-    call dsyev('V','U',nsta,w,nsta,v,work,e2,error)
-
-    if (error.ne.0) then
-       write(6,'(/,2x,a,/)') 'Diagonalisation of the potential &
-            matrix failed'
-       stop
-    endif
-    
-    return
-
-  end function adiabpot
-
-!######################################################################
-
-  function diabpot(q) result(wii)
-
-    use constants
-    use sysinfo
-    use pltglobal
-
-    implicit none
-
-    integer                        :: i
-    real(dp), dimension(nmodes)    :: q
-    real(dp), dimension(nsta)      :: wii
-    real(dp), dimension(nsta,nsta) :: w
-
-!----------------------------------------------------------------------
-! Construct the model potential
-!----------------------------------------------------------------------
-    w=pot(q)
-
-!----------------------------------------------------------------------
-! Return the on-diagonal elements
-!----------------------------------------------------------------------
-    do i=1,nsta
-       wii(i)=w(i,i)
-    enddo
-
-    return
-
-  end function diabpot
-  
-!######################################################################
-
-  function pot(q) result(w)
-
-    use constants
-    use sysinfo
-    use symmetry
-    use pltglobal
-
-    implicit none
-
-    integer                        :: m,m1,m2,s,s1,s2
-    real(dp), dimension(nmodes)    :: q
-    real(dp), dimension(nsta,nsta) :: w
-
-!----------------------------------------------------------------------
-! Initialisation of the model potential
-!----------------------------------------------------------------------
-    w=0.0d0
-
-!----------------------------------------------------------------------
-! Zeroth-order contributions
-!----------------------------------------------------------------------
-    ! Energies
-    do s=1,nsta
-       w(s,s)=w(s,s)+e0(s)
-    enddo
-
-    ! Harmonic potentials
-    do s=1,nsta
-       do m=1,nmodes
-          w(s,s)=w(s,s)+0.5d0*freq(m)*q(m)**2
-       enddo
-    enddo
-
-!----------------------------------------------------------------------
-! First-order contributions
-!----------------------------------------------------------------------
-    ! kappa
-    do s=1,nsta
-       do m=1,nmodes
-          if (kappa_mask(m,s).eq.0) cycle
-          w(s,s)=w(s,s)+kappa(m,s)*q(m)
-       enddo
-    enddo
-
-    ! lambda
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (lambda_mask(m,s1,s2).eq.0) cycle
-             w(s1,s2)=w(s1,s2)+lambda(m,s1,s2)*q(m)
-             w(s2,s1)=w(s2,s1)+lambda(m,s1,s2)*q(m)
-          enddo
-       enddo
-    enddo
-
-!----------------------------------------------------------------------
-! Second-order contributions
-!----------------------------------------------------------------------
-    ! gamma
-    do s=1,nsta
-       do m1=1,nmodes
-          do m2=1,nmodes
-             if (gamma_mask(m1,m2,s).eq.0) cycle
-             w(s,s)=w(s,s)+0.5d0*gamma(m1,m2,s)*q(m1)*q(m2)
-          enddo
-       enddo
-    enddo
-
-    ! mu
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             do m2=1,nmodes
-                if (mu_mask(m1,m2,s1,s2).eq.0) cycle
-                w(s1,s2)=w(s1,s2)+0.5d0*mu(m1,m2,s1,s2)*q(m1)*q(m2)
-                w(s2,s1)=w(s2,s1)+0.5d0*mu(m1,m2,s1,s2)*q(m1)*q(m2)
-             enddo
-          enddo
-       enddo
-    enddo
-
-!----------------------------------------------------------------------
-! Third-order contributions
-!----------------------------------------------------------------------
-    ! iota
-    do s=1,nsta
-       do m=1,nmodes
-          if (iota_mask(m,s).eq.0) cycle
-          w(s,s)=w(s,s)+(1.0d0/6.0d0)*iota(m,s)*q(m)**3
-       enddo
-    enddo
-
-    ! tau
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (tau_mask(m,s1,s2).eq.0) cycle
-             w(s1,s2)=w(s1,s2)+(1.0d0/6.0d0)*tau(m,s1,s2)*q(m)**3
-             w(s2,s1)=w(s2,s1)+(1.0d0/6.0d0)*tau(m,s1,s2)*q(m)**3
-          enddo
-       enddo
-    enddo
-
-!----------------------------------------------------------------------
-! Fourth-order contributions
-!----------------------------------------------------------------------
-    ! epsilon
-    do s=1,nsta
-       do m=1,nmodes
-          if (epsilon_mask(m,s).eq.0) cycle
-          w(s,s)=w(s,s)+(1.0d0/24.0d0)*epsilon(m,s)*q(m)**4
-       enddo
-    enddo
-
-    ! xi
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (tau_mask(m,s1,s2).eq.0) cycle
-             w(s1,s2)=w(s1,s2)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
-             w(s2,s1)=w(s2,s1)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
-          enddo
-       enddo
-    enddo
-    
-    return
-
-  end function pot
 
 !######################################################################
 

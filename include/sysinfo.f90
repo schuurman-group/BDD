@@ -19,6 +19,6 @@ module sysinfo
   character(len=120)            :: freqfile
   
   ! QC calculation info
-  integer :: freqtyp
+  integer                       :: freqtyp
 
 end module sysinfo

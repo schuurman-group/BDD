@@ -12,6 +12,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
     
     implicit none
@@ -39,6 +40,11 @@ contains
     tau=tau*eh2ev
     epsilon=epsilon*eh2ev
     xi=xi*eh2ev
+
+!----------------------------------------------------------------------
+! Calculate the RMSD of the fit
+!----------------------------------------------------------------------
+    call calc_rmsd
     
     return
     
@@ -263,6 +269,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
     
     implicit none
@@ -499,6 +506,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
     
     implicit none
@@ -612,6 +620,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
     
     implicit none
@@ -639,6 +648,158 @@ contains
     return
     
   end subroutine fill_coeffs2d
+
+!######################################################################
+
+  subroutine calc_rmsd
+
+    use constants
+    use channels
+    use parameters
+    use potfuncs
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer                        :: m,m1,m2,s1,s2,n,ndat,indx,&
+                                      ndat_tot
+    real(dp), dimension(nsta,nsta) :: wmod,wact
+
+!----------------------------------------------------------------------
+! Allocate and initialise the RMSD arrays
+!----------------------------------------------------------------------
+    allocate(rmsd1m(nmodes))
+    allocate(rmsd2m(nmodes,nmodes))
+    
+    rmsd=0
+    rmsd1m=0.0d0
+    rmsd2m=0.0d0
+    
+!----------------------------------------------------------------------
+! Contribution to the RMSD from the geometries with one mode
+! displaced
+!----------------------------------------------------------------------
+    ! Loop over modes
+    do m=1,nmodes
+
+       ! Cycle if there are no points for the current mode
+       ndat=nfiles1m(m)
+       if (ndat.eq.0) cycle
+
+       ! Loop over geometries with the current mode displaced
+       do n=1,ndat
+
+          ! File index
+          indx=findx1m(m,n)
+          
+          ! Model potential (in eV)
+          wmod=diabaticpot(qvec(:,indx))
+
+          ! Actual potential (in eV)
+          do s1=1,nsta
+             wact(s1,s1)=(diabpot(s1,s1,indx)-q0pot(s1))*eh2ev
+          enddo
+          do s1=1,nsta-1
+             do s2=s1+1,nsta
+                wact(s1,s2)=diabpot(s1,s2,indx)*eh2ev
+                wact(s2,s1)=wact(s1,s2)
+             enddo
+          enddo
+                
+          ! RMSD contribution
+          do s1=1,nsta-1
+             do s2=s1+1,nsta
+                rmsd1m(m)=rmsd1m(m)&
+                     +(wmod(s1,s2)-wact(s1,s2))**2
+             enddo
+          enddo
+          
+       enddo
+       
+    enddo
+
+    ! Contribution to the total RMSD
+    rmsd=rmsd+sum(rmsd1m(:))
+    
+    ! RMSDs for the single displaced mode geometries
+    do m=1,nmodes
+       ndat=nfiles1m(m)
+       if (ndat.eq.0) cycle
+       rmsd1m(m)=sqrt(rmsd1m(m)/(ndat*nsta*(nsta-1)/2))
+    enddo
+
+!----------------------------------------------------------------------
+! Contribution to the RMSD from the geometries with two modes
+! displaced
+!----------------------------------------------------------------------
+    ! Loop over pairs of modes
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+
+          ! Cycle if there are no points for the current pair of modes
+          ndat=nfiles2m(m1,m2)
+          if (ndat.eq.0) cycle
+
+          ! Loop over geometries with the current pair of modes
+          ! displaced
+          do n=1,ndat
+
+             ! File index
+             indx=findx2m(m1,m2,n)
+
+             ! Model potential (in eV)
+             wmod=diabaticpot(qvec(:,indx))
+
+             ! Actual potential (in eV)
+             do s1=1,nsta
+                wact(s1,s1)=(diabpot(s1,s1,indx)-q0pot(s1))*eh2ev
+             enddo
+             do s1=1,nsta-1
+                do s2=s1+1,nsta
+                   wact(s1,s2)=diabpot(s1,s2,indx)*eh2ev
+                   wact(s2,s1)=wact(s1,s2)
+                enddo
+             enddo
+             
+          enddo
+             
+       enddo
+    enddo
+
+    ! Contribution to the total RMSD
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+          rmsd=rmsd+rmsd2m(m1,m2)
+       enddo
+    enddo
+          
+    ! RMSDs for the doubly displaced mode geometries
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+          ndat=nfiles2m(m1,m2)
+          if (ndat.eq.0) cycle
+          rmsd2m(m1,m2)=sqrt(rmsd2m(m1,m2)/(ndat*nsta*(nsta-1)/2))
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Total RMSD
+!----------------------------------------------------------------------
+    ! Total number of displaced geometries
+    ndat_tot=sum(nfiles1m(:))
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+          ndat_tot=ndat_tot+nfiles2m(m1,m2)
+       enddo
+    enddo
+
+    ! Total RMSD
+    rmsd=sqrt(rmsd/ndat_tot)
+    
+    return
+    
+  end subroutine calc_rmsd
     
 !######################################################################
   

@@ -281,6 +281,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
     
     implicit none

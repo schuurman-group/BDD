@@ -52,6 +52,9 @@ UTILITIES=utilities/timingmod.o \
 
 SYMMETRY=symmetry/symmetry.o
 
+POTFUNCS=potfuncs/parameters.o \
+	potfuncs/potfuncs.o
+
 BLOCKDIAG = blockdiag/bdglobal.o \
 	blockdiag/adt.o \
 	blockdiag/mooverlaps.o \
@@ -121,9 +124,11 @@ OBJECTS_KDC = $(INCLUDE) \
 	$(UTILITIES) \
 	$(IOQC) \
 	$(SYMMETRY) \
+	$(POTFUNCS) \
 	$(KDC)
 OBJ_KDC = constants.o \
 	channels.o \
+	parameters.o \
 	sysinfo.o \
 	iomod.o \
 	parsemod.o \
@@ -131,6 +136,7 @@ OBJ_KDC = constants.o \
 	utils.o \
 	ioqc.o \
 	symmetry.o \
+	potfuncs.o \
 	kdcglobal.o \
 	opermod.o \
 	parinfo.o \
@@ -141,14 +147,17 @@ OBJ_KDC = constants.o \
 OBJECTS_PLTKDC = $(INCLUDE) \
 	$(IOMODULES) \
 	$(SYMMETRY) \
+	$(POTFUNCS) \
 	$(PLTKDC)
 
 OBJ_PLTKDC = constants.o \
 	channels.o \
+	parameters.o \
 	sysinfo.o \
 	iomod.o \
 	parsemod.o \
 	symmetry.o \
+	potfuncs.o \
 	pltglobal.o \
 	pltkdc.o
 

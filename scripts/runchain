@@ -39,6 +39,13 @@ if [ -z $nrefsta ]; then
 fi
 
 ##############################################
+# Determinant screening threshold (optional)
+##############################################
+if [ ! -z $3 ]; then
+    dthresh=$3
+fi
+
+##############################################
 # Perform the chain of blockdiag calculations
 ##############################################
 # Array of DFT/MRCI output directory names
@@ -109,8 +116,14 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
 
     if [ ! -z $oldstem ]; then
 	echo "\$ref_trans=../$oldstem/$oldstem.log" >>$stem/$stem.inp
+	echo >>$stem/$stem.inp
     fi
 
+    if [ ! -z $dthresh ]; then
+	echo "\$dthresh=$dthresh">>$stem/$stem.inp
+	echo >>$stem/$stem.inp
+    fi    
+    
     # Run blockdiag
     cd $stem
     blockdiag.x $stem.inp

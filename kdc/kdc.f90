@@ -9,6 +9,7 @@ program kdc
   use symmetry
   use parinfo
   use opermod
+  use kdcglobal
   
   implicit none
 
@@ -89,6 +90,12 @@ program kdc
 !----------------------------------------------------------------------
   call check_coefficients
 
+!----------------------------------------------------------------------
+! If the coupling coefficients were determined by fitting, then
+! output the RMSDs to the log file
+!----------------------------------------------------------------------
+  if (ialgor.eq.2) call wrrmsd
+  
 !----------------------------------------------------------------------
 ! Output some useful information about the coupling coefficients to
 ! the log file
@@ -644,6 +651,7 @@ contains
 
     use constants
     use sysinfo
+    use parameters
     use kdcglobal
     use fdmod
     use nmeqmod
@@ -684,6 +692,12 @@ contains
     ! Fourth-order, quartic, interstate
     allocate(xi(nmodes,nsta,nsta))
     xi=0.0d0
+
+!----------------------------------------------------------------------
+! Vertical excitation energies
+!----------------------------------------------------------------------
+    allocate(e0(nsta))
+    e0(:)=(q0pot(:)-q0pot(1))*eh2ev
     
 !----------------------------------------------------------------------
 ! Calculate the coupling coefficients
@@ -748,7 +762,8 @@ contains
     use channels
     use iomod
     use sysinfo
-    use kdcglobal    
+    use parameters
+    use kdcglobal
     use symmetry
     
     implicit none
@@ -923,7 +938,48 @@ contains
     return
     
   end subroutine check_coefficients
+
+!######################################################################
+
+  subroutine wrrmsd
+
+    use constants
+    use channels
+    use sysinfo
+    use kdcglobal
     
+    implicit none
+
+    integer :: i,m
+
+!----------------------------------------------------------------------
+! Section header
+!----------------------------------------------------------------------
+    write(ilog,'(/,72a)') ('+',i=1,72)
+    write(ilog,'(2x,a)') 'Fit RMSDs'
+    write(ilog,'(72a)') ('+',i=1,72)
+
+!----------------------------------------------------------------------
+! Total RMSD
+!----------------------------------------------------------------------
+    write(ilog,'(/,2x,a,2x,ES10.4,x,a)') 'Total RMSD:',rmsd,'eV'
+
+!----------------------------------------------------------------------
+! One-mode RMSDs
+!----------------------------------------------------------------------
+    write(ilog,'(/,2x,a)') 'One-Mode RMSDs:'
+    write(ilog,'(20a)') ('-',i=1,20)
+    write(ilog,'(a)') ' Mode | RMSD (eV)'
+    write(ilog,'(20a)') ('-',i=1,20)
+    do m=1,nmodes
+       write(ilog,'(x,i3,2x,a,x,ES10.4)') m,'|',rmsd1m(m)
+    enddo
+    write(ilog,'(20a)') ('-',i=1,20)
+    
+    return
+    
+  end subroutine wrrmsd
+  
 !######################################################################
 
   subroutine wrbinfile
@@ -932,13 +988,12 @@ contains
     use channels
     use iomod
     use sysinfo
-    use kdcglobal    
+    use parameters
+    use kdcglobal
     use symmetry
     
     implicit none
 
-    real(dp), dimension(nsta) :: e0
-    
 !----------------------------------------------------------------------
 ! System dimensions
 !----------------------------------------------------------------------
@@ -948,9 +1003,8 @@ contains
 !----------------------------------------------------------------------
 ! Vertical excitation energies
 !----------------------------------------------------------------------
-    e0(:)=(q0pot(:)-q0pot(1))*eh2ev
     write(ibin) e0
-
+    
 !----------------------------------------------------------------------
 ! Frequencies
 !----------------------------------------------------------------------

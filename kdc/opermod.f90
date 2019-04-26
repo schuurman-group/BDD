@@ -16,6 +16,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use symmetry
     use kdcglobal
     
@@ -82,7 +83,7 @@ contains
     do s=1,nsta
        write(as,'(i2)') s
        write(iop,'(a,F9.6,a)') &
-            'E'//adjustl(as)//' = ',(q0pot(s)-q0pot(1))*eh2ev,aunit
+            'E'//adjustl(as)//' = ',e0(s),aunit
     enddo
 
     ! 1st-order intrastate coupling constants (kappa)
@@ -630,6 +631,7 @@ contains
     use constants
     use sysinfo
     use symmetry
+    use parameters
     use kdcglobal
     
     implicit none

@@ -102,6 +102,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
     
     implicit none
@@ -162,6 +163,7 @@ contains
     use iomod
     use sysinfo
     use symmetry
+    use parameters
     use kdcglobal
     
     implicit none
