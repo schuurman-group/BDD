@@ -194,6 +194,10 @@ contains
                 ! Diagonal 2D cuts needed for the determination
                 ! of quadratic (alpha,alpha) gamma terms
                 icut=4
+             else if (keyword(i).eq.'diag_2d') then
+                ! Diagonal 2D cuts needed for the determination
+                ! of all quadratic
+                icut=5
              else
                 goto 100
           endif
@@ -306,7 +310,8 @@ contains
     
     implicit none
 
-    integer :: n,n1,n2
+    integer :: n,n1,n2,s1,s2
+    logical :: lnz
     
 !----------------------------------------------------------------------
 ! Reference geometry
@@ -378,7 +383,31 @@ contains
        enddo
        
     endif
-    
+
+!----------------------------------------------------------------------
+! Diagonal 2D cuts needed for the determination of all 2nd-order terms
+!----------------------------------------------------------------------
+    if (icut.eq.5) then
+
+       ! Determine which coupling coefficients are zero by symmetry
+       call create_mask
+
+       ! Make the cuts
+       do n1=1,nmodes-1
+          do n2=n1+1,nmodes
+             lnz=.false.
+             if (gamma_mask(n1,n2,1).ne.0) lnz=.true.
+             do s1=1,nsta-1
+                do s2=s1+1,nsta
+                   if (mu_mask(n1,n2,s1,s2).ne.0) lnz=.true.
+                enddo
+             enddo
+             if (lnz) call makecut_2d_diag(n1,n2)
+          enddo
+       enddo
+       
+    endif
+       
     return
     
   end subroutine makecut

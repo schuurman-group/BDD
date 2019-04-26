@@ -52,5 +52,8 @@ module bdglobal
   
   ! ADT matrix
   real(dp), allocatable           :: adt(:,:)
+
+  ! Hadamard screening threshold
+  real(dp)                        :: dthresh
   
 end module bdglobal

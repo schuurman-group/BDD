@@ -322,6 +322,7 @@ contains
     lrdreftrans=.false.
     ldiabpot=.false.
     ioverlap=1
+    dthresh=1e-6_dp
     
 !----------------------------------------------------------------------
 ! Second pass: read the input file
@@ -430,7 +431,15 @@ contains
           else
              goto 100 
           endif
-          
+
+       else if (keyword(i).eq.'$dthresh') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             read(keyword(i),*) dthresh
+          else
+             goto 100 
+          endif
+
        else
           ! Exit if the keyword is not recognised
           errmsg='Unknown keyword: '//trim(keyword(i))
@@ -1292,7 +1301,8 @@ contains
 !----------------------------------------------------------------------
     call psi_overlaps(spsi1,nsta_disp,nsta_ref,nalpha,nbeta,&
          ndet1_disp,ndet1_ref,nmo_disp,nmo_ref,maxdet1,c1_disp,c1_ref,&
-         iocca1_disp,iocca1_ref,ioccb1_disp,ioccb1_ref,ioverlap,smo)
+         iocca1_disp,iocca1_ref,ioccb1_disp,ioccb1_ref,ioverlap,smo,&
+         dthresh)
 
 !----------------------------------------------------------------------
 ! Write the overlaps to the log file
@@ -1450,7 +1460,8 @@ contains
     call psi_overlaps(spsi,nsta,nsta,nalpha,nbeta,ndet_disp(1:nsta),&
          ndet_ref(1:nsta),nmo_disp,nmo_ref,maxdet,c_disp(:,1:nsta),&
          c_ref(:,1:nsta),iocca_disp(:,:,1:nsta),iocca_ref(:,:,1:nsta),&
-         ioccb_disp(:,:,1:nsta),ioccb_ref(:,:,1:nsta),ioverlap,smo)
+         ioccb_disp(:,:,1:nsta),ioccb_ref(:,:,1:nsta),ioverlap,smo,&
+         dthresh)
     
     return
     

@@ -29,7 +29,7 @@ contains
 
   subroutine psi_overlaps(spsi,nsta_bra,nsta_ket,nalpha,nbeta,&
        ndet_bra,ndet_ket,nmo_bra,nmo_ket,maxdet,c_bra,c_ket,&
-       iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,ioverlap,smo)
+       iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,ioverlap,smo,dthresh)
 
     use constants
     use channels
@@ -49,6 +49,7 @@ contains
     real(dp), intent(in) :: c_bra(maxdet,nsta_bra),&
                             c_ket(maxdet,nsta_ket)
     real(dp), intent(in) :: smo(nmo_bra,nmo_ket)
+    real(dp), intent(in) :: dthresh
     real(dp)             :: tw1,tw2,tc1,tc2
 
 !-----------------------------------------------------------------------
@@ -64,7 +65,7 @@ contains
     if (ioverlap.eq.1) then
        call psi_overlaps_fast(spsi,nsta_bra,nsta_ket,nalpha,nbeta,&
             ndet_bra,ndet_ket,nmo_bra,nmo_ket,maxdet,c_bra,c_ket,&
-            iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,smo)
+            iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,smo,dthresh)
     else if (ioverlap.eq.2) then
        errmsg='The slow overlaps code needs re-writing to detach &
             it from the bdglobal module...'
@@ -89,7 +90,7 @@ contains
 
   subroutine psi_overlaps_fast(spsi,nsta_bra,nsta_ket,nalpha,nbeta,&
        ndet_bra,ndet_ket,nmo_bra,nmo_ket,maxdet,c_bra,c_ket,&
-       iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,smo)
+       iocca_bra,iocca_ket,ioccb_bra,ioccb_ket,smo,dthresh)
 
     use constants
     use channels
@@ -100,8 +101,8 @@ contains
 
    
     
-    integer, intent(in)   :: nsta_bra,nsta_ket,nalpha,nbeta,nmo_bra,&
-                             nmo_ket,maxdet
+    integer, intent(in)  :: nsta_bra,nsta_ket,nalpha,nbeta,nmo_bra,&
+                            nmo_ket,maxdet
     integer, intent(in)   :: ndet_bra(nsta_bra),ndet_ket(nsta_ket)
     integer, intent(in)   :: iocca_bra(nalpha,maxdet,nsta_bra)
     integer, intent(in)   :: iocca_ket(nalpha,maxdet,nsta_ket)
@@ -111,6 +112,7 @@ contains
     real(dp), intent(in)  :: c_bra(maxdet,nsta_bra),&
                              c_ket(maxdet,nsta_ket)
     real(dp), intent(in)  :: smo(nmo_bra,nmo_ket)
+    real(dp), intent(in)  :: dthresh
     
     integer               :: i,j,m,k,nthreads,tid,iad,ibd,iar,ibr
     real(dp), allocatable :: spsi_1thread(:,:,:)
@@ -144,7 +146,7 @@ contains
 !----------------------------------------------------------------------
 ! Calculate the unique alpha and beta factors
 !----------------------------------------------------------------------
-    call get_unique_factors(nalpha,nbeta,nmo_bra,nmo_ket,smo)
+    call get_unique_factors(nalpha,nbeta,nmo_bra,nmo_ket,smo,dthresh)
 
 !-----------------------------------------------------------------------
 ! Start timing for the contraction step
@@ -698,7 +700,8 @@ contains
 
 !#####################################################################
 
-  subroutine get_unique_factors(nalpha,nbeta,nmo_bra,nmo_ket,smo)
+  subroutine get_unique_factors(nalpha,nbeta,nmo_bra,nmo_ket,smo,&
+       dthresh)
 
     use constants
     use channels
@@ -714,7 +717,7 @@ contains
     real(dp), allocatable :: Sa(:,:),Sb(:,:)
     real(dp)              :: ubound
     real(dp)              :: tw1,tw2,tc1,tc2
-    real(dp), parameter   :: dthrsh=1e-6_dp
+    real(dp), intent(in)  :: dthresh
     logical               :: lequiv
     
 !-----------------------------------------------------------------------
@@ -769,7 +772,7 @@ contains
 
           ! Hadamard-inequality screening
           ubound=hadamard_bound(Sa,nalpha)
-          if (ubound.gt.dthrsh) then
+          if (ubound.gt.dthresh) then
              ! Determinant of the matrix of orbital overlaps
              afac(i,j)=determinant_new(Sa,nalpha)
           endif
@@ -817,7 +820,7 @@ contains
              
              ! Hadamard-inequality screening
              ubound=hadamard_bound(Sb,nbeta)
-             if (ubound.gt.dthrsh) then
+             if (ubound.gt.dthresh) then
                 ! Determinant of the matrix of orbital overlaps
                 bfac(i,j)=determinant_new(Sb,nbeta)
              endif
