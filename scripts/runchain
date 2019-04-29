@@ -56,7 +56,7 @@ refdir=${dirarr[0]}
 
 # Loop over the geometries at which the diabatisation is to be
 # performed
-for (( i=1; i<${#dirarr[@]}; i++ )); do   
+for (( i=1; i<${#dirarr[@]}; i++ )); do
     
     # Current DFT/MRCI output directory
     currdir=${dirarr[i]}
@@ -74,11 +74,13 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
     mkdir $stem
 
     # Write the blockdiag input file
+    #
+    # MO files
     echo "\$mos_ref = ../$refdir/mos.dat" >>$stem/$stem.inp
     echo "\$mos_disp = ../$currdir/mos.dat" >>$stem/$stem.inp
-	    
     echo >>$stem/$stem.inp
-
+    #
+    # Ref. determinants
     echo "\$dets_ref" >>$stem/$stem.inp
     if [ -z $oldstem ]; then
 	for (( S=1; S<=$nrefsta; S++ )); do
@@ -92,9 +94,9 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
 	done
     fi
     echo "\$end" >>$stem/$stem.inp
-    
     echo >>$stem/$stem.inp
-
+    #
+    # Disp. determinants
     echo "\$dets_disp" >>$stem/$stem.inp
     ndispsta=0
     for detfile in `ls $currdir/det.1.*.bin | sort -V`; do
@@ -102,28 +104,42 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
 	echo "../$detfile $ndispsta" >>$stem/$stem.inp
     done
     echo "\$end" >>$stem/$stem.inp
-
     echo >>$stem/$stem.inp
-
+    #
+    # Adiabatic energies
     echo "\$energies" >>$stem/$stem.inp
     for (( S=1; S<=$ndispsta; S++ )); do
 	e=`grep -m$S "DFTCI  -" $currdir/out3 | tail -1 | awk '{print $5}'`
 	echo $e $S >>$stem/$stem.inp
     done
     echo "\$end" >>$stem/$stem.inp
-
     echo >>$stem/$stem.inp
-
+    #
+    # Ref. ADT
     if [ ! -z $oldstem ]; then
 	echo "\$ref_trans=../$oldstem/$oldstem.log" >>$stem/$stem.inp
 	echo >>$stem/$stem.inp
     fi
-
+    #
+    # Determinant screening threshold
     if [ ! -z $dthresh ]; then
-	echo "\$dthresh=$dthresh">>$stem/$stem.inp
+	echo "\$dthresh=$dthresh" >>$stem/$stem.inp
 	echo >>$stem/$stem.inp
-    fi    
-    
+    fi
+    #
+    # Transition dipoles from the ground state
+    ntrans=`grep -c "dipole (L)" $currdir/singlets.prp`
+    if [ "$ntrans" != '0' ]; then
+	echo "\$dipole" >>$stem/$stem.inp
+    	for (( s1=1; s1<=$ntrans; s1++ )); do
+	    s=$((s1+1))
+	    tdip=`grep -m$s1 "dipole (L)" $currdir/singlets.prp | awk '{print $3, " ", $4, " ", $5}' | tail -1` 
+	    echo $tdip 1 $s >>$stem/$stem.inp
+	done
+	echo "\$end" >>$stem/$stem.inp
+	echo >>$stem/$stem.inp
+    fi
+
     # Run blockdiag
     cd $stem
     blockdiag.x $stem.inp

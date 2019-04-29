@@ -72,7 +72,7 @@ program kdc
 !----------------------------------------------------------------------
 ! Determine which coupling coefficients are zero by symmetry
 !----------------------------------------------------------------------
-  call create_mask
+  call create_mask(ldipfit)
 
 !----------------------------------------------------------------------
 ! Determine which pairs of modes give rise to non-zero coupling
@@ -232,27 +232,43 @@ contains
     use iomod
     use parsemod
     use sysinfo
+    use parameters
     use kdcglobal
 
     implicit none
 
-    integer :: i,k
-
+    integer :: i,k,k1,k2
+    
 !----------------------------------------------------------------------
 ! Set defaults
 !----------------------------------------------------------------------
+    ! Frequency file
     freqfile=''
+
+    ! Set file
     setfile=''
     lsetfile=.false.
 
+    ! Q0 adiabatic energies
     allocate(q0pot(nsta))
     q0pot=0.0d0
 
+    ! Point group
     pntgrp=''
-    
+
+    ! Electronic state symmetry labels
     allocate(stalab(nsta))
     stalab=''
 
+    ! Dipole symmetry labels
+    diplab=''
+
+    ! Q0 dipole matrix
+    allocate(dip0(nsta,nsta,3))
+    dip0=0.0d0
+
+    ! Parameterisation algorithm: 1 <-> finite differences
+    !                             2 <-> normal equations-based fitting
     ialgor=1
     
 !----------------------------------------------------------------------
@@ -341,6 +357,47 @@ contains
           else
              goto 100
           endif
+
+       else if (keyword(i).eq.'$dip_sym') then
+          ldipfit=.true.
+          do
+             call rdinp(iin)
+             if (keyword(1).eq.'$end') exit
+             if (lend) then
+                errmsg='End of file reached whilst reading the &
+                     $dip_sym section'
+                call error_control
+             endif
+             if (keyword(2).eq.'x') then
+                k=1
+             else if (keyword(2).eq.'y') then
+                k=2
+             else if (keyword(2).eq.'z') then
+                k=3
+             else
+                errmsg='Unknown dipole component: '//trim(keyword(2))
+                call error_control
+             endif
+             diplab(k)=keyword(1)
+          enddo
+
+       else if (keyword(i).eq.'$q0_dipole') then
+          ldipfit=.true.
+          do 
+             call rdinp(iin)
+             if (keyword(1).eq.'$end') exit
+             if (lend) then
+                errmsg='End of file reached whilst reading the &
+                     $q0_dipole section'
+                call error_control
+             endif
+             read(keyword(4),*) k1
+             read(keyword(5),*) k2
+             read(keyword(1),*) dip0(k1,k2,1)
+             read(keyword(2),*) dip0(k1,k2,2)
+             read(keyword(3),*) dip0(k1,k2,3)
+             dip0(k2,k1,:)=dip0(k1,k2,:)
+          enddo
           
        else
           ! Exit if the keyword is not recognised
@@ -384,6 +441,20 @@ contains
        endif
     enddo
 
+    if (ldipfit) then
+       do i=1,3
+          if (diplab(i).eq.'') then
+             errmsg='Not all dipole component symmetries have been &
+                  given'
+             call error_control
+          endif
+       enddo
+       if (sum(abs(dip0)).eq.0.0d0) then
+          errmsg='The Q0 dipole matrix elements have not been given'
+          call error_control
+       endif
+    endif
+    
     return
     
   end subroutine rdinpfile_kdc
@@ -543,10 +614,16 @@ contains
     ! Diabatic potential matrix at the displaced geometries
     allocate(diabpot(nsta,nsta,nfiles))
     diabpot=0.0d0
-
+    
     ! Normal mode coordinates at the displaced geometries
     allocate(qvec(nmodes,nfiles))
     qvec=0.0d0
+
+    ! Diabatic dipole matrix elements at the displaced geometries
+    if (ldipfit) then
+       allocate(diabdip(nsta,nsta,3,nfiles))
+       diabdip=0.0d0
+    endif
     
 !----------------------------------------------------------------------
 ! Parse the blockdiag log files
@@ -596,6 +673,11 @@ contains
 ! Diabatic potential matrix
 !----------------------------------------------------------------------
     call get_diabpot_1file(unit,n)
+
+!----------------------------------------------------------------------
+! Diabatic dipole matrix
+!----------------------------------------------------------------------
+    if (ldipfit) call get_diabdip_1file(unit,n)
     
     return
     
@@ -646,6 +728,87 @@ contains
   end subroutine get_qvec_1file
 
 !######################################################################
+  
+  subroutine get_diabpot_1file(unit,n)
+
+    use constants
+    use iomod
+    use ioqc
+    use sysinfo
+    use kdcglobal
+
+    implicit none
+
+    integer, intent(in) :: unit,n
+    integer             :: i,j
+    character(len=120)  :: string
+
+!----------------------------------------------------------------------
+! Read in the diabatic potential matrix (in a.u.)
+!----------------------------------------------------------------------
+    rewind(unit)
+5   read(unit,'(a)',end=999) string
+    if (index(string,'Quasi-Diabatic Potential Matrix').eq.0) goto 5
+    read(unit,*)
+    
+    do i=1,nsta
+       do j=i,nsta
+          read(unit,'(10x,F15.10)') diabpot(i,j,n)
+          diabpot(j,i,n)=diabpot(i,j,n)
+       enddo
+    enddo
+
+    return
+
+999 continue
+    errmsg='The diabatic potential section could not be found in: '&
+         //trim(bdfiles(n))
+    call error_control
+
+  end subroutine get_diabpot_1file
+
+!######################################################################
+
+  subroutine get_diabdip_1file(unit,n)
+
+    use constants
+    use iomod
+    use ioqc
+    use sysinfo
+    use kdcglobal
+
+    implicit none
+
+    integer, intent(in) :: unit,n
+    integer             :: i,j
+    character(len=120)  :: string
+
+!----------------------------------------------------------------------
+! Read in the diabatic dipole matrix (in a.u.)
+!----------------------------------------------------------------------
+    rewind(unit)
+5   read(unit,'(a)',end=999) string
+    if (index(string,'Quasi-Diabatic Dipole Matrix').eq.0) goto 5
+    read(unit,*)
+    read(unit,*)
+
+    do i=1,nsta
+       do j=i,nsta
+          read(unit,'(8x,3(2x,F15.10))') diabdip(i,j,:,n)
+          diabdip(j,i,:,n)=diabdip(i,j,:,n)
+       enddo
+    enddo
+    
+    return
+
+999 continue
+    errmsg='The diabatic dipole section could not be found in: '&
+         //trim(bdfiles(n))
+    call error_control
+    
+  end subroutine get_diabdip_1file
+    
+!######################################################################
 
   subroutine get_coefficients
 
@@ -693,6 +856,18 @@ contains
     allocate(xi(nmodes,nsta,nsta))
     xi=0.0d0
 
+    ! Diabatic dipole matrix expansion coefficients
+    if (ldipfit) then
+       allocate(dip1(nmodes,nsta,nsta,3))
+       dip1=0.0d0
+       allocate(dip2(nmodes,nmodes,nsta,nsta,3))
+       dip2=0.0d0
+       allocate(dip3(nmodes,nsta,nsta,3))
+       dip3=0.0d0
+       allocate(dip4(nmodes,nsta,nsta,3))
+       dip4=0.0d0
+    endif
+    
 !----------------------------------------------------------------------
 ! Vertical excitation energies
 !----------------------------------------------------------------------
@@ -713,47 +888,7 @@ contains
     return
     
   end subroutine get_coefficients
-    
-!######################################################################
-
-  subroutine get_diabpot_1file(unit,n)
-
-    use constants
-    use iomod
-    use ioqc
-    use sysinfo
-    use kdcglobal
-
-    implicit none
-
-    integer, intent(in) :: unit,n
-    integer             :: i,j
-    character(len=120)  :: string
-
-!----------------------------------------------------------------------
-! Read in the Cartesian coordinates (in Angstrom)
-!----------------------------------------------------------------------
-    rewind(unit)
-5   read(unit,'(a)',end=999) string
-    if (index(string,'Quasi-Diabatic Potential Matrix').eq.0) goto 5
-    read(unit,*)
-    
-    do i=1,nsta
-       do j=i,nsta
-          read(unit,'(10x,F15.10)') diabpot(i,j,n)
-          diabpot(j,i,n)=diabpot(i,j,n)
-       enddo
-    enddo
-
-    return
-
-999 continue
-    errmsg='The diabatic potential section could not be found in: '&
-         //trim(bdfiles(n))
-    call error_control
-    
-  end subroutine get_diabpot_1file
-
+      
 !######################################################################
 
   subroutine check_coefficients
@@ -782,7 +917,7 @@ contains
 
     ! Get the total and symmetry-allowed number of coupling
     ! coefficients
-    call getnpar
+    call getnpar(ldipfit)
 
     ! Output the total and symmetry-allowed number of coupling
     ! coefficients to the log file

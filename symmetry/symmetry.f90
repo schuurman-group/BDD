@@ -12,25 +12,35 @@ module symmetry
   !----------------------------------------------------------------------
   ! Symmetry information
   !----------------------------------------------------------------------
-  integer, allocatable          :: kappa_mask(:,:)
-  integer, allocatable          :: lambda_mask(:,:,:)
-  integer, allocatable          :: gamma_mask(:,:,:)
-  integer, allocatable          :: mu_mask(:,:,:,:)
-  integer, allocatable          :: iota_mask(:,:)
-  integer, allocatable          :: tau_mask(:,:,:)
-  integer, allocatable          :: epsilon_mask(:,:)
-  integer, allocatable          :: xi_mask(:,:,:)
-  integer, dimension(2)         :: nkappa
-  integer, dimension(2)         :: nlambda
-  integer, dimension(2)         :: ngamma
-  integer, dimension(2)         :: nmu
-  integer, dimension(2)         :: niota
-  integer, dimension(2)         :: ntau
-  integer, dimension(2)         :: nepsilon
-  integer, dimension(2)         :: nxi
-  integer, dimension(2)         :: ntot
-  integer, allocatable          :: cut_mask(:,:)
-  character(len=3), allocatable :: stalab(:)
+  integer, allocatable           :: kappa_mask(:,:)
+  integer, allocatable           :: lambda_mask(:,:,:)
+  integer, allocatable           :: gamma_mask(:,:,:)
+  integer, allocatable           :: mu_mask(:,:,:,:)
+  integer, allocatable           :: iota_mask(:,:)
+  integer, allocatable           :: tau_mask(:,:,:)
+  integer, allocatable           :: epsilon_mask(:,:)
+  integer, allocatable           :: xi_mask(:,:,:)
+  integer, allocatable           :: dip1_mask(:,:,:,:)
+  integer, allocatable           :: dip2_mask(:,:,:,:,:)
+  integer, allocatable           :: dip3_mask(:,:,:,:)
+  integer, allocatable           :: dip4_mask(:,:,:,:)
+  integer, dimension(2)          :: nkappa
+  integer, dimension(2)          :: nlambda
+  integer, dimension(2)          :: ngamma
+  integer, dimension(2)          :: nmu
+  integer, dimension(2)          :: niota
+  integer, dimension(2)          :: ntau
+  integer, dimension(2)          :: nepsilon
+  integer, dimension(2)          :: nxi
+  integer, dimension(2)          :: ntot
+  integer, dimension(2)          :: ndip1
+  integer, dimension(2)          :: ndip2
+  integer, dimension(2)          :: ndip3
+  integer, dimension(2)          :: ndip4
+  integer, dimension(2)          :: ndiptot
+  integer, allocatable           :: cut_mask(:,:)
+  character(len=3), allocatable  :: stalab(:)
+  character(len=3), dimension(3) :: diplab
   
 !----------------------------------------------------------------------
 ! Point group information
@@ -49,18 +59,28 @@ contains
 
 !######################################################################
 
-  subroutine create_mask
+  subroutine create_mask(dipolein)
 
     use constants
     use sysinfo
     
     implicit none
 
-    integer                    :: s1,s2,m1,m2
-    integer, dimension(3)      :: axchk
+    integer                    :: s1,s2,m1,m2,c
+    integer, dimension(3)      :: dipchk
     integer, dimension(nmodes) :: nmchk
     integer, dimension(nsta)   :: stachk
+    logical, optional          :: dipolein
+    logical                    :: dipole
 
+!----------------------------------------------------------------------
+! Optional fitting of diabatic dipole matrix elements
+!----------------------------------------------------------------------
+    dipole=.false.
+    if (present(dipolein)) then
+       dipole=dipolein
+    endif
+    
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
@@ -95,6 +115,18 @@ contains
     ! Fourth-order, quartic-only, interstate
     allocate(xi_mask(nmodes,nsta,nsta))
     xi_mask=0
+
+    ! Diabatic dipole matrix expansion coefficients
+    if (dipole) then
+       allocate(dip1_mask(nmodes,nsta,nsta,3))
+       dip1_mask=0
+       allocate(dip2_mask(nmodes,nmodes,nsta,nsta,3))
+       dip2_mask=0
+       allocate(dip3_mask(nmodes,nsta,nsta,3))
+       dip3_mask=0
+       allocate(dip4_mask(nmodes,nsta,nsta,3))
+       dip4_mask=0
+    endif
     
 !----------------------------------------------------------------------
 ! First, convert the user specified symmetry labels to the format used
@@ -110,6 +142,13 @@ contains
        call cleanirreps(stalab(s1),len(stalab))
     enddo
 
+    ! Clean up the dipole symmetry labels
+    if (dipole) then
+       do c=1,3
+          call cleanirreps(diplab(c),len(diplab(c)))
+       enddo
+    endif
+    
     ! Get the characters
     call getcharacters
 
@@ -120,6 +159,9 @@ contains
 ! corresponding to the integrands of the parameters of the diabatic
 ! potential, i.e., phi_a* d^n/dq1...dqn phi_b
 !----------------------------------------------------------------------
+    ! Set dipchk to zero until we reach the dipole expansion terms
+    dipchk=0
+    
     ! kappa
     do s1=1,nsta
        do m1=1,nmodes
@@ -127,7 +169,7 @@ contains
           stachk=0
           nmchk(m1)=1
           stachk(s1)=2
-          kappa_mask(m1,s1)=integralsym(nmchk,stachk,axchk)                
+          kappa_mask(m1,s1)=integralsym(nmchk,stachk,dipchk)                
        enddo
     enddo
 
@@ -140,7 +182,7 @@ contains
              nmchk(m1)=1
              stachk(s1)=1
              stachk(s2)=1
-             lambda_mask(m1,s1,s2)=integralsym(nmchk,stachk,axchk)
+             lambda_mask(m1,s1,s2)=integralsym(nmchk,stachk,dipchk)
              lambda_mask(m1,s2,s1)=lambda_mask(m1,s1,s2)
           enddo
        enddo
@@ -155,7 +197,7 @@ contains
              nmchk(m1)=nmchk(m1)+1
              nmchk(m2)=nmchk(m2)+1
              stachk(s1)=2
-             gamma_mask(m1,m2,s1)=integralsym(nmchk,stachk,axchk)
+             gamma_mask(m1,m2,s1)=integralsym(nmchk,stachk,dipchk)
              gamma_mask(m2,m1,s1)=gamma_mask(m1,m2,s1)
           enddo
        enddo
@@ -172,7 +214,7 @@ contains
                 nmchk(m2)=nmchk(m2)+1
                 stachk(s1)=stachk(s1)+1
                 stachk(s2)=stachk(s2)+1
-                mu_mask(m1,m2,s1,s2)=integralsym(nmchk,stachk,axchk)
+                mu_mask(m1,m2,s1,s2)=integralsym(nmchk,stachk,dipchk)
                 mu_mask(m2,m1,s1,s2)=mu_mask(m1,m2,s1,s2)
                 mu_mask(m1,m2,s1,s2)=mu_mask(m1,m2,s1,s2)
                 mu_mask(m2,m1,s2,s1)=mu_mask(m1,m2,s1,s2)
@@ -188,7 +230,7 @@ contains
           stachk=0
           nmchk(m1)=3
           stachk(s1)=2
-          iota_mask(m1,s1)=integralsym(nmchk,stachk,axchk)
+          iota_mask(m1,s1)=integralsym(nmchk,stachk,dipchk)
        enddo
     enddo
     
@@ -201,7 +243,7 @@ contains
              nmchk(m1)=3
              stachk(s1)=stachk(s1)+1
              stachk(s2)=stachk(s2)+1
-             tau_mask(m1,s1,s2)=integralsym(nmchk,stachk,axchk)
+             tau_mask(m1,s1,s2)=integralsym(nmchk,stachk,dipchk)
              tau_mask(m1,s2,s1)=tau_mask(m1,s1,s2)
           enddo
        enddo
@@ -214,7 +256,7 @@ contains
           stachk=0
           nmchk(m1)=4
           stachk(s1)=2
-          epsilon_mask(m1,s1)=integralsym(nmchk,stachk,axchk)
+          epsilon_mask(m1,s1)=integralsym(nmchk,stachk,dipchk)
        enddo
     enddo
 
@@ -227,11 +269,100 @@ contains
              nmchk(m1)=4
              stachk(s1)=stachk(s1)+1
              stachk(s2)=stachk(s2)+1
-             xi_mask(m1,s1,s2)=integralsym(nmchk,stachk,axchk)
+             xi_mask(m1,s1,s2)=integralsym(nmchk,stachk,dipchk)
              xi_mask(m1,s2,s1)=xi_mask(m1,s1,s2)
           enddo
        enddo
     enddo
+
+    ! Diabatic dipole matrix expansion coefficients
+    if (dipole) then
+
+       ! 1st-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   nmchk=0
+                   stachk=0
+                   dipchk=0
+                   nmchk(m1)=1
+                   stachk(s1)=stachk(s1)+1
+                   stachk(s2)=stachk(s2)+1
+                   dipchk(c)=1
+                   dip1_mask(m1,s1,s2,c)=&
+                        integralsym(nmchk,stachk,dipchk)
+                   dip1_mask(m1,s2,s1,c)=dip1_mask(m1,s1,s2,c)
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 2nd-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   do m2=m1,nmodes
+                      nmchk=0
+                      stachk=0
+                      dipchk=0
+                      nmchk(m1)=nmchk(m1)+1
+                      nmchk(m2)=nmchk(m2)+1
+                      stachk(s1)=stachk(s1)+1
+                      stachk(s2)=stachk(s2)+1
+                      dipchk(c)=1
+                      dip2_mask(m1,m2,s1,s2,c)=&
+                           integralsym(nmchk,stachk,dipchk)
+                      dip2_mask(m1,m2,s2,s1,c)=dip2_mask(m1,m2,s1,s2,c)
+                      dip2_mask(m2,m1,s2,s1,c)=dip2_mask(m1,m2,s1,s2,c)
+                   enddo
+               enddo
+             enddo
+          enddo
+       enddo
+
+       ! 3rd-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   nmchk=0
+                   stachk=0
+                   dipchk=0
+                   nmchk(m1)=3
+                   stachk(s1)=stachk(s1)+1
+                   stachk(s2)=stachk(s2)+1
+                   dipchk(c)=1
+                   dip3_mask(m1,s1,s2,c)=&
+                        integralsym(nmchk,stachk,dipchk)
+                   dip3_mask(m1,s2,s1,c)=dip3_mask(m1,s1,s2,c)
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 4th-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   nmchk=0
+                   stachk=0
+                   dipchk=0
+                   nmchk(m1)=4
+                   stachk(s1)=stachk(s1)+1
+                   stachk(s2)=stachk(s2)+1
+                   dipchk(c)=1
+                   dip4_mask(m1,s1,s2,c)=&
+                        integralsym(nmchk,stachk,dipchk)
+                   dip4_mask(m1,s2,s1,c)=dip3_mask(m1,s1,s2,c)
+                enddo
+             enddo
+          enddo
+       enddo
+       
+    endif
     
     return
     
@@ -239,7 +370,7 @@ contains
   
 !######################################################################
   
-  function integralsym (nmchk,stachk,axchk) result(check)
+  function integralsym (nmchk,stachk,dipchk) result(check)
 
     use constants
     use sysinfo
@@ -249,7 +380,7 @@ contains
     integer                                :: i,j,k,l,r,numsym,prodnum
     integer, dimension(nmodes), intent(in) :: nmchk
     integer, dimension(nsta), intent(in)   :: stachk
-    integer, dimension(3), intent(in)      :: axchk
+    integer, dimension(3), intent(in)      :: dipchk
     integer, dimension(10)                 :: prodchar
     integer                                :: check
     real(dp)                               :: junk
@@ -299,17 +430,17 @@ contains
        endif
     enddo
 
-!    ! Contributions from differentiation wrt electric field components
-!      do i=1,3
-!         if (axchk(i).gt.0) then            
-!            do j=1,axchk(i)
-!               prodnum=prodnum+1
-!               do k=1,chdim
-!                  if (axislab(i).eq.irreplab(k)) prodchar(prodnum)=k
-!               enddo
-!            enddo
-!         endif
-!      enddo
+    ! Contributions from the dipole operator
+    do i=1,3
+       if (dipchk(i).gt.0) then            
+          do j=1,dipchk(i)
+             prodnum=prodnum+1
+             do k=1,chdim
+                if (diplab(i).eq.irreplab(k)) prodchar(prodnum)=k
+             enddo
+          enddo
+       endif
+    enddo
 
     numsym=0
     ! Loop over operations
@@ -694,16 +825,30 @@ contains
 
 !######################################################################
 
-  subroutine getnpar
+  subroutine getnpar(dipolein)
 
     use constants
     use sysinfo
     
     implicit none
 
-    integer :: m,m1,m2,s,s1,s2
-
+    integer           :: m,m1,m2,s,s1,s2,c
+    logical, optional :: dipolein
+    logical           :: dipole
+    
+!----------------------------------------------------------------------
+! Optional fitting of diabatic dipole matrix elements
+!----------------------------------------------------------------------
+    dipole=.false.
+    if (present(dipolein)) then
+       dipole=dipolein
+    endif
+    
+!----------------------------------------------------------------------
+! Coefficients of the vibronic coupling Hamiltonian
+!----------------------------------------------------------------------
     ! kappa
+    nkappa=0
     do s=1,nsta
        do m=1,nmodes
           ! Total number
@@ -714,6 +859,7 @@ contains
     enddo
 
     ! lambda
+    nlambda=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
@@ -726,6 +872,7 @@ contains
     enddo
 
     ! gamma
+    ngamma=0
     do s=1,nsta
        do m1=1,nmodes
           do m2=m1,nmodes
@@ -738,6 +885,7 @@ contains
     enddo
 
     ! mu
+    nmu=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m1=1,nmodes
@@ -752,6 +900,7 @@ contains
     enddo
 
     ! iota
+    niota=0
     do s1=1,nsta-1
        do m1=1,nmodes
           ! Total number
@@ -762,6 +911,7 @@ contains
     enddo
 
     ! tau
+    ntau=0
     do s1=1,nsta
        do s2=s1+1,nsta
           do m1=1,nmodes
@@ -774,6 +924,7 @@ contains
     enddo
 
     ! epsilon
+    nepsilon=0
     do s1=1,nsta-1
        do m1=1,nmodes
           ! Total number
@@ -784,6 +935,7 @@ contains
     enddo
 
     ! xi
+    nxi=0
     do s1=1,nsta
        do s2=s1+1,nsta
           do m1=1,nmodes
@@ -797,6 +949,76 @@ contains
     
     ! Total
     ntot=nkappa+nlambda+ngamma+nmu+niota+ntau+nepsilon+nxi
+
+!----------------------------------------------------------------------
+! Coefficients of the dipole matrix expansion
+!----------------------------------------------------------------------
+    if (dipole) then
+
+       ! 1st-order terms
+       ndip1=0
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   ! Total number
+                   ndip1(1)=ndip1(1)+1
+                   ! Symmetry allowed
+                   if (dip1_mask(m1,s1,s2,c).eq.1) ndip1(2)=ndip1(2)+1
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 2nd-order terms
+       ndip2=0
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   do m2=m1,nmodes
+                      ! Total number
+                      ndip2(1)=ndip2(1)+1
+                      ! Symmetry allowed
+                      if (dip2_mask(m1,m2,s1,s2,c).eq.1) &
+                           ndip2(2)=ndip2(2)+1
+                   enddo
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 3rd-order terms
+       ndip3=0
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   ! Total number
+                   ndip3(1)=ndip3(1)+1
+                   ! Symmetry allowed
+                   if (dip3_mask(m1,s1,s2,c).eq.1) ndip3(2)=ndip3(2)+1
+                enddo
+             enddo
+          enddo
+       enddo
+       
+       ! 4th-order terms
+       ndip4=0
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   ! Total number
+                   ndip4(1)=ndip4(1)+1
+                   ! Symmetry allowed
+                   if (dip4_mask(m1,s1,s2,c).eq.1) ndip4(2)=ndip4(2)+1
+                enddo
+             enddo
+          enddo
+       enddo
+       
+    endif
     
     return
     

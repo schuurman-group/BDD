@@ -54,6 +54,35 @@ contains
 
   subroutine fit_1mode_terms
 
+    use kdcglobal
+    
+    implicit none
+    
+!----------------------------------------------------------------------
+! Determine the sets of files corresponding to single mode
+! displacements
+!----------------------------------------------------------------------
+    call get_indices_1mode
+
+!----------------------------------------------------------------------
+! Fit the 1-mode terms entering into the vibronic coupling Hamiltonian
+!----------------------------------------------------------------------
+    call fit_1mode_terms_potential
+
+!----------------------------------------------------------------------
+! Fit the 1-mode terms entering into the expansion of the dipole
+! matrix
+!----------------------------------------------------------------------
+    if (ldipfit) call fit_1mode_terms_dipole
+    
+    return
+    
+  end subroutine fit_1mode_terms
+
+!######################################################################
+
+  subroutine fit_1mode_terms_potential
+
     use constants
     use channels
     use iomod
@@ -67,12 +96,6 @@ contains
     real(dp), allocatable :: coeff(:),q(:),w(:)
     logical               :: lpseudo
     
-!----------------------------------------------------------------------
-! Determine the sets of files corresponding to single mode
-! displacements
-!----------------------------------------------------------------------
-    call get_indices_1mode
-
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
@@ -124,7 +147,7 @@ contains
                   coefficients for mode ',m,' and states ',s1,s2
              
              ! Fill in the global coefficient arrays
-             call fill_coeffs1d(coeff,order,m,s1,s2)
+             call fill_coeffs1d_potential(coeff,order,m,s1,s2)
              
           enddo
        enddo
@@ -140,7 +163,99 @@ contains
     
     return
     
-  end subroutine fit_1mode_terms
+  end subroutine fit_1mode_terms_potential
+
+!######################################################################
+
+  subroutine fit_1mode_terms_dipole
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer               :: m,n,s1,s2,c,ndat
+    integer               :: order
+    real(dp), allocatable :: coeff(:),q(:),d(:)
+    logical               :: lpseudo
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    ! Order of the polynomial to be fit (hard-wired for now)
+    order=4
+
+    ! Coefficient vector
+    allocate(coeff(order+1))
+    coeff=0.0d0
+
+    ! Input coordinates and diabatic dipole matrix element values
+    allocate(q(maxfiles1m))
+    allocate(d(maxfiles1m))
+    q=0.0d0
+    d=0.0d0
+
+!----------------------------------------------------------------------
+! Perform the fits of the 1-mode terms
+!----------------------------------------------------------------------
+    ! Loop over modes
+    do m=1,nmodes
+       
+       ! Cycle if there are no points for the current mode
+       ndat=nfiles1m(m)
+       if (ndat.eq.0) cycle
+       
+       ! Loop over elements of the diabatic dipole matrix
+       do s1=1,nsta
+          do s2=s1,nsta
+             
+             ! Loop over components of the dipole
+             do c=1,3
+                
+                ! Fill in the coordinate and dipole matrix element
+                ! vectors to be sent to the fitting routine
+                q=0.0d0
+                d=0.0d0
+                do n=1,ndat
+                   q(n)=qvec(m,findx1m(m,n))
+                   d(n)=diabdip(s1,s2,c,findx1m(m,n))
+                enddo
+
+                ! Perform the fitting for the current mode and
+                ! diabatic dipole matrix element
+                call nmeq1d(order,coeff,ndat,q(1:ndat),d(1:ndat),&
+                     lpseudo)
+
+                ! Output a warning if the psedo-inverse was used in
+                ! the fitting
+                if (lpseudo) write(ilog,'(/,a,i0,a,i0,x,i0,a,i0)') &
+                     'WARNING: Pseudoinverse used in the fitting of &
+                     the coefficients for mode ',m,', states ',s1,s2,&
+                     ' and dipole component ',c
+
+                ! Fill in the global coefficient arrays
+                call fill_coeffs1d_dipole(coeff,order,m,s1,s2,c)
+                
+             enddo
+          enddo
+                
+       enddo
+          
+    enddo
+    
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(coeff)
+    deallocate(q)
+    deallocate(d)
+    
+    return
+    
+  end subroutine fit_1mode_terms_dipole
     
 !######################################################################
 
@@ -263,7 +378,7 @@ contains
 
 !######################################################################
 
-  subroutine fill_coeffs1d(coeff,order,m,s1,s2)
+  subroutine fill_coeffs1d_potential(coeff,order,m,s1,s2)
 
     use constants
     use channels
@@ -311,8 +426,52 @@ contains
     
     return
     
-  end subroutine fill_coeffs1d
+  end subroutine fill_coeffs1d_potential
 
+!######################################################################
+  
+  subroutine fill_coeffs1d_dipole(coeff,order,m,s1,s2,c)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use parameters
+    use kdcglobal
+    
+    implicit none
+
+    integer, intent(in)                      :: order,m,s1,s2,c
+    real(dp), intent(in), dimension(order+1) :: coeff
+
+    ! 1st-order terms
+    if (order.gt.0) then
+       dip1(m,s1,s2,c)=coeff(2)
+       dip1(m,s2,s1,c)=dip1(m,s1,s2,c)
+    endif
+
+    ! 2nd-order terms
+    if (order.gt.1) then
+       dip2(m,m,s1,s2,c)=coeff(3)
+       dip2(m,m,s2,s1,c)=dip2(m,m,s1,s2,c)
+    endif
+
+    ! 3rd-order terms
+    if (order.eq.2) then
+       dip3(m,s1,s2,c)=coeff(2)
+       dip3(m,s2,s1,c)=dip3(m,s1,s2,c)
+    endif
+
+    ! 4th-order terms
+    if (order.eq.3) then
+       dip4(m,s1,s2,c)=coeff(2)
+       dip4(m,s2,s1,c)=dip4(m,s1,s2,c)
+    endif
+    
+    return
+    
+  end subroutine fill_coeffs1d_dipole
+    
 !######################################################################
 
   subroutine fit_2mode_terms
@@ -340,6 +499,38 @@ contains
 ! Return here if no files containing two-mode displacements were found
 !----------------------------------------------------------------------
     if (.not.present) return
+
+!----------------------------------------------------------------------
+! Fit the 2-mode terms entering into the vibronic coupling Hamiltonian
+!----------------------------------------------------------------------
+    call fit_2mode_terms_potential
+
+!----------------------------------------------------------------------
+! Fit the 2-mode terms entering into the expansion of the dipole
+! matrix
+!----------------------------------------------------------------------
+    if (ldipfit) call fit_2mode_terms_dipole
+    
+    return
+    
+  end subroutine fit_2mode_terms
+
+!######################################################################
+
+  subroutine fit_2mode_terms_potential
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer               :: n,m1,m2,s1,s2,ndat
+    real(dp), allocatable :: q(:,:),w(:)
+    real(dp)              :: coeff
+    logical               :: present
 
 !----------------------------------------------------------------------
 ! Allocate arrays
@@ -392,11 +583,41 @@ contains
                 
        enddo
     enddo
+
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(q)
+    deallocate(w)
     
     return
     
-  end subroutine fit_2mode_terms
+  end subroutine fit_2mode_terms_potential
 
+!######################################################################
+
+  subroutine fit_2mode_terms_dipole
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer               :: n,m1,m2,s1,s2,c,ndat
+    real(dp), allocatable :: q(:,:),d(:)
+    real(dp)              :: coeff
+    logical               :: present
+
+    print*,"FINISH WRITING THE 2-MODE DIPOLE FITTING CODE!"
+    stop
+    
+    return
+    
+  end subroutine fit_2mode_terms_dipole
+    
 !######################################################################
 
   subroutine get_indices_2modes(present)

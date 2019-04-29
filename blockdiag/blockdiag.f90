@@ -137,6 +137,11 @@ program blockdiag
 !----------------------------------------------------------------------
   if (ldiabpot) call diabpotmat
 
+!----------------------------------------------------------------------
+! Optional: calculate and output the quasi-diabatic dipole matrix
+!----------------------------------------------------------------------
+  if (ldipole) call diabdipmat
+  
 !-----------------------------------------------------------------------
 ! Finalisation
 !-----------------------------------------------------------------------
@@ -309,7 +314,7 @@ contains
     
     implicit none
 
-    integer :: i,k,l
+    integer :: i,k,l,k1,k2
     
 !----------------------------------------------------------------------
 ! Set defaults
@@ -321,6 +326,7 @@ contains
     lreftrans=.false.
     lrdreftrans=.false.
     ldiabpot=.false.
+    ldipole=.false.
     ioverlap=1
     dthresh=1e-6_dp
     
@@ -440,6 +446,24 @@ contains
              goto 100 
           endif
 
+       else if (keyword(i).eq.'$dipole') then
+          ldipole=.true.
+          do
+             call rdinp(iin,.false.)
+             if (keyword(1).eq.'$end') exit
+             if (lend) then
+                errmsg='End of file reached whilst reading the &
+                     $dipole section'
+                call error_control
+             endif
+             read(keyword(4),*) k1
+             read(keyword(5),*) k2
+             read(keyword(1),*) adip1(k1,k2,1)
+             read(keyword(2),*) adip1(k1,k2,2)
+             read(keyword(3),*) adip1(k1,k2,3)
+             adip1(k2,k1,:)=adip1(k1,k2,:)
+          enddo
+          
        else
           ! Exit if the keyword is not recognised
           errmsg='Unknown keyword: '//trim(keyword(i))
@@ -555,7 +579,7 @@ contains
     ! Temporary adiabatic potential matrix
     allocate(Vmat1(nsta_disp,nsta_disp))
     Vmat1=0.0d0
-    
+
     ! Diabatic potential matrix
     allocate(Wmat(nsta,nsta))
     Wmat=0.0d0
@@ -563,6 +587,18 @@ contains
     ! ADT matrix
     allocate(adt(nsta,nsta))
     adt=0.0d0
+
+    ! Adiabatic dipole matrix
+    allocate(adip(nsta,nsta,3))
+    adip=0.0d0
+
+    ! Temporary adiabatic dipole matrix
+    allocate(adip1(nsta_disp,nsta_disp,3))
+    adip1=0.0d0
+
+    ! Diabatic dipole matrix
+    allocate(ddip(nsta,nsta,3))
+    ddip=0.0d0
     
     return
     
@@ -590,6 +626,9 @@ contains
     deallocate(Vmat1)
     deallocate(Wmat)
     deallocate(adt)
+    deallocate(adip)
+    deallocate(adip1)
+    deallocate(ddip)
     deallocate(c_ref)
     deallocate(c_disp)
     if (allocated(det_ref)) deallocate(det_ref)
@@ -1405,6 +1444,14 @@ contains
        Vmat(i,i)=Vmat1(indx(i),indx(i))
     enddo
 
+    ! Adiabatic dipole matrix
+    adip=0.0d0
+    do i=1,nsta_ref
+       do j=1,nsta_ref
+          adip(i,j,:)=adip1(indx(i),indx(j),:)
+       enddo
+    enddo
+    
     ! Names of the disp. determinant files: this has to be reset
     ! otherwise the rephasing routine will over-write files
     ! incorrectly
@@ -1834,7 +1881,46 @@ contains
     return
     
   end subroutine diabpotmat
-  
+
+!######################################################################
+
+  subroutine diabdipmat
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer :: i,j
+
+!----------------------------------------------------------------------
+! Calculate the quasi-diabatic dipole matrix
+!----------------------------------------------------------------------
+    do i=1,3
+       ddip(:,:,i)=matmul(adt,matmul(adip(:,:,i),transpose(adt)))
+    enddo
+
+!----------------------------------------------------------------------
+! Write the quasi-diabatic potential matrix to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Quasi-Diabatic Dipole Matrix'
+    write(ilog,'(82a)') ('+',i=1,82)
+
+    write(ilog,'(2x,3(16x,a1))') 'x','y','z'
+
+    do i=1,nsta
+       do j=i,nsta
+          write(ilog,'(2(2x,i2),3(2x,F15.10))') i,j,ddip(i,j,:)
+       enddo
+    enddo
+        
+    return
+    
+  end subroutine diabdipmat
+    
 !######################################################################
     
 end program blockdiag

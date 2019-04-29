@@ -49,6 +49,11 @@ module bdglobal
   ! Diabatic potential matrix
   real(dp), allocatable           :: Wmat(:,:)
   logical                         :: ldiabpot
+
+  ! Dipole matrix
+  real(dp), allocatable           :: ddip(:,:,:)
+  real(dp), allocatable           :: adip(:,:,:),adip1(:,:,:)
+  logical                         :: ldipole
   
   ! ADT matrix
   real(dp), allocatable           :: adt(:,:)

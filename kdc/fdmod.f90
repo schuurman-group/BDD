@@ -8,8 +8,20 @@ contains
   
   subroutine get_coefficients_fd
 
+    use kdcglobal
+    use iomod
+    
     implicit none
 
+!----------------------------------------------------------------------
+! For now, dipole surfaces are not supported
+!----------------------------------------------------------------------
+    if (ldipfit) then
+       errmsg='The determination of the dipole matrix expansion &
+            coefficients is not yet supported for finite differences'
+       call error_control
+    endif
+    
 !----------------------------------------------------------------------
 ! Determine the displacement information for each blockdiag log file
 !----------------------------------------------------------------------
