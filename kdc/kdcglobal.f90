@@ -34,9 +34,6 @@ module kdcglobal
   real(dp), allocatable           :: diabdip(:,:,:,:)
   logical                         :: ldipfit
 
-  ! Adiabatic dipoles at Q0
-  real(dp), allocatable           :: q0dip(:,:)
-  
   ! Parameterisation algorithm
   integer                         :: ialgor
 

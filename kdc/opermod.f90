@@ -22,22 +22,25 @@ contains
     
     implicit none
 
-    integer             :: unit,m,m1,m2,s,s1,s2,i,j,k,c,nl,ncurr,fel
-    integer             :: nzkappa
-    integer             :: nzlambda
-    integer             :: nzgamma1,nzgamma2
-    integer             :: nzmu1,nzmu2
-    integer             :: nziota
-    integer             :: nztau
-    integer             :: nzepsilon
-    integer             :: nzxi
-    real(dp), parameter :: thrsh=5e-4
-    character(len=2)    :: am,am1,am2,as,as1,as2,afel
-    character(len=5)    :: aunit
-    character(len=90)   :: string
-    character(len=3)    :: amode
-    character(len=8)    :: atmp
-
+    integer                        :: unit,m,m1,m2,s,s1,s2,i,j,k,c,nl,&
+                                      ncurr,fel
+    integer                        :: nzkappa
+    integer                        :: nzlambda
+    integer                        :: nzgamma1,nzgamma2
+    integer                        :: nzmu1,nzmu2
+    integer                        :: nziota
+    integer                        :: nztau
+    integer                        :: nzepsilon
+    integer                        :: nzxi
+    real(dp), parameter            :: thrsh=5e-4_dp
+    real(dp), parameter            :: dthrsh=1.8e-5_dp
+    character(len=2)               :: am,am1,am2,as,as1,as2,afel
+    character(len=5)               :: aunit
+    character(len=90)              :: string
+    character(len=3)               :: amode
+    character(len=8)               :: atmp
+    character(len=1), dimension(3) :: acomp
+    
 !----------------------------------------------------------------------
 ! Determine the no. non-zero coupling coefficients in each class
 !----------------------------------------------------------------------
@@ -55,6 +58,11 @@ contains
     fel=nmodes+1
     write(afel,'(i2)') fel
 
+!----------------------------------------------------------------------
+! Cartesian axis labels
+!----------------------------------------------------------------------
+    acomp=(/ 'x' , 'y' , 'z' /)
+    
 !----------------------------------------------------------------------
 ! Write the op_define section
 !----------------------------------------------------------------------
@@ -275,7 +283,46 @@ contains
           enddo
        enddo
     endif
-       
+
+    ! Dipole matrix elements
+    if (ldipfit) then
+
+       ! Zeroth-order terms
+       write(iop,'(/,a)') '# Dipole matrix elements: 0th-order terms'
+       do c=1,3
+          do s1=1,nsta
+             write(as1,'(i2)') s1
+             do s2=s1,nsta
+                write(as2,'(i2)') s2
+                if (abs(dip0(s1,s2,c)).lt.dthrsh) cycle
+                write(iop,'(a,F10.7)') 'dip'//acomp(c)&
+                     //trim(adjustl(as1))//'_'//trim(adjustl(as2))&
+                     //' = ',dip0(s1,s2,c)
+             enddo
+          enddo
+       enddo          
+
+       ! First-order terms
+       write(iop,'(/,a)') '# Dipole matrix elements: 1st-order terms'
+       do c=1,3
+          do s1=1,nsta
+             write(as1,'(i2)') s1
+             do s2=s1,nsta
+                write(as2,'(i2)') s2
+                do m=1,nmodes
+                   if (abs(dip1(m,s1,s2,c)).lt.dthrsh) cycle
+                   if (dip1_mask(m,s1,s2,c).eq.0) cycle
+                   write(am,'(i2)') m
+                   write(iop,'(a,F10.7)') 'dip'//acomp(c)&
+                        //trim(adjustl(as1))//'_'//trim(adjustl(as2))&
+                        //'_'//trim(adjustl(am))//' = ',dip1(m,s1,s2,c)
+                enddo
+             enddo
+          enddo
+       enddo
+          
+    endif
+    
     ! Finishing line
     write(iop,'(/,a)') 'end-parameter-section'
 
