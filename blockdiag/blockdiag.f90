@@ -54,7 +54,7 @@ program blockdiag
 ! Read the input file
 !----------------------------------------------------------------------
   call rdinpfile
-
+  
 !----------------------------------------------------------------------
 ! Load the MOs for the reference and displaced geometries
 !----------------------------------------------------------------------
@@ -69,6 +69,13 @@ program blockdiag
 ! Read in the determinant files
 !----------------------------------------------------------------------
   call rddetfiles
+
+!----------------------------------------------------------------------
+! Optional adjustment of the phases of the reference geometry
+! wavefunctions. Note that this is only possible if a reference
+! geometry blockdiag log file has been specified in the input file.
+!----------------------------------------------------------------------
+  if (lrdreftrans) call phase_refpsi
   
 !----------------------------------------------------------------------
 ! Write the norms of the reference and displaced geometry
@@ -87,9 +94,14 @@ program blockdiag
 ! electronic characters from geometry to geometry
 !----------------------------------------------------------------------
   if (nsta_disp.ne.nsta_ref) then
+     ! More disp. states than ref. states: select the subset of disp.
+     ! states that map onto the ref. states
      call trackwfs
   else
+     ! Equal numbers of disp. and ref. states: set the adiabatic
+     ! potential and dipole matrices here
      Vmat=Vmat1
+     adip=adip1
   endif
      
 !----------------------------------------------------------------------
@@ -111,8 +123,6 @@ program blockdiag
 !----------------------------------------------------------------------
 ! Optional transformation of the reference geometry wavefunctions
 ! (via the transformation of the wavefunction overlap matrix)
-!
-! Maybe this should be moved to psi_overlaps?
 !----------------------------------------------------------------------
   if (lreftrans) call trans_refpsi
   
@@ -1607,41 +1617,26 @@ contains
     enddo
 
 !-----------------------------------------------------------------------
-! Re-write the disp. state determinant files with the 'correct', i.e.,
-! consistent, phases
+! Re-phase the adiabatic dipole matrix elements
 !-----------------------------------------------------------------------
-    write(fmt,'(a,i4,a)')'(ES15.8,',nmo_disp,'i5)'
-
-    call freeunit(idet)
-
-    if (lbinary) then
-       ! Binary determinant files
+    if (ldipole) then
        do i=1,nsta
-          if (phfac(i).eq.1.0d0) cycle
-          open(idet,file=adetdisp(i),form='unformatted',status='old')
-          write(idet) ndet_disp(i)
-          write(idet) nalpha
-          write(idet) nbeta
-          do n=1,ndet_disp(i)
-             write(idet) iocca_disp(:,n,i)
+          do j=1,nsta
+             adip(i,j,:)=adip(i,j,:)*phfac(i)*phfac(j)
           enddo
-          do n=1,ndet_disp(i)
-             write(idet) ioccb_disp(:,n,i)
-          enddo
-          write(idet) -c_disp(1:ndet_disp(i),i)
-          close(idet)
-       enddo
-    else
-       ! Ascii determinant files
-       do i=1,nsta
-          if (phfac(i).eq.1.0d0) cycle
-          open(idet,file=adetdisp(i),form='formatted',status='old')
-          do k=1,ndet_disp(i)
-             write(idet,fmt) -c_disp(k,i),(det_disp(n,k,i),n=1,nmo_disp)
-          enddo
-          close(idet)
        enddo
     endif
+    
+!-----------------------------------------------------------------------
+! Write the phase factors to the log file to be used at the next
+! geometry
+!-----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Phase Factors'
+    write(ilog,'(82a)') ('+',i=1,82)
+    do i=1,nsta
+       write(ilog,'(2x,i2,2x,i2)') i,int(phfac(i))
+    enddo
        
     return
     
@@ -1688,7 +1683,7 @@ contains
     return
 
   end subroutine trans_refpsi
-
+  
 !######################################################################
 
   subroutine rdreftrans
@@ -1749,6 +1744,72 @@ contains
     
   end subroutine rdreftrans
 
+!######################################################################
+
+  subroutine phase_refpsi
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer                  :: unit,i
+    integer, dimension(nsta) :: refphase
+    character(len=120)       :: string
+    logical                  :: found
+    
+!-----------------------------------------------------------------------
+! Exit if the previous log file does not exist
+!-----------------------------------------------------------------------
+    inquire(file=trim(areftrans),exist=found)
+    
+    if (.not.found) then
+       write(6,'(/,2x,a,/)') 'The file '//trim(areftrans)&
+            //' does not exist'
+       stop
+    endif
+
+!-----------------------------------------------------------------------
+! Open the previous log file
+!-----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=areftrans,form='formatted',status='old')
+
+!-----------------------------------------------------------------------
+! Read the phase factors from the old log file
+!-----------------------------------------------------------------------
+5   read(unit,'(a)',end=999) string
+    if (index(string,'Phase Factors').eq.0) goto 5
+    
+    read(unit,*)
+
+    do i=1,nsta
+       read(unit,'(6x,i2)') refphase(i)
+    enddo
+    
+!-----------------------------------------------------------------------
+! Close the previous log file
+!-----------------------------------------------------------------------
+    close(unit)
+
+!-----------------------------------------------------------------------
+! Adjust the phases of the ref. geometry wavefunctions
+!-----------------------------------------------------------------------
+    do i=1,nsta
+       c_ref(:,i)=c_ref(:,i)*refphase(i)
+    enddo
+    
+    return
+
+999 continue
+    errmsg='The Phase Factors section could not be found in: '&
+         //trim(areftrans)
+    call error_control
+    
+  end subroutine phase_refpsi
+    
 !######################################################################
 
   subroutine switch_diabats
