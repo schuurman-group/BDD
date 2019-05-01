@@ -739,7 +739,7 @@ contains
                    write(as2,'(i2)') s2
                    if (abs(dip0(s1,s2,c)).lt.thrsh) cycle
                    write(iop,'(a)') '-dip0'//acomp(c)&
-                        //trim(adjustl(as1))//trim(adjustl(as2))&
+                        //trim(adjustl(as1))//'_'//trim(adjustl(as2))&
                         //'*s*C/width'//'  |'//adjustl(afel)&
                         //'  S'//trim(adjustl(as1))//'&'&
                         //trim(adjustl(as2))//'  |'//adjustl(aft)&
