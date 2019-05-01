@@ -452,19 +452,19 @@ contains
 
     ! 2nd-order terms
     if (order.gt.1) then
-       dip2(m,m,s1,s2,c)=coeff(3)
+       dip2(m,m,s1,s2,c)=2.0d0*coeff(3)
        dip2(m,m,s2,s1,c)=dip2(m,m,s1,s2,c)
     endif
 
     ! 3rd-order terms
-    if (order.eq.2) then
-       dip3(m,s1,s2,c)=coeff(2)
+    if (order.gt.2) then
+       dip3(m,s1,s2,c)=6.0d0*coeff(4)
        dip3(m,s2,s1,c)=dip3(m,s1,s2,c)
     endif
 
     ! 4th-order terms
-    if (order.eq.3) then
-       dip4(m,s1,s2,c)=coeff(2)
+    if (order.gt.3) then
+       dip4(m,s1,s2,c)=24.0d0*coeff(5)
        dip4(m,s2,s1,c)=dip4(m,s1,s2,c)
     endif
     

@@ -903,9 +903,15 @@ contains
     
     implicit none
 
-    integer             :: m,m1,m2,s,s1,s2,i
-    real(dp), parameter :: thrsh=1e-4_dp
+    integer                        :: m,m1,m2,s,s1,s2,c,i
+    real(dp), parameter            :: thrsh=1e-4_dp
+    character(len=1), dimension(3) :: acomp
 
+!----------------------------------------------------------------------
+! Cartesian axis labels
+!----------------------------------------------------------------------
+    acomp=(/ 'x' , 'y' , 'z' /)
+    
 !----------------------------------------------------------------------
 ! First, output some information about the number of parameters of
 ! each class that are non-zero by symmetry
@@ -925,31 +931,45 @@ contains
     write(ilog,'(a)') ' Type   | Total number | Symmetry allowed'
     write(ilog,'(42a)') ('-',i=1,42)
 
-    write(ilog,'(a,3x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,3x,a,4x,i5,6x,a1,4x,i5)') &
          'kappa','|',nkappa(1),'|',nkappa(2)
 
-    write(ilog,'(a,2x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,2x,a,4x,i5,6x,a1,4x,i5)') &
          'lambda','|',nlambda(1),'|',nlambda(2)
 
-    write(ilog,'(a,3x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,3x,a,4x,i5,6x,a1,4x,i5)') &
          'gamma','|',ngamma(1),'|',ngamma(2)
 
-    write(ilog,'(a,6x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,6x,a,4x,i5,6x,a1,4x,i5)') &
          'mu','|',nmu(1),'|',nmu(2)
 
-    write(ilog,'(a,4x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
          'iota','|',niota(1),'|',niota(2)
 
-    write(ilog,'(a,5x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,5x,a,4x,i5,6x,a1,4x,i5)') &
          'tau','|',ntau(1),'|',ntau(2)
 
-    write(ilog,'(a,1x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,1x,a,4x,i5,6x,a1,4x,i5)') &
          'epsilon','|',nepsilon(1),'|',nepsilon(2)
 
-    write(ilog,'(a,6x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,6x,a,4x,i5,6x,a1,4x,i5)') &
          'xi','|',nxi(1),'|',nxi(2)
+
+    if (ldipfit) then
+       write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
+         'dip1','|',ndip1(1),'|',ndip1(2)
+
+       write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
+         'dip2','|',ndip2(1),'|',ndip2(2)
+
+       write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
+         'dip3','|',ndip3(1),'|',ndip3(2)
+
+       write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
+         'dip4','|',ndip4(1),'|',ndip4(2)
+    endif
     
-    write(ilog,'(a,5x,a,4x,i4,6x,a1,4x,i4)') &
+    write(ilog,'(a,5x,a,4x,i5,6x,a1,4x,i5)') &
          'all','|',ntot(1),'|',ntot(2)
 
     write(ilog,'(42a,/)') ('-',i=1,42)
@@ -1069,6 +1089,84 @@ contains
           enddo
        enddo
     enddo
+
+!----------------------------------------------------------------------
+! Check for any non-zero diabatic dipole matrix expansion coefficients
+! that should be zero by symmetry
+!----------------------------------------------------------------------
+    if (ldipfit) then
+
+       ! 1st-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m=1,nmodes
+                   if (abs(dip1(m,s1,s2,c)).gt.thrsh&
+                        .and.dip1_mask(m,s1,s2,c).eq.0) then
+                      write(ilog,'(a,2x,a,3(x,i2),x,a1,2x,F10.7)') &
+                           'WARNING non-zero parameter that should be &
+                           zero by symmetry:','dip1',m,s1,s2,acomp(c),&
+                           dip1(m,s1,s2,c)
+                   endif
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 2nd-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   do m2=m1,nmodes
+                      if (abs(dip2(m1,m2,s1,s2,c)).gt.thrsh &
+                           .and.dip2_mask(m1,m2,s1,s2,c).eq.0) then
+                         write(ilog,'(a,2x,a,4(x,i2),x,a1,2x,F10.7)') &
+                              'WARNING non-zero parameter that should &
+                              be zero by symmetry:','dip2',m1,m2,s1,s2,&
+                              acomp(c),dip2(m1,m2,s1,s2,c)
+                      endif
+                   enddo
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 3rd-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m=1,nmodes
+                   if (abs(dip3(m,s1,s2,c)).gt.thrsh&
+                        .and.dip3_mask(m,s1,s2,c).eq.0) then
+                      write(ilog,'(a,2x,a,3(x,i2),x,a1,2x,F10.7)') &
+                           'WARNING non-zero parameter that should be &
+                           zero by symmetry:','dip3',m,s1,s2,acomp(c),&
+                           dip3(m,s1,s2,c)
+                   endif
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 4th-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m=1,nmodes
+                   if (abs(dip4(m,s1,s2,c)).gt.thrsh&
+                        .and.dip4_mask(m,s1,s2,c).eq.0) then
+                      write(ilog,'(a,2x,a,3(x,i2),x,a1,2x,F10.7)') &
+                           'WARNING non-zero parameter that should be &
+                           zero by symmetry:','dip4',m,s1,s2,acomp(c),&
+                           dip4(m,s1,s2,c)
+                   endif
+                enddo
+             enddo
+          enddo
+       enddo
+       
+    endif
     
     return
     

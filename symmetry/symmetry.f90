@@ -843,12 +843,27 @@ contains
     if (present(dipolein)) then
        dipole=dipolein
     endif
+
+!----------------------------------------------------------------------
+! Initialisation
+!----------------------------------------------------------------------
+    nkappa=0
+    nlambda=0
+    ngamma=0
+    nmu=0
+    niota=0
+    ntau=0
+    nepsilon=0
+    nxi=0
+    ndip1=0
+    ndip2=0
+    ndip3=0
+    ndip4=0
     
 !----------------------------------------------------------------------
 ! Coefficients of the vibronic coupling Hamiltonian
 !----------------------------------------------------------------------
     ! kappa
-    nkappa=0
     do s=1,nsta
        do m=1,nmodes
           ! Total number
@@ -859,7 +874,6 @@ contains
     enddo
 
     ! lambda
-    nlambda=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
@@ -872,7 +886,6 @@ contains
     enddo
 
     ! gamma
-    ngamma=0
     do s=1,nsta
        do m1=1,nmodes
           do m2=m1,nmodes
@@ -885,7 +898,6 @@ contains
     enddo
 
     ! mu
-    nmu=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m1=1,nmodes
@@ -900,7 +912,6 @@ contains
     enddo
 
     ! iota
-    niota=0
     do s1=1,nsta-1
        do m1=1,nmodes
           ! Total number
@@ -911,7 +922,6 @@ contains
     enddo
 
     ! tau
-    ntau=0
     do s1=1,nsta
        do s2=s1+1,nsta
           do m1=1,nmodes
@@ -924,7 +934,6 @@ contains
     enddo
 
     ! epsilon
-    nepsilon=0
     do s1=1,nsta-1
        do m1=1,nmodes
           ! Total number
@@ -935,7 +944,6 @@ contains
     enddo
 
     ! xi
-    nxi=0
     do s1=1,nsta
        do s2=s1+1,nsta
           do m1=1,nmodes
@@ -946,9 +954,6 @@ contains
           enddo
        enddo
     enddo
-    
-    ! Total
-    ntot=nkappa+nlambda+ngamma+nmu+niota+ntau+nepsilon+nxi
 
 !----------------------------------------------------------------------
 ! Coefficients of the dipole matrix expansion
@@ -956,7 +961,6 @@ contains
     if (dipole) then
 
        ! 1st-order terms
-       ndip1=0
        do c=1,3
           do s1=1,nsta
              do s2=s1,nsta
@@ -971,7 +975,6 @@ contains
        enddo
 
        ! 2nd-order terms
-       ndip2=0
        do c=1,3
           do s1=1,nsta
              do s2=s1,nsta
@@ -989,7 +992,6 @@ contains
        enddo
 
        ! 3rd-order terms
-       ndip3=0
        do c=1,3
           do s1=1,nsta
              do s2=s1,nsta
@@ -1004,7 +1006,6 @@ contains
        enddo
        
        ! 4th-order terms
-       ndip4=0
        do c=1,3
           do s1=1,nsta
              do s2=s1,nsta
@@ -1019,6 +1020,12 @@ contains
        enddo
        
     endif
+
+!----------------------------------------------------------------------
+! Total
+!----------------------------------------------------------------------
+    ntot=nkappa+nlambda+ngamma+nmu+niota+ntau+nepsilon+nxi &
+         +ndip1+ndip2+ndip3+ndip4
     
     return
     

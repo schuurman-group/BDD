@@ -23,7 +23,7 @@ contains
     implicit none
 
     integer                        :: unit,m,m1,m2,s,s1,s2,i,j,k,c,nl,&
-                                      ncurr,fel
+                                      ncurr,ndof,fel
     integer                        :: nzkappa
     integer                        :: nzlambda
     integer                        :: nzgamma1,nzgamma2
@@ -32,9 +32,13 @@ contains
     integer                        :: nztau
     integer                        :: nzepsilon
     integer                        :: nzxi
+    integer                        :: nzdip0
+    integer                        :: nzdip1
+    integer                        :: nzdip2
+    integer                        :: nzdip3
+    integer                        :: nzdip4
     real(dp), parameter            :: thrsh=5e-4_dp
-    real(dp), parameter            :: dthrsh=1.8e-5_dp
-    character(len=2)               :: am,am1,am2,as,as1,as2,afel
+    character(len=2)               :: am,am1,am2,as,as1,as2,afel,aft
     character(len=5)               :: aunit
     character(len=90)              :: string
     character(len=3)               :: amode
@@ -45,7 +49,8 @@ contains
 ! Determine the no. non-zero coupling coefficients in each class
 !----------------------------------------------------------------------
     call get_nzpar(nzkappa,nzlambda,nzgamma1,nzgamma2,nzmu1,nzmu2,&
-         nziota,nztau,nzepsilon,nzxi,thrsh)
+         nziota,nztau,nzepsilon,nzxi,nzdip0,nzdip1,nzdip2,nzdip3,&
+         nzdip4,thrsh)
 
 !----------------------------------------------------------------------
 ! Unit label
@@ -58,6 +63,11 @@ contains
     fel=nmodes+1
     write(afel,'(i2)') fel
 
+!----------------------------------------------------------------------
+! Index of the Time DOF
+!----------------------------------------------------------------------
+    write(aft,'(i2)') fel+1
+    
 !----------------------------------------------------------------------
 ! Cartesian axis labels
 !----------------------------------------------------------------------
@@ -288,44 +298,155 @@ contains
     if (ldipfit) then
 
        ! Zeroth-order terms
-       write(iop,'(/,a)') '# Dipole matrix elements: 0th-order terms'
-       do c=1,3
-          do s1=1,nsta
-             write(as1,'(i2)') s1
-             do s2=s1,nsta
-                write(as2,'(i2)') s2
-                if (abs(dip0(s1,s2,c)).lt.dthrsh) cycle
-                write(iop,'(a,F10.7)') 'dip'//acomp(c)&
-                     //trim(adjustl(as1))//'_'//trim(adjustl(as2))&
-                     //' = ',dip0(s1,s2,c)
-             enddo
-          enddo
-       enddo          
-
-       ! First-order terms
-       write(iop,'(/,a)') '# Dipole matrix elements: 1st-order terms'
-       do c=1,3
-          do s1=1,nsta
-             write(as1,'(i2)') s1
-             do s2=s1,nsta
-                write(as2,'(i2)') s2
-                do m=1,nmodes
-                   if (abs(dip1(m,s1,s2,c)).lt.dthrsh) cycle
-                   if (dip1_mask(m,s1,s2,c).eq.0) cycle
-                   write(am,'(i2)') m
-                   write(iop,'(a,F10.7)') 'dip'//acomp(c)&
+       if (nzdip0.gt.0) then
+          write(iop,'(/,a)') '# Dipole matrix elements: 0th-order &
+               terms'
+          do c=1,3
+             do s1=1,nsta
+                write(as1,'(i2)') s1
+                do s2=s1,nsta
+                   write(as2,'(i2)') s2
+                   if (abs(dip0(s1,s2,c)).lt.thrsh) cycle
+                   write(iop,'(a,F10.7)') 'dip0'//acomp(c)&
                         //trim(adjustl(as1))//'_'//trim(adjustl(as2))&
-                        //'_'//trim(adjustl(am))//' = ',dip1(m,s1,s2,c)
+                        //' = ',dip0(s1,s2,c)
                 enddo
              enddo
           enddo
-       enddo
+       endif
           
+       ! First-order terms
+       if (nzdip1.gt.0) then
+          write(iop,'(/,a)') '# Dipole matrix elements: 1st-order &
+               terms'
+          do c=1,3
+             do s1=1,nsta
+                write(as1,'(i2)') s1
+                do s2=s1,nsta
+                   write(as2,'(i2)') s2
+                   do m=1,nmodes
+                      if (abs(dip1(m,s1,s2,c)).lt.thrsh) cycle
+                      if (dip1_mask(m,s1,s2,c).eq.0) cycle
+                      write(am,'(i2)') m
+                      write(iop,'(a,F10.7)') 'dip1'//acomp(c)&
+                           //trim(adjustl(as1))//'_'&
+                           //trim(adjustl(as2))//'_'&
+                           //trim(adjustl(am))//' = ',dip1(m,s1,s2,c)
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+          
+       ! Second-order terms
+       if (nzdip2.gt.0) then
+          write(iop,'(/,a)') '# Dipole matrix elements: 2nd-order &
+               terms'
+          do c=1,3
+             do s1=1,nsta
+                write(as1,'(i2)') s1
+                do s2=s1,nsta
+                   write(as2,'(i2)') s2
+                   do m1=1,nmodes
+                      do m2=m1,nmodes
+                         if (abs(dip2(m1,m2,s1,s2,c)).lt.thrsh) cycle
+                         if (dip2_mask(m1,m2,s1,s2,c).eq.0) cycle
+                         write(am1,'(i2)') m1
+                         write(am2,'(i2)') m2
+                         write(iop,'(a,F10.7)') 'dip2'//acomp(c)&
+                              //trim(adjustl(as1))//'_'&
+                              //trim(adjustl(as2))//'_'&
+                              //trim(adjustl(am1))//'_'&
+                              //trim(adjustl(am2))&
+                              //' = ',dip2(m1,m2,s1,s2,c)
+                      enddo
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+
+       ! Third-order terms
+       if (nzdip3.gt.0) then
+          write(iop,'(/,a)') '# Dipole matrix elements: 3rd-order &
+               terms'
+          do c=1,3
+             do s1=1,nsta
+                write(as1,'(i2)') s1
+                do s2=s1,nsta
+                   write(as2,'(i2)') s2
+                   do m=1,nmodes
+                      if (abs(dip3(m,s1,s2,c)).lt.thrsh) cycle
+                      if (dip3_mask(m,s1,s2,c).eq.0) cycle
+                      write(am,'(i2)') m
+                      write(iop,'(a,F10.7)') 'dip3'//acomp(c)&
+                           //trim(adjustl(as1))//'_'&
+                           //trim(adjustl(as2))//'_'&
+                           //trim(adjustl(am))//' = ',dip3(m,s1,s2,c)
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+
+       ! Fourth-order terms
+       if (nzdip4.gt.0) then
+          write(iop,'(/,a)') '# Dipole matrix elements: 4th-order &
+               terms'
+          do c=1,3
+             do s1=1,nsta
+                write(as1,'(i2)') s1
+                do s2=s1,nsta
+                   write(as2,'(i2)') s2
+                   do m=1,nmodes
+                      if (abs(dip4(m,s1,s2,c)).lt.thrsh) cycle
+                      if (dip4_mask(m,s1,s2,c).eq.0) cycle
+                      write(am,'(i2)') m
+                      write(iop,'(a,F10.7)') 'dip4'//acomp(c)&
+                           //trim(adjustl(as1))//'_'&
+                           //trim(adjustl(as2))//'_'&
+                           //trim(adjustl(am))//' = ',dip4(m,s1,s2,c)
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+
+       ! Pulse parameters
+       write(iop,'(/,a)') '# Pulse parameters'
+       write(iop,'(a)') 'A = 2.7726'
+       write(iop,'(a)') 'B = A/PI'
+       write(iop,'(a)') 'C = B^0.5'
+       write(iop,'(a)') 'width = 30 , fs'
+       write(iop,'(a)') 'freq = 5.0 , ev'
+       write(iop,'(a)') 't0 = 0.0 , fs'
+       write(iop,'(a,F20.3,a)') 'I0 = 0.00014286'
+       write(iop,'(a)') 's = I0*width/C'
+       
     endif
     
     ! Finishing line
     write(iop,'(/,a)') 'end-parameter-section'
 
+!----------------------------------------------------------------------
+! Write the labels sections
+!----------------------------------------------------------------------
+    if (ldipfit) then
+       
+       ! Starting line
+       write(iop,'(/,a)') 'LABELS-SECTION'
+
+       ! Pulse functions
+       write(iop,'(/,a)') 'pulse = gauss[A/width^2,t0]'
+       write(iop,'(a)') 'cosom = cos[freq,t0]'
+       write(iop,'(a)') 'stepf = step[t0-1.25*width]'
+       write(iop,'(a)') 'stepr = rstep[t0+1.25*width]'
+
+       ! Finishing line
+       write(iop,'(/,a)') 'end-labels-section'
+
+    endif
+    
 !----------------------------------------------------------------------
 ! Write the Hamiltonian section
 !----------------------------------------------------------------------
@@ -334,10 +455,12 @@ contains
 
     ! Modes section
     write(iop,'(/,38a)') ('-',i=1,38)
-    m=0    
-    nl=ceiling((real(nmodes+1))/10.0d0)
+    ndof=nmodes+1
+    if (ldipfit) ndof=ndof+1
+    m=0
+    nl=ceiling((real(ndof))/10.0d0)
     do i=1,nl
-       ncurr=min(10,nmodes+1-10*(i-1))
+       ncurr=min(10,ndof-10*(i-1))
        string='modes|'
        do k=1,ncurr
           m=m+1
@@ -601,6 +724,174 @@ contains
           enddo
        enddo
     endif
+
+    ! Light-molecule interaction terms
+    if (ldipfit) then
+       
+       ! Zeroth-order terms
+       if (nzdip0.gt.0) then
+          write(iop,'(/,a)') '# Light-molecule interaction: &
+               0th-order terms'
+          do c=1,3
+             do s1=1,nsta
+                write(as1,'(i2)') s1
+                do s2=s1,nsta
+                   write(as2,'(i2)') s2
+                   if (abs(dip0(s1,s2,c)).lt.thrsh) cycle
+                   write(iop,'(a)') '-dip0'//acomp(c)&
+                        //trim(adjustl(as1))//trim(adjustl(as2))&
+                        //'*s*C/width'//'  |'//adjustl(afel)&
+                        //'  S'//trim(adjustl(as1))//'&'&
+                        //trim(adjustl(as2))//'  |'//adjustl(aft)&
+                        //'  cosom*pulse*stepf*stepr'
+                enddo
+             enddo
+          enddo
+       endif
+
+       ! First-order terms
+       if (nzdip1.gt.0) then
+          write(iop,'(/,a)') '# Light-molecule interaction: &
+               1st-order terms'
+          do c=1,3
+             do m=1,nmodes
+                write(am,'(i2)') m
+                do s1=1,nsta
+                   write(as1,'(i2)') s1
+                   do s2=s1,nsta
+                      write(as2,'(i2)') s2
+                      if (abs(dip1(m,s1,s2,c)).lt.thrsh) cycle
+                      if (dip1_mask(m,s1,s2,c).eq.0) cycle
+                      write(iop,'(a,F10.7)') '-dip1'//acomp(c)&
+                           //trim(adjustl(as1))//'_'&
+                           //trim(adjustl(as2))//'_'&
+                           //trim(adjustl(am))//'*s*C/width'&
+                           //'  |'//adjustl(am)//'  q'&
+                           //'  |'//adjustl(afel)&
+                           //'  S'//trim(adjustl(as1))//'&'&
+                           //trim(adjustl(as2))//'  |'//adjustl(aft)&
+                           //'  cosom*pulse*stepf*stepr'
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+          
+       ! Second-order terms
+       if (nzdip2.gt.0) then
+          write(iop,'(/,a)') '# Light-molecule interaction: &
+               2nd-order terms'
+          ! Quadratic terms
+          do c=1,3
+             do m=1,nmodes
+                write(am,'(i2)') m
+                do s1=1,nsta
+                   write(as1,'(i2)') s1
+                   do s2=s1,nsta
+                      write(as2,'(i2)') s2
+                      if (abs(dip2(m,m,s1,s2,c)).lt.thrsh) cycle
+                      if (dip2_mask(m,m,s1,s2,c).eq.0) cycle
+                      write(iop,'(a,F10.7)') '-0.5*dip2'//acomp(c)&
+                           //trim(adjustl(as1))//'_'&
+                           //trim(adjustl(as2))//'_'&
+                           //trim(adjustl(am))//'_'&
+                           //trim(adjustl(am))//'*s*C/width'&
+                           //'  |'//adjustl(am)//'  q^2'&
+                           //'  |'//adjustl(afel)&
+                           //'  S'//trim(adjustl(as1))//'&'&
+                           //trim(adjustl(as2))//'  |'//adjustl(aft)&
+                           //'  cosom*pulse*stepf*stepr'
+                   enddo
+                enddo
+             enddo
+          enddo
+          ! Bi-linear terms
+          do c=1,3
+             do m1=1,nmodes
+                write(am1,'(i2)') m1
+                do m2=m1+1,nmodes
+                   write(am1,'(i2)') m1
+                   do s1=1,nsta
+                      write(as1,'(i2)') s1
+                      do s2=s1,nsta
+                         write(as2,'(i2)') s2
+                         if (abs(dip2(m1,m2,s1,s2,c)).lt.thrsh) cycle
+                         if (dip2_mask(m1,m2,s1,s2,c).eq.0) cycle
+                         write(iop,'(a,F10.7)') '-dip2'//acomp(c)&
+                              //trim(adjustl(as1))//'_'&
+                              //trim(adjustl(as2))//'_'&
+                              //trim(adjustl(am1))//'_'&
+                              //trim(adjustl(am2))//'*s*C/width'&
+                              //'  |'//adjustl(am1)//'  q'&
+                              //'  |'//adjustl(am2)//'  q'&
+                              //'  |'//adjustl(afel)&
+                              //'  S'//trim(adjustl(as1))//'&'&
+                              //trim(adjustl(as2))//'  |'//adjustl(aft)&
+                              //'  cosom*pulse*stepf*stepr'
+                      enddo
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+       
+       ! Third-order terms
+       if (nzdip3.gt.0) then
+          write(iop,'(/,a)') '# Light-molecule interaction: &
+               3rd-order terms'
+          do c=1,3
+             do m=1,nmodes
+                write(am,'(i2)') m
+                do s1=1,nsta
+                   write(as1,'(i2)') s1
+                   do s2=s1,nsta
+                      write(as2,'(i2)') s2
+                      if (abs(dip3(m,s1,s2,c)).lt.thrsh) cycle
+                      if (dip3_mask(m,s1,s2,c).eq.0) cycle
+                      write(iop,'(a,F10.7)') '-0.166667*dip3'//acomp(c)&
+                           //trim(adjustl(as1))//'_'&
+                           //trim(adjustl(as2))//'_'&
+                           //trim(adjustl(am))//'*s*C/width'&
+                           //'  |'//adjustl(am)//'  q^3'&
+                           //'  |'//adjustl(afel)&
+                           //'  S'//trim(adjustl(as1))//'&'&
+                           //trim(adjustl(as2))//'  |'//adjustl(aft)&
+                           //'  cosom*pulse*stepf*stepr'
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+
+       ! Fourth-order terms
+       if (nzdip4.gt.0) then
+          write(iop,'(/,a)') '# Light-molecule interaction: &
+               4th-order terms'
+          do c=1,3
+             do m=1,nmodes
+                write(am,'(i2)') m
+                do s1=1,nsta
+                   write(as1,'(i2)') s1
+                   do s2=s1,nsta
+                      write(as2,'(i2)') s2
+                      if (abs(dip4(m,s1,s2,c)).lt.thrsh) cycle
+                      if (dip4_mask(m,s1,s2,c).eq.0) cycle
+                      write(iop,'(a,F10.7)') '-0.041666*dip4'//acomp(c)&
+                           //trim(adjustl(as1))//'_'&
+                           //trim(adjustl(as2))//'_'&
+                           //trim(adjustl(am))//'*s*C/width'&
+                           //'  |'//adjustl(am)//'  q^4'&
+                           //'  |'//adjustl(afel)&
+                           //'  S'//trim(adjustl(as1))//'&'&
+                           //trim(adjustl(as2))//'  |'//adjustl(aft)&
+                           //'  cosom*pulse*stepf*stepr'
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+       
+    endif
     
     ! Finishing line
     write(iop,'(/,a)') 'end-hamiltonian-section'
@@ -673,7 +964,8 @@ contains
 !######################################################################
 
   subroutine get_nzpar(nzkappa,nzlambda,nzgamma1,nzgamma2,nzmu1,&
-       nzmu2,nziota,nztau,nzepsilon,nzxi,thrsh)
+       nzmu2,nziota,nztau,nzepsilon,nzxi,nzdip0,nzdip1,nzdip2,nzdip3,&
+       nzdip4,thrsh)
 
     use constants
     use sysinfo
@@ -691,11 +983,37 @@ contains
     integer              :: nztau
     integer              :: nzepsilon
     integer              :: nzxi
-    integer              :: m,s,m1,m2,s1,s2
+    integer              :: nzdip0
+    integer              :: nzdip1
+    integer              :: nzdip2
+    integer              :: nzdip3
+    integer              :: nzdip4
+    integer              :: m,s,m1,m2,s1,s2,c
     real(dp), intent(in) :: thrsh
 
-    ! 1st-order intrastate coupling constants (kappa)
+!----------------------------------------------------------------------
+! Initialisation
+!----------------------------------------------------------------------
     nzkappa=0
+    nzlambda=0
+    nzgamma1=0
+    nzgamma2=0
+    nzmu1=0
+    nzmu2=0
+    nziota=0
+    nztau=0
+    nzepsilon=0
+    nzxi=0
+    nzdip0=0
+    nzdip1=0
+    nzdip2=0
+    nzdip3=0
+    nzdip4=0
+    
+!----------------------------------------------------------------------
+! Coupling coefficients of the vibronic coupling Hamiltonian
+!----------------------------------------------------------------------
+    ! 1st-order intrastate coupling constants (kappa)
     do s=1,nsta
        do m=1,nmodes
           if (kappa_mask(m,s).eq.0) cycle
@@ -705,7 +1023,6 @@ contains
     enddo
 
     ! 1st-order intrastate coupling constants (lambda)
-    nzlambda=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
@@ -717,7 +1034,6 @@ contains
     enddo
 
     ! Quadratic (aa) 2nd-order intrastate coupling constants (gamma)
-    nzgamma1=0
     do s=1,nsta
        do m=1,nmodes
           if (gamma_mask(m,m,s).eq.0) cycle
@@ -727,7 +1043,6 @@ contains
     enddo
 
     ! Bi-linear (ab) 2nd-order intrastate coupling constants (gamma)
-    nzgamma2=0
     do s=1,nsta
        do m1=1,nmodes-1
           do m2=m1+1,nmodes
@@ -739,7 +1054,6 @@ contains
     enddo
 
     ! Quadratic (aa) 2nd-order interstate coupling constants (mu)
-    nzmu1=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
@@ -751,7 +1065,6 @@ contains
     enddo
 
     ! Bi-linear (ab) 2nd-order interstate coupling constants (mu)
-    nzmu2=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m1=1,nmodes-1
@@ -765,7 +1078,6 @@ contains
     enddo
 
     ! Cubic (aaa) 3rd-order intrastate coupling constants (iota)
-    nziota=0
     do s=1,nsta
        do m=1,nmodes
           if (iota_mask(m,s).eq.0) cycle
@@ -775,7 +1087,6 @@ contains
     enddo
     
     ! Cubic (aaa) 3rd-order interstate coupling constants (tau)
-    nztau=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
@@ -787,7 +1098,6 @@ contains
     enddo
 
     ! Quartic (aaaa) 4rd-order intrastate coupling constants (epsilon)
-    nzepsilon=0
     do s=1,nsta
        do m=1,nmodes
           if (epsilon_mask(m,s).eq.0) cycle
@@ -797,7 +1107,6 @@ contains
     enddo
 
     ! Quartic (aaaa) 4rd-order interstate coupling constants (xi)
-    nzxi=0
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
@@ -807,6 +1116,77 @@ contains
           enddo
        enddo
     enddo
+
+!----------------------------------------------------------------------
+! Coefficients of the expansion of the diabatic dipole matrix
+!----------------------------------------------------------------------
+    if (ldipfit) then
+
+       ! 0th-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                if (abs(dip0(s1,s2,c)).lt.thrsh) cycle
+                nzdip0=nzdip0+1
+             enddo
+          enddo
+       enddo
+                
+       ! 1st-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m=1,nmodes
+                   if (dip1_mask(m,s1,s2,c).eq.0) cycle
+                   if (abs(dip1(m,s1,s2,c)).lt.thrsh) cycle
+                   nzdip1=nzdip1+1
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 2nd-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m1=1,nmodes
+                   do m2=m1,nmodes
+                      if (dip2_mask(m1,m2,s1,s2,c).eq.0) cycle
+                      if (abs(dip2(m1,m2,s1,s2,c)).lt.thrsh) cycle
+                      nzdip2=nzdip2+1
+                   enddo
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 3rd-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m=1,nmodes
+                   if (dip3_mask(m,s1,s2,c).eq.0) cycle
+                   if (abs(dip3(m,s1,s2,c)).lt.thrsh) cycle
+                   nzdip3=nzdip3+1
+                enddo
+             enddo
+          enddo
+       enddo
+
+       ! 4th-order terms
+       do c=1,3
+          do s1=1,nsta
+             do s2=s1,nsta
+                do m=1,nmodes
+                   if (dip4_mask(m,s1,s2,c).eq.0) cycle
+                   if (abs(dip4(m,s1,s2,c)).lt.thrsh) cycle
+                   nzdip4=nzdip4+1
+                enddo
+             enddo
+          enddo
+       enddo
+       
+    endif
     
     return
     
