@@ -568,15 +568,15 @@ contains
 
                 ! Subtract off the one-mode contributions to the
                 ! potential to get the correlated contribution
-                call get_2mode_contrib(w(1:ndat),q(:,1:ndat),ndat,m1,&
-                     m2,s1,s2)
+                call get_2mode_contrib_potential(w(1:ndat),q(:,1:ndat),&
+                     ndat,m1,m2,s1,s2)
                 
                 ! Perform the fitting for the current pair of modes and
                 ! diabatic potential matrix element
                 call nmeq_bilinear(coeff,ndat,q(:,1:ndat),w(1:ndat))
 
                 ! Fill in the global coefficient arrays
-                call fill_coeffs2d(coeff,m1,m2,s1,s2)
+                call fill_coeffs2d_potential(coeff,m1,m2,s1,s2)
                 
              enddo
           enddo
@@ -611,8 +611,68 @@ contains
     real(dp)              :: coeff
     logical               :: present
 
-    print*,"FINISH WRITING THE 2-MODE DIPOLE FITTING CODE!"
-    stop
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    ! Input coordinates and diabatic dipole matrix element values
+    allocate(q(2,maxfiles2m))
+    allocate(d(maxfiles2m))
+    q=0.0d0
+    d=0.0d0
+
+!----------------------------------------------------------------------
+! Perform the fits of the 2-mode terms
+!----------------------------------------------------------------------
+    ! Loop over pairs of modes
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+
+          ! Cycle if there are no points for the current pair of modes
+          ndat=nfiles2m(m1,m2)
+          if (ndat.eq.0) cycle
+
+          ! Loop over elements of the diabatic dipole matrix
+          do s1=1,nsta
+             do s2=s1,nsta
+
+                ! Loop over components of the dipole
+                do c=1,3
+                
+                   ! Fill in the coordinate and dipole matrix element
+                   ! vectors to be sent to the fitting routine
+                   q=0.0d0
+                   d=0.0d0
+                   do n=1,ndat
+                      q(1,n)=qvec(m1,findx2m(m1,m2,n))
+                      q(2,n)=qvec(m2,findx2m(m1,m2,n))
+                      d(n)=diabdip(s1,s2,c,findx2m(m1,m2,n))
+                   enddo
+                
+                   ! Subtract off the one-mode contributions to the
+                   ! potential to get the correlated contribution
+                   call get_2mode_contrib_dipole(d(1:ndat),q(:,1:ndat),&
+                        ndat,m1,m2,s1,s2,c)
+                
+                   ! Perform the fitting for the current pair of modes
+                   ! and diabatic dipole matrix element
+                   call nmeq_bilinear(coeff,ndat,q(:,1:ndat),d(1:ndat))
+                   
+                   ! Fill in the global coefficient arrays
+                   call fill_coeffs2d_dipole(coeff,m1,m2,s1,s2,c)
+
+                enddo
+                   
+             enddo
+          enddo
+
+       enddo
+    enddo
+          
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(q)
+    deallocate(d)
     
     return
     
@@ -721,7 +781,7 @@ contains
 
 !######################################################################
 
-  subroutine get_2mode_contrib(w,q,ndat,m1,m2,s1,s2)
+  subroutine get_2mode_contrib_potential(w,q,ndat,m1,m2,s1,s2)
 
     use constants
     use channels
@@ -797,8 +857,54 @@ contains
        
     return
     
-  end subroutine get_2mode_contrib
+  end subroutine get_2mode_contrib_potential
+
+!######################################################################
+
+  subroutine get_2mode_contrib_dipole(d,q,ndat,m1,m2,s1,s2,c)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use parameters
+    use kdcglobal
     
+    implicit none
+
+    integer, intent(in)                     :: ndat,m1,m2,s1,s2,c
+    integer                                 :: n
+    real(dp), dimension(ndat)               :: d
+    real(dp), dimension(2,ndat), intent(in) :: q
+
+    ! Loop over points
+    do n=1,ndat
+
+       ! Zeroth-order contributions
+       d(n)=d(n)-dip0(s1,s2,c)
+
+       ! First-order contributions
+       d(n)=d(n)-dip1(m1,s1,s2,c)*q(1,n)
+       d(n)=d(n)-dip1(m2,s1,s2,c)*q(2,n)
+       
+       ! Second-order contributions
+       d(n)=d(n)-0.5d0*dip2(m1,m1,s1,s2,c)*q(1,n)**2
+       d(n)=d(n)-0.5d0*dip2(m2,m2,s1,s2,c)*q(2,n)**2
+
+       ! Third-order contributions
+       d(n)=d(n)-(1.0d0/6.0d0)*dip3(m1,s1,s2,c)*q(1,n)**3
+       d(n)=d(n)-(1.0d0/6.0d0)*dip3(m2,s1,s2,c)*q(2,n)**3
+       
+       ! Fourth-order contributions
+       d(n)=d(n)-(1.0d0/24.0d0)*dip4(m1,s1,s2,c)*q(1,n)**4
+       d(n)=d(n)-(1.0d0/24.0d0)*dip4(m2,s1,s2,c)*q(2,n)**4
+       
+    enddo
+    
+    return
+    
+  end subroutine get_2mode_contrib_dipole
+  
 !######################################################################
 
   subroutine nmeq_bilinear(coeff,ndat,q,w)
@@ -835,7 +941,7 @@ contains
 
 !######################################################################
 
-  subroutine fill_coeffs2d(coeff,m1,m2,s1,s2)
+  subroutine fill_coeffs2d_potential(coeff,m1,m2,s1,s2)
 
     use constants
     use channels
@@ -868,8 +974,32 @@ contains
     
     return
     
-  end subroutine fill_coeffs2d
+  end subroutine fill_coeffs2d_potential
 
+!######################################################################
+
+   subroutine fill_coeffs2d_dipole(coeff,m1,m2,s1,s2,c)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use parameters
+    use kdcglobal
+    
+    implicit none
+
+    integer, intent(in)  :: m1,m2,s1,s2,c
+    real(dp), intent(in) :: coeff
+
+    dip2(m1,m2,s1,s2,c)=coeff
+    dip2(m2,m1,s1,s2,c)=dip2(m1,m2,s1,s2,c)
+    dip2(m2,m2,s2,s1,c)=dip2(m1,m2,s1,s2,c)
+    
+    return
+    
+  end subroutine fill_coeffs2d_dipole
+    
 !######################################################################
 
   subroutine calc_rmsd
