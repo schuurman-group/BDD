@@ -15,6 +15,7 @@ program blockdiag
 
   use constants
   use channels
+  use detparsing
   use mooverlaps
   use wfoverlaps
   use adtmod
@@ -339,6 +340,8 @@ contains
     ldipole=.false.
     ioverlap=1
     dthresh=1e-6_dp
+    normcut=1.0d0
+    ltruncate=.false.
     
 !----------------------------------------------------------------------
 ! Second pass: read the input file
@@ -456,6 +459,15 @@ contains
              goto 100 
           endif
 
+       else if (keyword(i).eq.'$norm_cutoff') then
+          if (keyword(i+1).eq.'=') then
+             ltruncate=.true.
+             i=i+2
+             read(keyword(i),*) normcut
+          else
+             goto 100 
+          endif
+          
        else if (keyword(i).eq.'$dipole') then
           ldipole=.true.
           do
@@ -529,6 +541,15 @@ contains
           call error_control
        endif
     enddo
+
+    ! Wavefunction truncation
+    if (ltruncate) then
+       if (normcut.lt.0.0d0.or.normcut.gt.1.0d0) then
+          write(errmsg,'(a,x,ES11.4)') &
+               'Nonsensical wavefunction cutoff value:',normcut
+          call error_control
+       endif
+    endif
     
     return
     
@@ -714,449 +735,6 @@ contains
     return
 
   end subroutine wrgeoms
-    
-!######################################################################
-  
-  subroutine rddetfiles
-
-    use constants
-    use iomod
-    use bdglobal
-    use timingmod
-    
-    implicit none
-
-    integer  :: i,k,n,idet,ilbl
-    real(dp) :: tw1,tw2,tc1,tc2
-    
-!----------------------------------------------------------------------
-! Output what we are doing
-!----------------------------------------------------------------------
-    write(ilog,'(/,82a)') ('+',i=1,82)
-    write(ilog,'(2x,a)') 'Parsing the determinant files'
-    write(ilog,'(82a)') ('+',i=1,82)
-    
-!-----------------------------------------------------------------------
-! Start timing
-!-----------------------------------------------------------------------
-    call times(tw1,tc1)
-
-!-----------------------------------------------------------------------
-! Try to determine whether we have binary or ascii determinant files.
-! We are here assuming that binary files have a .bin file extension, as
-! is the case for binary determinant files written by the mrci code.
-!-----------------------------------------------------------------------
-    ilbl=len_trim(adetref(1))
-    if (adetref(1)(ilbl-3:ilbl).eq.'.bin') then
-       lbinary=.true.
-    else
-       lbinary=.false.
-    endif
-
-!-----------------------------------------------------------------------
-! Call to the appropriate parsing routine
-!-----------------------------------------------------------------------
-    if (lbinary) then
-       call rddetfiles_binary
-    else
-       call rddetfiles_ascii
-    endif
-    
-!-----------------------------------------------------------------------
-! Norms
-!-----------------------------------------------------------------------
-    ! Reference geometry
-    do i=1,nsta_ref
-       norm_ref(i)=sqrt(sum(c_ref(:,i)**2))
-    enddo
-
-    ! Displaced geometry
-    do i=1,nsta_disp
-       norm_disp(i)=sqrt(sum(c_disp(:,i)**2))
-    enddo
-    
-!-----------------------------------------------------------------------
-! Normalisation of the wavefunctions
-!-----------------------------------------------------------------------
-    do i=1,nsta_ref
-       c_ref(:,i)=c_ref(:,i)/norm_ref(i)
-    enddo
-
-    do i=1,nsta_disp
-       c_disp(:,i)=c_disp(:,i)/norm_disp(i)
-    enddo
-    
-!-----------------------------------------------------------------------    
-! Output timings
-!-----------------------------------------------------------------------    
-    call times(tw2,tc2)
-    write(ilog,'(/,2x,a,1x,F9.2,1x,a)') &
-         'Wall Time For Determinant Parsing:',tw2-tw1," s"
-    write(ilog,'(2x,a,2x,F9.2,1x,a)') &
-         'CPU Time For Determinant Parsing:',tc2-tc1," s"
-
-    return
-    
-  end subroutine rddetfiles
-
-!######################################################################
-
-  subroutine rddetfiles_ascii
-
-    use constants
-    use iomod
-    use parsemod
-    use bdglobal
-    use utils
-    use timingmod
-    
-    implicit none
-
-    integer  :: i,k,n,idet
-
-!-----------------------------------------------------------------------
-! First pass: determine the no. determinants for each file
-!-----------------------------------------------------------------------
-    do i=1,nsta_ref
-       ndet_ref(i)=nlines(adetref(i))
-    enddo
-
-    do i=1,nsta_disp
-       ndet_disp(i)=nlines(adetdisp(i))
-    enddo
-    
-    ! Maximum number of determinants
-    maxdet=max(maxval(ndet_ref),maxval(ndet_disp))
-
-!-----------------------------------------------------------------------
-! Allocate arrays
-!-----------------------------------------------------------------------
-    ! Number of MOs for the reference and displaced geometries
-    nmo_ref=gam_ref%nvectors
-    nmo_disp=gam_disp%nvectors
-
-    ! Coefficient vectors
-    allocate(c_ref(maxdet,nsta_ref))
-    allocate(c_disp(maxdet,nsta_disp))
-    c_ref=0.0d0
-    c_disp=0.0d0
-
-    ! Determinant vectors
-    allocate(det_ref(nmo_ref,maxdet,nsta_ref))
-    allocate(det_disp(nmo_disp,maxdet,nsta_disp))
-    det_ref=0
-    det_disp=0
-
-!-----------------------------------------------------------------------
-! Read in the determinants and coefficients
-!-----------------------------------------------------------------------
-    call freeunit(idet)
-
-    ! Reference geometry
-    do i=1,nsta_ref
-       open(idet,file=adetref(i),form='formatted',status='old')
-       do k=1,ndet_ref(i)
-          call rdinp(idet)
-          read(keyword(1),*) c_ref(k,i)
-          do n=2,inkw
-             read(keyword(n),*) det_ref(n-1,k,i)
-          enddo          
-       enddo
-       close(idet)
-    enddo
-    
-    ! Displaced geometry
-    do i=1,nsta_disp
-       open(idet,file=adetdisp(i),form='formatted',status='old')
-       do k=1,ndet_disp(i)
-          call rdinp(idet)
-          read(keyword(1),*) c_disp(k,i)          
-          do n=2,inkw
-             read(keyword(n),*) det_disp(n-1,k,i)
-          enddo          
-       enddo
-       close(idet)
-    enddo
-
-!----------------------------------------------------------------------
-! Get the alpha and beta spinorbital indices for every determinant
-!----------------------------------------------------------------------
-    call alpha_beta_indices
-    
-    return
-    
-  end subroutine rddetfiles_ascii
-
-!######################################################################
-
-  subroutine alpha_beta_indices
-
-    use constants
-    use channels
-    use iomod
-    use bdglobal
-    
-    implicit none
-
-    integer :: imo,nar,nad,nbr,nbd,na,nb
-    integer :: i,k
-    
-!-----------------------------------------------------------------------
-! Determine the no. alpha and beta spinorbitals
-!-----------------------------------------------------------------------
-    ! Ref. States
-    nar=0
-    nbr=0
-    do imo=1,nmo_ref
-       if (det_ref(imo,1,1).eq.2) then
-          nar=nar+1
-          nbr=nbr+1
-       else if (det_ref(imo,1,1).eq.+1) then
-          nar=nar+1
-       else if (det_ref(imo,1,1).eq.-1) then
-          nbr=nbr+1
-       endif
-    enddo
-
-    ! Disp. states
-    nad=0
-    nbd=0
-    do imo=1,nmo_disp
-       if (det_disp(imo,1,1).eq.2) then
-          nad=nad+1
-          nbd=nbd+1
-       else if (det_disp(imo,1,1).eq.+1) then
-          nad=nad+1
-       else if (det_disp(imo,1,1).eq.-1) then
-          nbd=nbd+1
-       endif
-    enddo
-
-    ! Exit if the numbers of alpha and beta electrons in the ref. and
-    ! disp. states is not consistent
-    if (nar.ne.nad.or.nbr.ne.nbd) then
-       errmsg='Inconsistent numbers of alpha and beta electrons in &
-            the ref. and disp. states'
-       call error_control
-    endif
-
-    ! Set the number of alpha and beta spinorbitals
-    nalpha=nar
-    nbeta=nbr
-
-!-----------------------------------------------------------------------
-! Allocate and initialise the spinorbital index arrays
-!-----------------------------------------------------------------------
-    allocate(iocca_ref(nalpha,maxdet,nsta_ref))
-    allocate(ioccb_ref(nbeta,maxdet,nsta_ref))
-    allocate(iocca_disp(nalpha,maxdet,nsta_disp))
-    allocate(ioccb_disp(nbeta,maxdet,nsta_disp))
-    iocca_ref=0
-    ioccb_ref=0
-    iocca_disp=0
-    ioccb_disp=0
-
-!-----------------------------------------------------------------------
-! Fill in the spinorbital index arrays
-!-----------------------------------------------------------------------
-    ! Ref. states
-    !
-    ! Loop over states
-    do i=1,nsta_ref
-       ! Loop over determinants
-       do k=1,ndet_ref(i)
-          ! Fill in the spinorbital indicies for the current
-          ! determinant
-          na=0
-          nb=0
-          do imo=1,nmo_ref
-             if (det_ref(imo,k,i).eq.2) then
-                na=na+1
-                nb=nb+1
-                iocca_ref(na,k,i)=imo
-                ioccb_ref(nb,k,i)=imo
-             else if (det_ref(imo,k,i).eq.+1) then
-                na=na+1
-                iocca_ref(na,k,i)=imo
-             else if (det_ref(imo,k,i).eq.-1) then
-                nb=nb+1
-                ioccb_ref(nb,k,i)=imo
-             endif
-          enddo
-       enddo
-    enddo
-
-    ! Disp. states
-    !
-    ! Loop over states
-    do i=1,nsta_disp
-       ! Loop over determinants
-       do k=1,ndet_disp(i)
-          ! Fill in the spinorbital indicies for the current
-          ! determinant
-          na=0
-          nb=0
-          do imo=1,nmo_disp
-             if (det_disp(imo,k,i).eq.2) then
-                na=na+1
-                nb=nb+1
-                iocca_disp(na,k,i)=imo
-                ioccb_disp(nb,k,i)=imo
-             else if (det_disp(imo,k,i).eq.+1) then
-                na=na+1
-                iocca_disp(na,k,i)=imo
-             else if (det_disp(imo,k,i).eq.-1) then
-                nb=nb+1
-                ioccb_disp(nb,k,i)=imo
-             endif
-          enddo
-       enddo
-    enddo
-    
-    return
-    
-  end subroutine alpha_beta_indices
-  
-!######################################################################
-
-  subroutine rddetfiles_binary
-
-    use constants
-    use iomod
-    use bdglobal
-    use timingmod
-    
-    implicit none
-
-    integer :: i,n,idet,nbeta_last,nalpha_last,itmp
-
-!-----------------------------------------------------------------------
-! First pass: read dimensions and allocate arrays
-!-----------------------------------------------------------------------
-    call freeunit(idet)
-
-    ! Reference geometry states
-    do i=1,nsta_ref
-
-       ! Open the next determinant file
-       open(idet,file=adetref(i),form='unformatted',status='old')
-
-       ! Read in the no. determinants and the no. alpha and beta
-       ! electrons
-       read(idet) ndet_ref(i)
-       read(idet) nalpha
-       read(idet) nbeta
-
-       ! Check that the no. alpha and beta electrons is consistent
-       if (i.gt.1) then
-          if (nalpha.ne.nalpha_last.or.nbeta.ne.nbeta_last) then
-             errmsg='Inconsistent numbers of alpha and beta electrons'
-             call error_control
-          endif
-       endif
-
-       ! Reset nalpha_last and nbeta_last for the next iteration
-       nalpha_last=nalpha
-       nbeta_last=nbeta
-
-       ! Close the determinant file
-       close(idet)
-
-    enddo
-
-    ! Displaced geometry states
-    do i=1,nsta_disp
-
-       ! Open the next determinant file
-       open(idet,file=adetdisp(i),form='unformatted',status='old')
-
-       ! Read in the no. determinants and the no. alpha and beta
-       ! electrons
-       read(idet) ndet_disp(i)
-       read(idet) nalpha
-       read(idet) nbeta
-
-       ! Check that the no. alpha and beta electrons is consistent
-       if (nalpha.ne.nalpha_last.or.nbeta.ne.nbeta_last) then
-          errmsg='Inconsistent numbers of alpha and beta electrons'
-          call error_control
-       endif
-       
-       ! Reset nalpha_last and nbeta_last for the next iteration
-       nalpha_last=nalpha
-       nbeta_last=nbeta
-
-       ! Close the determinant file
-       close(idet)
-
-    enddo
-
-    ! Maximum number of determinants
-    maxdet=max(maxval(ndet_ref),maxval(ndet_disp))
-
-    ! Number of MOs for the reference and displaced geometries (needed
-    ! elsewhere)
-    nmo_ref=gam_ref%nvectors
-    nmo_disp=gam_disp%nvectors
-    
-!-----------------------------------------------------------------------
-! Allocate arrays
-!-----------------------------------------------------------------------
-    ! Indices of the occupied alpha and beta orbitals
-    allocate(iocca_ref(nalpha,maxdet,nsta_ref))
-    allocate(ioccb_ref(nbeta,maxdet,nsta_ref))
-    allocate(iocca_disp(nalpha,maxdet,nsta_disp))
-    allocate(ioccb_disp(nbeta,maxdet,nsta_disp))
-    iocca_ref=0
-    ioccb_ref=0
-    iocca_disp=0
-    ioccb_disp=0
-    
-    ! Coefficient vectors
-    allocate(c_ref(maxdet,nsta_ref))
-    allocate(c_disp(maxdet,nsta_disp))
-    c_ref=0.0d0
-    c_disp=0.0d0
-    
-!-----------------------------------------------------------------------
-! Read in the determinants (in terms of alpha and beta strings) and
-! coefficients
-!-----------------------------------------------------------------------
-    ! Reference geometry
-    do i=1,nsta_ref
-       open(idet,file=adetref(i),form='unformatted',status='old')
-       read(idet) itmp
-       read(idet) itmp
-       read(idet) itmp
-       do n=1,ndet_ref(i)
-          read(idet) iocca_ref(:,n,i)
-       enddo
-       do n=1,ndet_ref(i)
-          read(idet) ioccb_ref(:,n,i)
-       enddo
-       read(idet) c_ref(1:ndet_ref(i),i)
-       close(idet)
-    enddo
-
-    ! Displaced geometry
-    do i=1,nsta_disp
-       open(idet,file=adetdisp(i),form='unformatted',status='old')
-       read(idet) itmp
-       read(idet) itmp
-       read(idet) itmp
-       do n=1,ndet_disp(i)
-          read(idet) iocca_disp(:,n,i)
-       enddo
-       do n=1,ndet_disp(i)
-          read(idet) ioccb_disp(:,n,i)
-       enddo
-       read(idet) c_disp(1:ndet_disp(i),i)
-       close(idet)
-    enddo
-
-    return
-    
-  end subroutine rddetfiles_binary
     
 !######################################################################
 

@@ -46,6 +46,13 @@ if [ ! -z $3 ]; then
 fi
 
 ##############################################
+# Norm cutoff (optional)
+##############################################
+if [ ! -z $4 ]; then
+    normcutoff=$4
+fi
+
+##############################################
 # Perform the chain of blockdiag calculations
 ##############################################
 # Array of DFT/MRCI output directory names
@@ -127,6 +134,11 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
 	echo >>$stem/$stem.inp
     fi
     #
+    # Norm cutoff
+    if [ ! -z $normcutoff ]; then
+	echo "\$norm_cutoff=$normcutoff" >>$stem/$stem.inp
+	echo >>$stem/$stem.inp
+    fi
     # Transition dipoles from the ground state
     ntrans=`grep -c "dipole (L)" $currdir/singlets.prp`
     if [ "$ntrans" != '0' ]; then

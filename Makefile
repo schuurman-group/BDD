@@ -59,6 +59,7 @@ BLOCKDIAG = blockdiag/bdglobal.o \
 	blockdiag/adt.o \
 	blockdiag/mooverlaps.o \
 	blockdiag/wfoverlaps.o \
+	blockdiag/detparsing.o \
 	blockdiag/blockdiag.o
 
 DISPLACE = displace/dispglobal.o \
@@ -99,6 +100,7 @@ OBJ_BLOCKDIAG = accuracy.o \
 	adt.o \
 	mooverlaps.o \
 	wfoverlaps.o \
+	detparsing.o \
 	blockdiag.o
 
 OBJECTS_DISPLACE = $(INCLUDE) \

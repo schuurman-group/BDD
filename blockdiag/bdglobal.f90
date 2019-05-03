@@ -60,5 +60,9 @@ module bdglobal
 
   ! Hadamard screening threshold
   real(dp)                        :: dthresh
-  
+
+  ! Wavefunction norm cutoff
+   real(dp)                       :: normcut
+   logical                        :: ltruncate
+   
 end module bdglobal
