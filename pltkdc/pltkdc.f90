@@ -23,6 +23,11 @@ program pltkdc
   call calcsurf
 
 !----------------------------------------------------------------------
+! Get the ab initio data
+!----------------------------------------------------------------------
+  call getabinit
+  
+!----------------------------------------------------------------------
 ! Write the gnuplot file and plot the surfaces to the screen
 !----------------------------------------------------------------------
   call wrgnuplot
@@ -240,6 +245,11 @@ contains
 !----------------------------------------------------------------------
     read(ibin) nmodes
     read(ibin) nsta
+
+!----------------------------------------------------------------------
+! No. ab initio diabatic potential values
+!----------------------------------------------------------------------
+    read(ibin) ndat
     
 !----------------------------------------------------------------------
 ! Allocate arrays
@@ -262,12 +272,15 @@ contains
     allocate(tau_mask(nmodes,nsta,nsta))
     allocate(epsilon_mask(nmodes,nsta))
     allocate(xi_mask(nmodes,nsta,nsta))
+    allocate(wq0(nsta))
+    allocate(wdisp(nsta,nsta,ndat))
+    allocate(qvec(nmodes,ndat))
     
 !----------------------------------------------------------------------
 ! Vertical excitation energies
 !----------------------------------------------------------------------
     read(ibin) e0
-
+    
 !----------------------------------------------------------------------
 ! Frequencies
 !----------------------------------------------------------------------
@@ -296,6 +309,13 @@ contains
     read(ibin) tau_mask
     read(ibin) epsilon_mask
     read(ibin) xi_mask
+
+!----------------------------------------------------------------------
+! Ab inito diabatic potential values
+!----------------------------------------------------------------------
+    read(ibin) wq0
+    read(ibin) wdisp
+    read(ibin) qvec
     
 !----------------------------------------------------------------------
 ! Close the parameter file
@@ -318,11 +338,9 @@ contains
 
     implicit none
 
-    integer                     :: unit,i,j,s
+    integer                     :: i
     real(dp)                    :: dq
     real(dp), dimension(nmodes) :: q
-    character(len=2)            :: am,as
-    character(len=80)           :: datfile,filename,string
 
 !----------------------------------------------------------------------
 ! Allocate and initialise arrays    
@@ -335,7 +353,7 @@ contains
 ! Calculate the model potentials
 !----------------------------------------------------------------------
     ! Step size
-    dq=(qf-qi)/(npnts-1) 
+    dq=(qf-qi)/(npnts-1)
 
     q=0.0d0
 
@@ -350,27 +368,6 @@ contains
 
     enddo
 
-!----------------------------------------------------------------------
-! Open the data file
-!----------------------------------------------------------------------
-    write(am,'(i2)') mplt
-    datfile='plot_q'//trim(adjustl(am))//'.dat'
-    
-    call freeunit(unit)
-    open(unit,file=datfile,form='formatted',status='unknown')
-
-!----------------------------------------------------------------------
-! Write the data file
-!----------------------------------------------------------------------
-    do i=1,npnts
-       write(unit,'(20(x,F10.7))') qi+(i-1)*dq,(surf(i,j),j=1,nsta)
-    enddo
-
-!----------------------------------------------------------------------
-! Close the data file
-!----------------------------------------------------------------------
-    close(unit)
-    
     return
     
   end subroutine calcsurf
@@ -410,19 +407,131 @@ contains
 
 !######################################################################
 
+  subroutine getabinit
+
+    use constants
+    use iomod
+    use sysinfo
+    use pltglobal
+    use parameters
+    
+    implicit none
+
+    integer                        :: m,n,ndisp,mindx,k,s,s1,s2
+    integer                        :: e2,error
+    real(dp), parameter            :: thrsh=1e-4_dp
+    real(dp), dimension(nsta)      :: v
+    real(dp), dimension(nsta,nsta) :: w
+    real(dp), dimension(3*nsta)    :: work
+    
+!----------------------------------------------------------------------
+! Determine the no. ab initio points for the requested cut
+!----------------------------------------------------------------------
+    nabinit=0
+    
+    ! Loop over geometries
+    do n=1,ndat
+
+       ! Determine the no. displaced modes
+       ndisp=0.0d0
+       do m=1,nmodes
+          if (abs(qvec(m,n)).gt.thrsh) then
+             ndisp=ndisp+1
+             mindx=m
+          endif
+       enddo
+
+       ! Update nabinit if only the plotting mode is displaced
+       if (ndisp.eq.1.and.mindx.eq.mplt) nabinit=nabinit+1
+       
+    enddo
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    allocate(iabinit(nabinit))
+    iabinit=0
+
+    allocate(abinit(nsta,nsta,nabinit))
+    abinit=0.0d0
+    
+!----------------------------------------------------------------------
+! Fill in the ab initio potential index array
+!----------------------------------------------------------------------
+    ! Displaced geometries
+    k=0
+    ! Loop over geometries
+    do n=1,ndat
+
+       ! Determine the no. displaced modes
+       ndisp=0.0d0
+       do m=1,nmodes
+          if (abs(qvec(m,n)).gt.thrsh) then
+             ndisp=ndisp+1
+             mindx=m
+          endif
+       enddo
+
+       ! Fill in abinit if only the plotting mode is displaced
+       if (ndisp.eq.1.and.mindx.eq.mplt) then
+          k=k+1
+          iabinit(k)=n
+       endif
+
+    enddo
+
+!----------------------------------------------------------------------
+! Fill in the ab initio potential array
+!----------------------------------------------------------------------
+    do n=1,nabinit
+
+       ! Adiabatic potentials
+       if (surftyp.eq.1) then
+          e2=3*nsta
+          w=wdisp(:,:,iabinit(n))
+          call dsyev('V','U',nsta,w,nsta,v,work,e2,error)
+          do s=1,nsta
+             abinit(s,s,n)=e0(s)+(v(s)-wq0(s))*eh2ev
+          enddo
+       endif
+
+       ! Diabatic potentials
+       if (surftyp.eq.2) then
+          do s=1,nsta
+             abinit(s,s,n)=e0(s)+(wdisp(s,s,iabinit(n))-wq0(s))*eh2ev
+          enddo
+          do s1=1,nsta-1
+             do s2=s1+1,nsta
+                abinit(s1,s2,n)=wdisp(s1,s2,iabinit(n))*eh2ev
+                abinit(s2,s1,n)=abinit(s1,s2,n)
+             enddo
+          enddo
+       endif
+       
+    enddo
+    
+
+    
+    return
+    
+  end subroutine getabinit
+  
+!######################################################################
+
   subroutine wrgnuplot
 
     use constants
     use iomod
     use sysinfo
     use pltglobal
+    use parameters
     
     implicit none
 
-    integer           :: unit,s
-    character(len=2)  :: am,as
-    character(len=80) :: filename,datfile,string
-
+    integer            :: unit,s,i
+    character(len=2)   :: am,as
+    character(len=220) :: filename,datfile,string
+    
 !----------------------------------------------------------------------
 ! Filenames
 !----------------------------------------------------------------------
@@ -439,7 +548,7 @@ contains
 !----------------------------------------------------------------------
     if (si.eq.-1) si=1
     if (sf.eq.-1) sf=nsta
-    if (ei.eq.-999.0d0) ei=0.98d0*minval(surf(:,si:sf))
+    if (ei.eq.-999.0d0) ei=min(-0.2,0.98d0*minval(surf(:,si:sf)))
     if (ef.eq.-999.0d0) ef=1.02d0*maxval(surf(:,si:sf))
 
 !----------------------------------------------------------------------
@@ -454,9 +563,9 @@ contains
     ! Set up
     write(unit,'(a)') 'set size square'
     write(unit,'(a)') 'unset key'
-    write(unit,'(a)') 'monitorSize=system("xrandr | awk &
-         ''/\*/{sub(/x/,\",\");print $1;exit}''")'
-    write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
+!    write(unit,'(a)') 'monitorSize=system("xrandr | awk &
+!         ''/\*/{sub(/x/,\",\");print $1;exit}''")'
+!    write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
 
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''Energy (eV)'''
@@ -467,33 +576,47 @@ contains
     ! Ranges
     write(unit,'(2(a,F6.2),a)') 'set xrange [',qi,':',qf,']'
     write(unit,'(2(a,F6.2),a,/)') 'set yrange [',ei,':',ef,']'
-
-    ! State si
-    string='plot '''//trim(datfile)//''' u 1:'
-    write(as,'(i2)') si+1
-    string=trim(string)//trim(adjustl(as))//' w l lw 4'
-    write(unit,'(a)') trim(string)
-
-    ! States si+1 to sf
-    do s=si+1,sf
-       string='replot '''//trim(datfile)//''' u 1:'
-       write(as,'(i2)') s+1
-       string=trim(string)//trim(adjustl(as))//' w l lw 4'
-       write(unit,'(a)') trim(string)
-    enddo
-
+    
     ! eps output
     if (leps) then
        write(unit,'(/,a)') 'set terminal postscript eps &
             enhanced color solid "Helvetica" 20'
        write(unit,'(a)') 'set output '''&
             //filename(1:index(filename,'.gnu'))//'eps'''
-       write(unit,'(a)') 'replot'
     endif
 
-    ! pause -1
-    write(unit,'(/,a)') 'pause -1'
+    ! Plot command
+    string='plot '
+    do s=si,sf
+       string=trim(string)//' "-" w l lw 4,'
+    enddo   
+    do s=si,sf
+       string=trim(string)//' "-" w p pt 7 ps 1.5 lt 8'
+       if (s.ne.sf) string=trim(string)//','
+    enddo
+    write(unit,'(a)') trim(string)
+    
+    ! Model potentials
+    write(unit,'(/)')
+    do s=si,sf
+       do i=1,npnts
+          write(unit,*) qi+(i-1)*(qf-qi)/(npnts-1),surf(i,s)
+       enddo
+       write(unit,'(2x,a)') 'e'
+    enddo
 
+    ! Ab inito data
+    do s=si,sf
+       write(unit,*) 0.0d0,e0(s)
+       do i=1,nabinit
+          write(unit,*) qvec(mplt,iabinit(i)),abinit(s,s,i)
+       enddo
+       write(unit,'(2x,a)') 'e'
+    enddo
+    
+    ! pause -1
+    if (.not.leps) write(unit,'(/,a)') 'pause -1'
+    
 !----------------------------------------------------------------------
 ! Close the gnuplot file
 !----------------------------------------------------------------------

@@ -101,8 +101,8 @@ contains
 
    
     
-    integer, intent(in)  :: nsta_bra,nsta_ket,nalpha,nbeta,nmo_bra,&
-                            nmo_ket,maxdet
+    integer, intent(in)   :: nsta_bra,nsta_ket,nalpha,nbeta,nmo_bra,&
+                             nmo_ket,maxdet
     integer, intent(in)   :: ndet_bra(nsta_bra),ndet_ket(nsta_ket)
     integer, intent(in)   :: iocca_bra(nalpha,maxdet,nsta_bra)
     integer, intent(in)   :: iocca_ket(nalpha,maxdet,nsta_ket)

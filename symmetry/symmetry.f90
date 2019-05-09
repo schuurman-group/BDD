@@ -148,7 +148,7 @@ contains
           call cleanirreps(diplab(c),len(diplab(c)))
        enddo
     endif
-    
+
     ! Get the characters
     call getcharacters
 
@@ -501,7 +501,7 @@ contains
 
     dummy=pntgrp 
     call uppercase(dummy)
-
+    
     if (dummy.eq.'C1') then
        
        chdim=1

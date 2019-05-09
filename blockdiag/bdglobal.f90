@@ -62,7 +62,7 @@ module bdglobal
   real(dp)                        :: dthresh
 
   ! Wavefunction norm cutoff
-   real(dp)                       :: normcut
-   logical                        :: ltruncate
+  real(dp)                       :: normcut
+  logical                        :: ltruncate
    
 end module bdglobal

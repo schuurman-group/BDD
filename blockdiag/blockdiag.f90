@@ -808,7 +808,7 @@ contains
     real(dp), allocatable           :: spsi1(:,:)
     real(dp), allocatable           :: c1_disp(:,:),c1_ref(:,:)
     real(dp), allocatable           :: cabs(:)
-    real(dp), parameter             :: thrsh=0.8d0
+    real(dp), parameter             :: thrsh=0.70710678d0
     real(dp)                        :: norm
     character(len=120), allocatable :: aswapvec1(:)
     

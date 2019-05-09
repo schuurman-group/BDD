@@ -1234,6 +1234,11 @@ contains
     write(ibin) nsta
 
 !----------------------------------------------------------------------
+! No. ab initio diabatic potential values
+!----------------------------------------------------------------------
+    write(ibin) nfiles
+    
+!----------------------------------------------------------------------
 ! Vertical excitation energies
 !----------------------------------------------------------------------
     write(ibin) e0
@@ -1266,6 +1271,13 @@ contains
     write(ibin) tau_mask
     write(ibin) epsilon_mask
     write(ibin) xi_mask
+
+!----------------------------------------------------------------------
+! Ab initio diabatic potential values
+!----------------------------------------------------------------------
+    write(ibin) q0pot
+    write(ibin) diabpot
+    write(ibin) qvec
     
     return
     
