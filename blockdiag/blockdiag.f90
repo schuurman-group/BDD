@@ -808,10 +808,10 @@ contains
     real(dp), allocatable           :: spsi1(:,:)
     real(dp), allocatable           :: c1_disp(:,:),c1_ref(:,:)
     real(dp), allocatable           :: cabs(:)
-    real(dp), parameter             :: thrsh=0.70710678d0
+    real(dp), allocatable           :: tmp(:,:),sumsq(:)
     real(dp)                        :: norm
     character(len=120), allocatable :: aswapvec1(:)
-    
+
 !----------------------------------------------------------------------
 ! Output what we are doing
 !----------------------------------------------------------------------
@@ -860,6 +860,12 @@ contains
     ioccb1_disp=0
     ioccb1_ref=0
 
+    ! Overlap analysis arrays
+    allocate(tmp(nsta_disp,nsta_ref))
+    allocate(sumsq(nsta_ref))
+    tmp=0.0d0
+    sumsq=0.0d0
+    
 !----------------------------------------------------------------------
 ! Fill in the reduced determinant coefficient and spinorbital index
 ! arrays
@@ -946,38 +952,17 @@ contains
     write(ilog,'(47a)') ('-',i=1,47)
 
 !----------------------------------------------------------------------
-! Determine which disp. states correspond to the ref. states.
+! Determine which disp. states are needed to represent the ref. states
 !----------------------------------------------------------------------
     allocate(indx(nsta_ref))
     indx=0
-
-    ! Good overlap counter
-    nok=0
-
-    ! Loop over ref. states
+    
+    tmp=spsi1
     do i=1,nsta_ref
-       ! Loop over disp. states
-       do j=1,nsta_disp
-          if (abs(spsi1(j,i)).gt.thrsh) then
-             nok=nok+1
-             indx(i)=j
-          endif
-       enddo
+       indx(i)=maxloc(abs(tmp(:,i)),dim=1)
+       tmp(indx(i),:)=0.0d0
     enddo
-
-    ! Exit if any ref. states do not correspond to a disp. state
-    do i=1,nsta_ref
-       n=0
-       do j=1,nsta_disp
-          if (indx(i).eq.j) n=n+1
-       enddo
-       if (n.ne.1) then
-          errmsg='Not all ref. states correspond to a single disp. &
-               state. Quitting.'
-          call error_control
-       endif
-    enddo
-
+    
 !----------------------------------------------------------------------
 ! Write the selected state indices to the log file
 !----------------------------------------------------------------------
@@ -985,6 +970,26 @@ contains
     do i=1,nsta_ref
        write(ilog,'(x,2(x,a,x,i0))') 'Selected state',i,':',indx(i)
     enddo
+
+!----------------------------------------------------------------------
+! Write the sums of the squares of the overlaps of the selected disp.
+! states with the ref. states to the log file
+!----------------------------------------------------------------------
+    sumsq=0.0d0
+    do i=1,nsta_ref
+       do j=1,nsta_ref
+          sumsq(i)=sumsq(i)+spsi1(indx(j),i)**2
+       enddo
+    enddo
+       
+    write(ilog,'(/,47a)') ('-',i=1,47)
+    write(ilog,'(a)') '  Ref. State  |  Sum of Squared Overlaps'
+    write(ilog,'(a)') '    |J>       |      Sum_n <I_n|J>**2'
+    write(ilog,'(47a)') ('-',i=1,47)
+    do i=1,nsta_ref
+       write(ilog,'(5x,i2,17x,F13.10)'),i,sumsq(i)
+    enddo
+    write(ilog,'(47a)') ('-',i=1,47)
     
 !----------------------------------------------------------------------
 ! Re-fill the disp. geometry arrays
@@ -1063,6 +1068,8 @@ contains
     deallocate(ioccb1_disp)
     deallocate(ioccb1_ref)
     deallocate(indx)
+    deallocate(tmp)
+    deallocate(sumsq)
     
     return
     
