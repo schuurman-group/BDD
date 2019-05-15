@@ -528,9 +528,10 @@ contains
     
     implicit none
 
-    integer            :: unit,s,i
-    character(len=2)   :: am,as
-    character(len=220) :: filename,datfile,string
+    integer             :: unit,s,i
+    character(len=2)    :: am,as
+    character(len=220)  :: filename,datfile
+    character(len=1200) :: string
     
 !----------------------------------------------------------------------
 ! Filenames
