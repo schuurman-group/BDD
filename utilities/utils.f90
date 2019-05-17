@@ -335,7 +335,36 @@ contains
     return
     
   end subroutine sqrt_matrix
-  
+
+!######################################################################
+
+  subroutine diag_matrix(mat,eigval,dim)
+
+    use constants
+    use iomod
+    
+    implicit none
+
+    integer, intent(in)          :: dim
+    integer                      :: e2,error
+    real(dp), dimension(dim,dim) :: mat
+    real(dp), dimension(dim)     :: eigval
+    real(dp), dimension(dim,dim) :: tmp
+    real(dp), dimension(3*dim)   :: work
+
+    tmp=mat
+    
+    call dsyev('V','U',dim,mat,dim,eigval,work,3*dim,error)
+
+    if (error.ne.0) then
+       errmsg='Diagonalisation failed in subroutine diag_matrix'
+       call error_control
+    endif
+    
+    return
+    
+  end subroutine diag_matrix
+    
 !######################################################################
       
 end module utils

@@ -594,8 +594,8 @@ contains
        
     ! Quadratic 2nd-order interstate coupling constants (mu)
     if (nzmu1.gt.0) then
-       write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
-            coupling constants (gamma)'
+       write(iop,'(/,a)') '# Quadratic 2nd-order interstate &
+            coupling constants (mu)'
        do m=1,nmodes
           write(am,'(i2)') m
           do s1=1,nsta-1
@@ -617,8 +617,8 @@ contains
        
     ! Bi-linear 2nd-order interstate coupling constants (mu)
     if (nzmu2.gt.0) then
-       write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
-            coupling constants (gamma)'
+       write(iop,'(/,a)') '# Bi-linear 2nd-order interstate &
+            coupling constants (mu)'
        do m1=1,nmodes-1
           write(am1,'(i2)') m1
           do m2=m1+1,nmodes
@@ -626,7 +626,7 @@ contains
              do s1=1,nsta-1
                 write(as1,'(i2)') s1
                 do s2=s1+1,nsta
-                   write(as1,'(i2)') s1
+                   write(as2,'(i2)') s2
                    if (mu_mask(m1,m2,s1,s2).eq.0) cycle
                    if (abs(mu(m1,m2,s1,s2)).lt.thrsh) cycle
                    write(iop,'(a)') 'mu'//trim(adjustl(as1))&
