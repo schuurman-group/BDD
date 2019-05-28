@@ -197,4 +197,71 @@ contains
 
 !######################################################################
 
+  function diabdip(q,s1,s2) result(dip)
+
+    use constants
+    use sysinfo
+    use symmetry
+    use parameters
+
+    implicit none
+
+    integer, intent(in)                     :: s1,s2
+    integer                                 :: m,m1,m2,c
+    real(dp), dimension(nmodes), intent(in) :: q
+    real(dp), dimension(3)                  :: dip
+
+!----------------------------------------------------------------------
+! Zeroth-order contribution
+!----------------------------------------------------------------------
+    dip(:)=dip0(s1,s2,:)
+
+!----------------------------------------------------------------------
+! First-order contributions
+!----------------------------------------------------------------------
+    do c=1,3
+       do m=1,nmodes
+          if (dip1_mask(m,s1,s2,c).eq.0) cycle
+          dip(c)=dip(c)+dip1(m,s1,s2,c)*q(m)
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Second-order contributions
+!----------------------------------------------------------------------
+    do c=1,3
+       do m1=1,nmodes
+          do m2=1,nmodes
+             if (dip2_mask(m1,m2,s1,s2,c).eq.0) cycle
+             dip(c)=dip(c)+0.5d0*dip2(m1,m2,s1,s2,c)*q(m1)*q(m2)
+          enddo
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Third-order contributions
+!----------------------------------------------------------------------
+    do c=1,3
+       do m=1,nmodes
+          if (dip3_mask(m,s1,s2,c).eq.0) cycle
+          dip(c)=dip(c)+(1.0d0/6.0d0)*dip3(m,s1,s2,c)*q(m)**3
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Fourth-order contributions
+!----------------------------------------------------------------------
+    do c=1,3
+       do m=1,nmodes
+          if (dip4_mask(m,s1,s2,c).eq.0) cycle
+          dip(c)=dip(c)+(1.0d0/24.0d0)*dip4(m,s1,s2,c)*q(m)**4
+       enddo
+    enddo
+    
+    return
+    
+  end function diabdip
+  
+!######################################################################
+
 end module potfuncs

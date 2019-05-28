@@ -17,5 +17,10 @@ module pltglobal
   real(dp), allocatable :: qvec(:,:)
   real(dp), allocatable :: abinit(:,:,:)
   integer, allocatable  :: iabinit(:)
+
+  ! Diabatic dipole surfaces
+  integer               :: dipsta1,dipsta2
+  real(dp), allocatable :: ddisp(:,:,:,:)
+  logical               :: ldip
   
 end module pltglobal

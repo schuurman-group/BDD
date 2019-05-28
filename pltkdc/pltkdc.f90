@@ -65,7 +65,7 @@ contains
     qi=-7.0d0
     qf=+7.0d0
 
-    ! Energy interval
+    ! Energy/function value interval
     ei=-999.0d0
     ef=-999.0d0
 
@@ -77,6 +77,7 @@ contains
 
     ! Surface type: 1 <-> adiabatic potentials
     !               2 <-> diabatic potentials
+    !               3 <-> diabatic dipoles/transition dipoles
     surftyp=1
 
 !----------------------------------------------------------------------
@@ -138,6 +139,14 @@ contains
        surftyp=1
     else if (string1.eq.'-diab') then
        surftyp=2
+    else if (string1.eq.'-dip') then
+       surftyp=3
+       n=n+1
+       call getarg(n,string2)
+       read(string2,*) dipsta1
+       n=n+1
+       call getarg(n,string2)
+       read(string2,*) dipsta2
     else
        write(6,'(/,2x,a,/)') 'Unknown keyword: '//trim(string1)
        stop
@@ -250,10 +259,16 @@ contains
 ! No. ab initio diabatic potential values
 !----------------------------------------------------------------------
     read(ibin) ndat
+
+!----------------------------------------------------------------------
+! Diabatic dipole flag
+!----------------------------------------------------------------------
+    read(ibin) ldip
     
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
+    ! Model diabatic potential arrays
     allocate(e0(nsta))
     allocate(freq(nmodes))
     allocate(kappa(nmodes,nsta))
@@ -272,9 +287,28 @@ contains
     allocate(tau_mask(nmodes,nsta,nsta))
     allocate(epsilon_mask(nmodes,nsta))
     allocate(xi_mask(nmodes,nsta,nsta))
+
+    ! Ab initio diabatic potential arrays
     allocate(wq0(nsta))
     allocate(wdisp(nsta,nsta,ndat))
     allocate(qvec(nmodes,ndat))
+
+    ! Diabatic dipole arrays
+    if (ldip) then
+       ! Coefficients
+       allocate(dip0(nsta,nsta,3))
+       allocate(dip1(nmodes,nsta,nsta,3))
+       allocate(dip2(nmodes,nmodes,nsta,nsta,3))
+       allocate(dip3(nmodes,nsta,nsta,3))
+       allocate(dip4(nmodes,nsta,nsta,3))
+       ! Masks
+       allocate(dip1_mask(nmodes,nsta,nsta,3))
+       allocate(dip2_mask(nmodes,nmodes,nsta,nsta,3))
+       allocate(dip3_mask(nmodes,nsta,nsta,3))
+       allocate(dip4_mask(nmodes,nsta,nsta,3))
+       ! Ab initio dipole values
+       allocate(ddisp(nsta,nsta,3,ndat))
+    endif
     
 !----------------------------------------------------------------------
 ! Vertical excitation energies
@@ -316,6 +350,29 @@ contains
     read(ibin) wq0
     read(ibin) wdisp
     read(ibin) qvec
+
+!----------------------------------------------------------------------
+! Diabatic dipole surfaces
+!----------------------------------------------------------------------
+    if (ldip) then
+
+       ! Coefficients
+       read(ibin) dip0
+       read(ibin) dip1
+       read(ibin) dip2
+       read(ibin) dip3
+       read(ibin) dip4
+
+       ! Masks
+       read(ibin) dip1_mask
+       read(ibin) dip2_mask
+       read(ibin) dip3_mask
+       read(ibin) dip4_mask
+
+       ! Ab initio diabatic dipoles
+       read(ibin) ddisp
+       
+    endif
     
 !----------------------------------------------------------------------
 ! Close the parameter file
@@ -387,6 +444,7 @@ contains
     real(dp), dimension(nmodes)    :: q
     real(dp), dimension(nsta)      :: func
     real(dp), dimension(nsta,nsta) :: wmat
+    real(dp), dimension(3)         :: dip
     
     select case(surftyp)
 
@@ -398,7 +456,10 @@ contains
        do s=1,nsta
           func(s)=wmat(s,s)
        enddo
-          
+
+    case(3) ! diabatic dipoles/transition dipoles
+       func(1:3)=diabdip(q,dipsta1,dipsta2)
+
     end select
 
     return
@@ -417,7 +478,7 @@ contains
     
     implicit none
 
-    integer                        :: m,n,ndisp,mindx,k,s,s1,s2
+    integer                        :: m,n,ndisp,mindx,k,s,s1,s2,c,dim
     integer                        :: e2,error
     real(dp), parameter            :: thrsh=1e-4_dp
     real(dp), dimension(nsta)      :: v
@@ -452,7 +513,8 @@ contains
     allocate(iabinit(nabinit))
     iabinit=0
 
-    allocate(abinit(nsta,nsta,nabinit))
+    dim=max(3,nsta)
+    allocate(abinit(dim,dim,nabinit))
     abinit=0.0d0
     
 !----------------------------------------------------------------------
@@ -507,10 +569,15 @@ contains
              enddo
           enddo
        endif
+
+       ! Diabatic dipoles
+       if (surftyp.eq.3) then
+          do c=1,3
+             abinit(c,c,n)=ddisp(dipsta1,dipsta2,c,iabinit(n))
+          enddo
+       endif
        
     enddo
-    
-
     
     return
     
@@ -519,6 +586,26 @@ contains
 !######################################################################
 
   subroutine wrgnuplot
+
+    use pltglobal
+    
+    implicit none
+
+    if (surftyp.eq.1.or.surftyp.eq.2) then
+       ! Adiabatic or diabatic potentials
+       call wrgnuplot_potentials
+    else if (surftyp.eq.3) then
+       ! Diabatic dipoles
+       call wrgnuplot_dipoles
+    endif
+    
+    return
+    
+  end subroutine wrgnuplot
+
+!######################################################################
+
+  subroutine wrgnuplot_potentials
 
     use constants
     use iomod
@@ -529,20 +616,23 @@ contains
     implicit none
 
     integer             :: unit,s,i
-    character(len=2)    :: am,as
-    character(len=220)  :: filename,datfile
+    character(len=2)    :: am
+    character(len=220)  :: filename
     character(len=1200) :: string
-    
+
 !----------------------------------------------------------------------
-! Filenames
+! Filename
 !----------------------------------------------------------------------
     write(am,'(i2)') mplt
 
-    ! data file
-    datfile='plot_q'//trim(adjustl(am))//'.dat'
-
     ! gnuplot file
     filename='plot_q'//trim(adjustl(am))//'.gnu'
+
+!----------------------------------------------------------------------
+! Open the gnuplot file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=filename,form='formatted',status='unknown')
 
 !----------------------------------------------------------------------
 ! Energy ranges and states
@@ -551,13 +641,7 @@ contains
     if (sf.eq.-1) sf=nsta
     if (ei.eq.-999.0d0) ei=min(-0.2,0.98d0*minval(surf(:,si:sf)))
     if (ef.eq.-999.0d0) ef=1.02d0*maxval(surf(:,si:sf))
-
-!----------------------------------------------------------------------
-! Open the gnuplot file
-!----------------------------------------------------------------------
-    call freeunit(unit)
-    open(unit,file=filename,form='formatted',status='unknown')
-
+    
 !----------------------------------------------------------------------
 ! Write the gnuplot file
 !----------------------------------------------------------------------
@@ -590,7 +674,7 @@ contains
     string='plot '
     do s=si,sf
        string=trim(string)//' "-" w l lw 4,'
-    enddo   
+    enddo
     do s=si,sf
        string=trim(string)//' "-" w p pt 7 ps 1.5 lt 8'
        if (s.ne.sf) string=trim(string)//','
@@ -630,7 +714,125 @@ contains
     
     return
     
-  end subroutine wrgnuplot
+  end subroutine wrgnuplot_potentials
+
+!######################################################################
+
+  subroutine wrgnuplot_dipoles
+
+    use constants
+    use iomod
+    use sysinfo
+    use pltglobal
+    use parameters
+    
+    implicit none
+
+    integer                        :: unit,i,c
+    character(len=2)               :: am,as1,as2
+    character(len=220)             :: filename
+    character(len=1200)            :: string
+    character(len=1), dimension(3) :: acomp
+
+    acomp=(/'x','y','z'/)
+    
+!----------------------------------------------------------------------
+! Filename
+!----------------------------------------------------------------------
+    write(am,'(i2)') mplt
+    write(as1,'(i2)') dipsta1
+    write(as2,'(i2)') dipsta2
+    
+    ! gnuplot file
+    filename='plot_q'//trim(adjustl(am))//'_s'//trim(adjustl(as1)) &
+         //'_s'//trim(adjustl(as2))//'.gnu'
+
+!----------------------------------------------------------------------
+! Open the gnuplot file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=filename,form='formatted',status='unknown')
+
+!----------------------------------------------------------------------
+! Function ranges and states
+!----------------------------------------------------------------------
+    ! Potential plotting
+    if (ei.eq.-999.0d0) ei=min(-0.1d0,0.98d0*minval(surf(:,1:3)))
+    if (ef.eq.-999.0d0) ef=1.02d0*maxval(surf(:,1:3))
+
+!----------------------------------------------------------------------
+! Write the gnuplot file
+!----------------------------------------------------------------------
+    ! Set up
+    write(unit,'(a)') 'set key spacing 1.5'
+    write(unit,'(a)') 'set size square'
+    write(unit,'(a)') 'monitorSize=system("xrandr | awk &
+         ''/\*/{sub(/x/,\",\");print $1;exit}''")'
+    write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
+
+    ! Axis labels
+    write(unit,'(a)') 'set ylabel ''D (a.u.)'''
+    write(am,'(i2)') mplt
+    string='set xlabel ''Q_{'//trim(adjustl(am))//'}'''
+    write(unit,'(a,/)') trim(string)
+
+    ! Ranges
+    write(unit,'(2(a,F6.2),a)') 'set xrange [',qi,':',qf,']'
+    write(unit,'(2(a,F6.2),a,/)') 'set yrange [',ei,':',ef,']'
+
+    ! eps output
+    if (leps) then
+       write(unit,'(/,a)') 'set terminal postscript eps &
+            enhanced color solid "Helvetica" 20'
+       write(unit,'(a)') 'set output '''&
+            //filename(1:index(filename,'.gnu'))//'eps'''
+    endif
+
+    ! Plot command
+    string='plot '
+    do c=1,3
+       string=trim(string)//' "-" w l lw 4 title "'//acomp(c)//'",'
+    enddo
+     do c=1,3
+       string=trim(string)//' "-" w p pt 7 ps 1.5 lt 8 notitle'
+       if (c.ne.3) string=trim(string)//','
+    enddo
+    write(unit,'(a)') trim(string)
+
+    ! Model dipole surfaces
+    write(unit,'(/)')
+    do c=1,3
+       do i=1,npnts
+          write(unit,*) qi+(i-1)*(qf-qi)/(npnts-1),surf(i,c)
+       enddo
+       write(unit,'(2x,a)') 'e'
+    enddo
+
+    ! Ab inito data
+    do c=1,3
+       write(unit,*) 0.0d0,dip0(dipsta1,dipsta2,c)
+       do i=1,nabinit
+          write(unit,*) qvec(mplt,iabinit(i)),abinit(c,c,i)
+       enddo
+       write(unit,'(2x,a)') 'e'
+    enddo
+
+    ! pause -1
+    if (.not.leps) write(unit,'(/,a)') 'pause -1'
+    
+!----------------------------------------------------------------------
+! Close the gnuplot file
+!----------------------------------------------------------------------
+    close(unit)
+
+!----------------------------------------------------------------------
+! Plot the surfaces to the screen
+!----------------------------------------------------------------------
+    call system('gnuplot '//trim(filename))
+    
+    return
+    
+  end subroutine wrgnuplot_dipoles
     
 !######################################################################
   

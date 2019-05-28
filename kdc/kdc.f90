@@ -1237,6 +1237,11 @@ contains
 ! No. ab initio diabatic potential values
 !----------------------------------------------------------------------
     write(ibin) nfiles
+
+!----------------------------------------------------------------------
+! Diabatic dipole flag
+!----------------------------------------------------------------------
+    write(ibin) ldipfit
     
 !----------------------------------------------------------------------
 ! Vertical excitation energies
@@ -1278,6 +1283,29 @@ contains
     write(ibin) q0pot
     write(ibin) diabpot
     write(ibin) qvec
+
+!----------------------------------------------------------------------
+! Diabatic dipole coefficients and masks
+!----------------------------------------------------------------------
+    if (ldipfit) then
+
+       ! Coefficients
+       write(ibin) dip0
+       write(ibin) dip1
+       write(ibin) dip2
+       write(ibin) dip3
+       write(ibin) dip4
+
+       ! Masks
+       write(ibin) dip1_mask
+       write(ibin) dip2_mask
+       write(ibin) dip3_mask
+       write(ibin) dip4_mask
+
+       ! Ab initio diabatic dipole values
+       write(ibin) diabdip
+       
+    endif
     
     return
     
