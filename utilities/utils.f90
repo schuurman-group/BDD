@@ -52,8 +52,11 @@ contains
 
 !!$ The subroutine is taken from the NR p233, employs heapsort.
 
-    if (ndim.eq.1) return
-
+    if (ndim.eq.1) then
+       indx(1)=1
+       return
+    endif
+       
     do i= 1,ndim
        indx(i)=i
     end do
