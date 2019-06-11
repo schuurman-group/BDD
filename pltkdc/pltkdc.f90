@@ -676,7 +676,7 @@ contains
        string=trim(string)//' "-" w l lw 4,'
     enddo
     do s=si,sf
-       string=trim(string)//' "-" w p pt 7 ps 1.5 lt 8'
+       string=trim(string)//' "-" w p pt 7 ps 0.7 lt 8'
        if (s.ne.sf) string=trim(string)//','
     enddo
     write(unit,'(a)') trim(string)
