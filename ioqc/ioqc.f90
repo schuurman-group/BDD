@@ -1601,8 +1601,9 @@ contains
     do i=1,nmodes
        write(amode,'(i2)') i
        write(unit,'(i2)') natm
-       write(unit,'(a,2x,F10.4,x,a)') &
-            'Q'//trim(adjustl(amode))//',',freq(i)/invcm2ev,'cm-1'
+       write(unit,'(a,x,F10.4,x,a)') 'Q'//trim(adjustl(amode))&
+            //', '//trim(adjustl(nmlab(i)))//',',freq(i)/invcm2ev,&
+            'cm-1'
        do j=1,natm
           write(unit,'(a2,6(2x,F10.7))') atlbl(j),&
                (xcoo0(k)/ang2bohr,k=j*3-2,j*3),&
