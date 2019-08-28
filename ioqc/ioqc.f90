@@ -703,6 +703,8 @@ contains
        lbl='C'
     else if (num.eq.7) then
        lbl='N'
+    else if (num.eq.8) then
+       lbl='O'
     else
        write(errmsg,'(a,x,i2,x,a)') 'The atomic number',num,&
             'is not supported. See function num2lbl.'
@@ -731,6 +733,8 @@ contains
        mass=12.0107d0
     else if (num.eq.7) then
        mass=14.0067d0
+    else if (num.eq.8) then
+       mass=15.9994d0
     else
        write(errmsg,'(a,x,i2,x,a)') 'The atomic number',num,&
             'is not supported. See function num2mass.'
@@ -759,6 +763,8 @@ contains
        mass=12.0107d0
     else if (lbl.eq.'N') then
        mass=14.0067d0
+    else if (lbl.eq.'O') then
+       mass=15.9994d0
     else
        errmsg='The atom type '//trim(lbl)//' is not supported.'&
             //' See function lbl2mass'
