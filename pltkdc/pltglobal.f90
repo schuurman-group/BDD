@@ -22,5 +22,8 @@ module pltglobal
   integer               :: dipsta1,dipsta2
   real(dp), allocatable :: ddisp(:,:,:,:)
   logical               :: ldip
+
+  ! Diabatic coupling surfaces
+  integer               :: dcpsta1,dcpsta2
   
 end module pltglobal

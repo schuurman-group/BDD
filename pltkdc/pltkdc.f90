@@ -78,6 +78,7 @@ contains
     ! Surface type: 1 <-> adiabatic potentials
     !               2 <-> diabatic potentials
     !               3 <-> diabatic dipoles/transition dipoles
+    !               4 <-> diabatic couplings
     surftyp=1
 
 !----------------------------------------------------------------------
@@ -147,6 +148,14 @@ contains
        n=n+1
        call getarg(n,string2)
        read(string2,*) dipsta2
+    else if (string1.eq.'-diabcp') then
+       surftyp=4
+       n=n+1
+       call getarg(n,string2)
+       read(string2,*) dcpsta1
+       n=n+1
+       call getarg(n,string2)
+       read(string2,*) dcpsta2
     else
        write(6,'(/,2x,a,/)') 'Unknown keyword: '//trim(string1)
        stop
@@ -460,6 +469,10 @@ contains
     case(3) ! diabatic dipoles/transition dipoles
        func(1:3)=diabdip(q,dipsta1,dipsta2)
 
+    case(4) ! diabatic couplings
+       wmat=diabaticpot(q)
+       func(1)=wmat(dcpsta1,dcpsta2)
+       
     end select
 
     return
@@ -557,8 +570,8 @@ contains
           enddo
        endif
 
-       ! Diabatic potentials
-       if (surftyp.eq.2) then
+       ! Diabatic potentials and diabatic couplings
+       if (surftyp.eq.2.or.surftyp.eq.4) then
           do s=1,nsta
              abinit(s,s,n)=e0(s)+(wdisp(s,s,iabinit(n))-wq0(s))*eh2ev
           enddo
@@ -597,6 +610,9 @@ contains
     else if (surftyp.eq.3) then
        ! Diabatic dipoles
        call wrgnuplot_dipoles
+    else if (surftyp.eq.4) then
+       ! Diabatic couplings
+       call wrgnuplot_diabcp
     endif
     
     return
@@ -715,7 +731,120 @@ contains
     return
     
   end subroutine wrgnuplot_potentials
+  
+!######################################################################
 
+  subroutine wrgnuplot_diabcp
+
+    use constants
+    use iomod
+    use sysinfo
+    use pltglobal
+    use parameters
+    
+    implicit none
+
+    integer             :: unit,s,i
+    character(len=2)    :: am,as1,as2
+    character(len=220)  :: filename
+    character(len=1200) :: string
+
+!----------------------------------------------------------------------
+! Filename
+!----------------------------------------------------------------------
+    write(am,'(i2)') mplt
+    write(as1,'(i2)') dcpsta1
+    write(as2,'(i2)') dcpsta2
+    
+    ! gnuplot file
+    filename='plot_q'//trim(adjustl(am)) &
+         //'_s'//trim(adjustl(as1)) &
+         //'_s'//trim(adjustl(as2))   &
+         //'_diabcp.gnu'
+
+!----------------------------------------------------------------------
+! Open the gnuplot file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=filename,form='formatted',status='unknown')
+    
+!----------------------------------------------------------------------
+! Energy ranges and states
+!----------------------------------------------------------------------
+    if (si.eq.-1) si=1
+    if (sf.eq.-1) sf=nsta
+    if (ei.eq.-999.0d0) ei=min(-0.1,0.98d0*minval(surf(:,si:sf)))
+    if (ef.eq.-999.0d0) ef=1.02d0*maxval(surf(:,si:sf))
+
+!----------------------------------------------------------------------
+! Write the gnuplot file
+!----------------------------------------------------------------------
+    ! Set up
+    write(unit,'(a)') 'set size square'
+    write(unit,'(a)') 'unset key'
+    write(unit,'(a)') 'monitorSize=system("xrandr | awk &
+         ''/\*/{sub(/x/,\",\");print $1;exit}''")'
+    write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
+
+    ! Axis labels
+    write(unit,'(a)') 'set ylabel ''Energy (eV)'''
+    write(am,'(i2)') mplt
+    string='set xlabel ''Q_{'//trim(adjustl(am))//'}'''
+    write(unit,'(a,/)') trim(string)
+
+    ! Ranges
+    write(unit,'(2(a,F6.2),a)') 'set xrange [',qi,':',qf,']'
+    write(unit,'(2(a,F6.2),a,/)') 'set yrange [',ei,':',ef,']'
+
+    ! eps output
+    if (leps) then
+       write(unit,'(/,a)') 'set terminal postscript eps &
+            enhanced color solid "Helvetica" 20'
+       write(unit,'(a)') 'set output '''&
+            //filename(1:index(filename,'.gnu'))//'eps'''
+    endif
+
+    ! Plot command
+    string='plot "-" w l lw 4 notitle, "-" w p pt 7 ps 1.5 lt 8 notitle'
+    write(unit,'(a)') trim(string)
+
+    ! Model diabatic coupling matrix element
+    write(unit,'(/)')
+    do i=1,npnts
+       write(unit,*) qi+(i-1)*(qf-qi)/(npnts-1),surf(i,1)
+    enddo
+    write(unit,'(2x,a)') 'e'
+
+    ! Ab inito data
+    write(unit,*) 0.0d0,0.0d0
+    do i=1,nabinit
+       write(unit,*) qvec(mplt,iabinit(i)),abinit(dcpsta1,dcpsta2,i)
+    enddo
+    write(unit,'(2x,a)') 'e'
+
+    ! pause -1
+    if (.not.leps) write(unit,'(/,a)') 'pause -1'
+    
+!----------------------------------------------------------------------
+! Open the gnuplot file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=filename,form='formatted',status='unknown')
+
+!----------------------------------------------------------------------
+! Close the gnuplot file
+!----------------------------------------------------------------------
+    close(unit)
+
+!----------------------------------------------------------------------
+! Plot the surfaces to the screen
+!----------------------------------------------------------------------
+    call system('gnuplot '//trim(filename))
+    
+    return
+    
+  end subroutine wrgnuplot_diabcp
+  
 !######################################################################
 
   subroutine wrgnuplot_dipoles
@@ -745,7 +874,7 @@ contains
     
     ! gnuplot file
     filename='plot_q'//trim(adjustl(am))//'_s'//trim(adjustl(as1)) &
-         //'_s'//trim(adjustl(as2))//'.gnu'
+         //'_s'//trim(adjustl(as2))//'_dip.gnu'
 
 !----------------------------------------------------------------------
 ! Open the gnuplot file
@@ -756,7 +885,6 @@ contains
 !----------------------------------------------------------------------
 ! Function ranges and states
 !----------------------------------------------------------------------
-    ! Potential plotting
     if (ei.eq.-999.0d0) ei=min(-0.1d0,0.98d0*minval(surf(:,1:3)))
     if (ef.eq.-999.0d0) ef=1.02d0*maxval(surf(:,1:3))
 
