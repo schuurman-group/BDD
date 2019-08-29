@@ -184,7 +184,7 @@ contains
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
-             if (tau_mask(m,s1,s2).eq.0) cycle
+             if (xi_mask(m,s1,s2).eq.0) cycle
              w(s1,s2)=w(s1,s2)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
              w(s2,s1)=w(s2,s1)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
           enddo
