@@ -87,6 +87,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
     
     implicit none
@@ -103,7 +104,7 @@ contains
     order=4
 
     ! Coefficient vector
-    allocate(coeff(order+1))
+    allocate(coeff(order))
     coeff=0.0d0
 
     ! Input coordinates and diabatic potential values
@@ -134,7 +135,11 @@ contains
                 q(n)=qvec(m,findx1m(m,n))
                 w(n)=diabpot(s1,s2,findx1m(m,n))
              enddo
-             
+
+             ! Subtract off the zeroth-order potential value
+             ! Note that WIJ(Q0)=0 for I!=J
+             if (s1.eq.s2) w(1:ndat)=w(1:ndat)-q0pot(s1)
+                
              ! Perform the fitting for the current mode and
              ! diabatic potential matrix element
              call nmeq1d(order,coeff,ndat,q(1:ndat),w(1:ndat),&
@@ -189,7 +194,7 @@ contains
     order=4
 
     ! Coefficient vector
-    allocate(coeff(order+1))
+    allocate(coeff(order))
     coeff=0.0d0
 
     ! Input coordinates and diabatic dipole matrix element values
@@ -348,18 +353,18 @@ contains
 
     integer, intent(in)                    :: order,npnts
     integer                                :: i,j
-    real(dp), dimension(order+1)           :: coeff
+    real(dp), dimension(order)             :: coeff
     real(dp), intent(in), dimension(npnts) :: x,y
-    real(dp), dimension(npnts,order+1)     :: Xmat
-    real(dp), dimension(order+1,order+1)   :: XTX,invXTX
+    real(dp), dimension(npnts,order)       :: Xmat
+    real(dp), dimension(order,order)       :: XTX,invXTX
     logical                                :: lpseudo
     
 !----------------------------------------------------------------------
 ! Fill in the X-matrix
 !----------------------------------------------------------------------
     do i=1,npnts
-       do j=1,order+1
-          Xmat(i,j)=x(i)**(j-1)
+       do j=1,order
+          Xmat(i,j)=x(i)**j
        enddo
     enddo
 
@@ -368,7 +373,7 @@ contains
 !----------------------------------------------------------------------
     XTX=matmul(transpose(Xmat),Xmat)
 
-    call invert_matrix(XTX,invXTX,order+1,lpseudo)
+    call invert_matrix(XTX,invXTX,order,lpseudo)
 
     coeff=matmul(invXTX,matmul(transpose(Xmat),y))
     
@@ -389,17 +394,17 @@ contains
     
     implicit none
 
-    integer, intent(in)                      :: order,m,s1,s2
-    real(dp), intent(in), dimension(order+1) :: coeff
+    integer, intent(in)                    :: order,m,s1,s2
+    real(dp), intent(in), dimension(order) :: coeff
 
 !----------------------------------------------------------------------
 ! Intrastate coupling coefficients
 !----------------------------------------------------------------------
     if (s1.eq.s2) then
-       if (order.gt.0) kappa(m,s1)=coeff(2)
-       if (order.gt.1) gamma(m,m,s1)=2.0d0*coeff(3)-freq(m)/eh2ev
-       if (order.gt.2) iota(m,s1)=6.0d0*coeff(4)
-       if (order.gt.3) epsilon(m,s1)=24.0d0*coeff(5)
+       if (order.gt.0) kappa(m,s1)=coeff(1)
+       if (order.gt.1) gamma(m,m,s1)=2.0d0*coeff(2)-freq(m)/eh2ev
+       if (order.gt.2) iota(m,s1)=6.0d0*coeff(3)
+       if (order.gt.3) epsilon(m,s1)=24.0d0*coeff(4)
     endif
 
 !----------------------------------------------------------------------
@@ -407,19 +412,19 @@ contains
 !----------------------------------------------------------------------
     if (s1.ne.s2) then
        if (order.gt.0) then
-          lambda(m,s1,s2)=coeff(2)
+          lambda(m,s1,s2)=coeff(1)
           lambda(m,s2,s1)=lambda(m,s1,s2)
        endif
        if (order.gt.1) then
-          mu(m,m,s1,s2)=2.0d0*coeff(3)
+          mu(m,m,s1,s2)=2.0d0*coeff(2)
           mu(m,m,s2,s1)=mu(m,m,s1,s2)
        endif
        if (order.gt.2) then
-          tau(m,s1,s2)=6.0d0*coeff(4)
+          tau(m,s1,s2)=6.0d0*coeff(3)
           tau(m,s2,s1)=tau(m,s1,s2)
        endif
        if (order.gt.3) then
-          xi(m,s1,s2)=24.0d0*coeff(5)
+          xi(m,s1,s2)=24.0d0*coeff(4)
           xi(m,s2,s1)=xi(m,s1,s2)
        endif
     endif

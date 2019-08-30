@@ -66,7 +66,7 @@ refdir=${dirarr[0]}
 
 # Extract any tar.gz determinant files in the Q0 DFT/MRCI output directory
 cd $refdir
-for file in `ls det.*.bin.tar.gz`; do tar -zxvf $file; done
+for file in `ls det.*.bin.tar.gz`; do tar -zxvf $file &>/dev/null; done
 cd $maindir
 
 # Loop over the geometries at which the diabatisation is to be
@@ -78,7 +78,7 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
 
     # Extract any tar.gz determinant files
     cd $currdir
-    for file in `ls det.*.bin.tar.gz`; do tar -zxvf $file; done
+    for file in `ls det.*.bin.tar.gz`; do tar -zxvf $file &>/dev/null; done
     cd $maindir
 
     # Working directory filestem
