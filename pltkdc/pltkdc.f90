@@ -54,9 +54,13 @@ contains
     ! Parameter file name
     abin=''
     
-    ! Plotting mode
+    ! Plotting modes
     mplt=-1
+    mplt2=-1
 
+    ! Diagonal cuts
+    ldiagcut=.false.
+    
     ! Initial and final states
     si=-1
     sf=-1
@@ -108,6 +112,11 @@ contains
        n=n+1
        call getarg(n,string2)
        read(string2,*) mplt
+    else if (string1.eq.'-m2') then
+       ldiagcut=.true.
+       n=n+1
+       call getarg(n,string2)
+       read(string2,*) mplt2
     else if (string1.eq.'-xrange') then
        n=n+1
        call getarg(n,string2)
@@ -428,7 +437,8 @@ contains
        
        ! Current geometry
        q(mplt)=qi+(i-1)*dq
-
+       if (ldiagcut) q(mplt2)=qi+(i-1)*dq
+       
        ! Current set of energies
        surf(i,:)=surface(q)
 
@@ -491,7 +501,8 @@ contains
     
     implicit none
 
-    integer                        :: m,n,ndisp,mindx,k,s,s1,s2,c,dim
+    integer                        :: m,n,ndisp,k,s,s1,s2,c,dim
+    integer, dimension(2)          :: mindx
     integer                        :: e2,error
     real(dp), parameter            :: thrsh=1e-4_dp
     real(dp), dimension(nsta)      :: v
@@ -511,13 +522,18 @@ contains
        do m=1,nmodes
           if (abs(qvec(m,n)).gt.thrsh) then
              ndisp=ndisp+1
-             mindx=m
+             mindx(ndisp)=m
           endif
        enddo
 
        ! Update nabinit if only the plotting mode is displaced
-       if (ndisp.eq.1.and.mindx.eq.mplt) nabinit=nabinit+1
-       
+       if (ldiagcut) then
+          if (ndisp.eq.2.and.mindx(1).eq.mplt.and.mindx(2).eq.mplt2) &
+               nabinit=nabinit+1
+       else
+          if (ndisp.eq.1.and.mindx(1).eq.mplt) nabinit=nabinit+1
+       endif
+          
     enddo
 
 !----------------------------------------------------------------------
@@ -543,16 +559,23 @@ contains
        do m=1,nmodes
           if (abs(qvec(m,n)).gt.thrsh) then
              ndisp=ndisp+1
-             mindx=m
+             mindx(ndisp)=m
           endif
        enddo
 
        ! Fill in abinit if only the plotting mode is displaced
-       if (ndisp.eq.1.and.mindx.eq.mplt) then
-          k=k+1
-          iabinit(k)=n
+       if (ldiagcut) then
+          if (ndisp.eq.2.and.mindx(1).eq.mplt.and.mindx(2).eq.mplt2) then
+             k=k+1
+             iabinit(k)=n
+          endif
+       else
+          if (ndisp.eq.1.and.mindx(1).eq.mplt) then
+             k=k+1
+             iabinit(k)=n
+          endif
        endif
-
+       
     enddo
 
 !----------------------------------------------------------------------
@@ -631,8 +654,8 @@ contains
     
     implicit none
 
-    integer             :: unit,s,i
-    character(len=2)    :: am
+    integer             :: unit,s,i,k
+    character(len=2)    :: am,am2
     character(len=220)  :: filename
     character(len=1200) :: string
 
@@ -640,10 +663,16 @@ contains
 ! Filename
 !----------------------------------------------------------------------
     write(am,'(i2)') mplt
-
+    write(am2,'(i2)') mplt2
+    
     ! gnuplot file
-    filename='plot_q'//trim(adjustl(am))//'.gnu'
-
+    if (ldiagcut) then
+       filename='plot_q'//trim(adjustl(am))//'_q'&
+            //trim(adjustl(am2))//'.gnu'
+    else
+       filename='plot_q'//trim(adjustl(am))//'.gnu'
+    endif
+       
 !----------------------------------------------------------------------
 ! Open the gnuplot file
 !----------------------------------------------------------------------
@@ -671,9 +700,14 @@ contains
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''Energy (eV)'''
     write(am,'(i2)') mplt
+    write(am2,'(i2)') mplt2
     string='set xlabel ''Q_{'//trim(adjustl(am))//'}'''
+    if (ldiagcut) then
+       k=len_trim(string)-1
+       string=string(1:k)//' Q_{'//trim(adjustl(am2))//'}'''
+    endif
     write(unit,'(a,/)') trim(string)
-
+    
     ! Ranges
     write(unit,'(2(a,F6.2),a)') 'set xrange [',qi,':',qf,']'
     write(unit,'(2(a,F6.2),a,/)') 'set yrange [',ei,':',ef,']'
@@ -744,8 +778,8 @@ contains
     
     implicit none
 
-    integer             :: unit,s,i
-    character(len=2)    :: am,as1,as2
+    integer             :: unit,s,i,k
+    character(len=2)    :: am,am2,as1,as2
     character(len=220)  :: filename
     character(len=1200) :: string
 
@@ -753,15 +787,23 @@ contains
 ! Filename
 !----------------------------------------------------------------------
     write(am,'(i2)') mplt
+    write(am2,'(i2)') mplt2
     write(as1,'(i2)') dcpsta1
     write(as2,'(i2)') dcpsta2
     
     ! gnuplot file
-    filename='plot_q'//trim(adjustl(am)) &
-         //'_s'//trim(adjustl(as1)) &
-         //'_s'//trim(adjustl(as2))   &
-         //'_diabcp.gnu'
-
+    if (ldiagcut) then
+       filename='plot_q'//trim(adjustl(am))//'_q'//trim(adjustl(am2)) &
+            //'_s'//trim(adjustl(as1)) &
+            //'_s'//trim(adjustl(as2)) &
+            //'_diabcp.gnu'
+    else
+       filename='plot_q'//trim(adjustl(am)) &
+            //'_s'//trim(adjustl(as1)) &
+            //'_s'//trim(adjustl(as2)) &
+            //'_diabcp.gnu'
+    endif
+       
 !----------------------------------------------------------------------
 ! Open the gnuplot file
 !----------------------------------------------------------------------
@@ -789,9 +831,14 @@ contains
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''Energy (eV)'''
     write(am,'(i2)') mplt
+    write(am2,'(i2)') mplt2
     string='set xlabel ''Q_{'//trim(adjustl(am))//'}'''
+    if (ldiagcut) then
+       k=len_trim(string)-1
+       string=string(1:k)//' Q_{'//trim(adjustl(am2))//'}'''
+    endif
     write(unit,'(a,/)') trim(string)
-
+    
     ! Ranges
     write(unit,'(2(a,F6.2),a)') 'set xrange [',qi,':',qf,']'
     write(unit,'(2(a,F6.2),a,/)') 'set yrange [',ei,':',ef,']'
@@ -857,8 +904,8 @@ contains
     
     implicit none
 
-    integer                        :: unit,i,c
-    character(len=2)               :: am,as1,as2
+    integer                        :: unit,i,c,k
+    character(len=2)               :: am,am2,as1,as2
     character(len=220)             :: filename
     character(len=1200)            :: string
     character(len=1), dimension(3) :: acomp
@@ -869,13 +916,20 @@ contains
 ! Filename
 !----------------------------------------------------------------------
     write(am,'(i2)') mplt
+    write(am2,'(i2)') mplt2
     write(as1,'(i2)') dipsta1
     write(as2,'(i2)') dipsta2
     
     ! gnuplot file
-    filename='plot_q'//trim(adjustl(am))//'_s'//trim(adjustl(as1)) &
-         //'_s'//trim(adjustl(as2))//'_dip.gnu'
-
+    if (ldiagcut) then
+       filename='plot_q'//trim(adjustl(am))//'_q'//trim(adjustl(am2)) &
+            //'_s'//trim(adjustl(as1)) &
+            //'_s'//trim(adjustl(as2))//'_dip.gnu'
+    else
+       filename='plot_q'//trim(adjustl(am))//'_s'//trim(adjustl(as1)) &
+            //'_s'//trim(adjustl(as2))//'_dip.gnu'
+    endif
+       
 !----------------------------------------------------------------------
 ! Open the gnuplot file
 !----------------------------------------------------------------------
@@ -901,7 +955,12 @@ contains
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''D (a.u.)'''
     write(am,'(i2)') mplt
+    write(am2,'(i2)') mplt2
     string='set xlabel ''Q_{'//trim(adjustl(am))//'}'''
+    if (ldiagcut) then
+       k=len_trim(string)-1
+       string=string(1:k)//' Q_{'//trim(adjustl(am2))//'}'''
+    endif
     write(unit,'(a,/)') trim(string)
 
     ! Ranges

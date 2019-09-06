@@ -5,9 +5,10 @@ module pltglobal
   implicit none
   
   ! Plotting parameters
-  integer               :: mplt,npnts,si,sf,surftyp
+  integer               :: mplt,mplt2,npnts,si,sf,surftyp
   real(dp)              :: qi,qf,ei,ef
   real(dp), allocatable :: surf(:,:)
+  logical               :: ldiagcut
   logical               :: leps
 
   ! Ab initio diabatic potential values

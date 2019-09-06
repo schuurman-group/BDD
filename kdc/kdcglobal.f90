@@ -36,7 +36,9 @@ module kdcglobal
 
   ! Parameterisation algorithm
   integer                         :: ialgor
-
+  integer                         :: iweight
+  real(dp)                        :: wfac
+  
   ! RMSDs of the normal equations fit
   real(dp)                        :: rmsd
   real(dp), allocatable           :: rmsd1m(:)

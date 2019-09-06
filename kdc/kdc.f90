@@ -269,7 +269,11 @@ contains
 
     ! Parameterisation algorithm: 1 <-> finite differences
     !                             2 <-> normal equations-based fitting
-    ialgor=1
+    ialgor=2
+
+    ! Normal equation fitting weights
+    iweight=0
+    wfac=0.0d0
     
 !----------------------------------------------------------------------
 ! Read the input file
@@ -398,6 +402,14 @@ contains
              read(keyword(3),*) dip0(k1,k2,3)
              dip0(k2,k1,:)=dip0(k1,k2,:)
           enddo
+
+       else if (keyword(i).eq.'$weight') then
+          iweight=1
+          wfac=1.0d0
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             read(keyword(i),*) wfac
+          endif
           
        else
           ! Exit if the keyword is not recognised

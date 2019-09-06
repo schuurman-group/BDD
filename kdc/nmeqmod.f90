@@ -95,6 +95,7 @@ contains
     integer               :: m,n,s1,s2,ndat
     integer               :: order
     real(dp), allocatable :: coeff(:),q(:),w(:)
+    real(dp)              :: wfac1
     logical               :: lpseudo
     
 !----------------------------------------------------------------------
@@ -142,8 +143,13 @@ contains
                 
              ! Perform the fitting for the current mode and
              ! diabatic potential matrix element
+             if (s1.eq.s2) then
+                wfac1=wfac
+             else
+                wfac1=0.0d0
+             endif
              call nmeq1d(order,coeff,ndat,q(1:ndat),w(1:ndat),&
-                  lpseudo)
+                  lpseudo,wfac1)
              
              ! Output a warning if the psedo-inverse was used in
              ! the fitting
@@ -232,7 +238,7 @@ contains
                 ! Perform the fitting for the current mode and
                 ! diabatic dipole matrix element
                 call nmeq1d(order,coeff,ndat,q(1:ndat),d(1:ndat),&
-                     lpseudo)
+                     lpseudo,0.0d0)
 
                 ! Output a warning if the psedo-inverse was used in
                 ! the fitting
@@ -342,7 +348,7 @@ contains
 
 !######################################################################
 
-  subroutine nmeq1d(order,coeff,npnts,x,y,lpseudo)
+  subroutine nmeq1d(order,coeff,npnts,x,y,lpseudo,wfac)
 
     use constants
     use channels
@@ -351,14 +357,18 @@ contains
     
     implicit none
 
-    integer, intent(in)                    :: order,npnts
-    integer                                :: i,j
-    real(dp), dimension(order)             :: coeff
-    real(dp), intent(in), dimension(npnts) :: x,y
-    real(dp), dimension(npnts,order)       :: Xmat
-    real(dp), dimension(order,order)       :: XTX,invXTX
-    logical                                :: lpseudo
-    
+    integer, intent(in)              :: order,npnts
+    integer                          :: i,j
+    real(dp), dimension(order)       :: coeff
+    real(dp), dimension(npnts)       :: x,y
+    real(dp), dimension(npnts,order) :: Xmat
+    real(dp), dimension(order,order) :: XTX,invXTX
+    real(dp), intent(in)             :: wfac
+    logical                          :: lpseudo
+
+    real(dp)                   :: miny
+    real(dp), dimension(npnts) :: wsq
+
 !----------------------------------------------------------------------
 ! Fill in the X-matrix
 !----------------------------------------------------------------------
@@ -368,6 +378,19 @@ contains
        enddo
     enddo
 
+!----------------------------------------------------------------------
+! Weights
+!----------------------------------------------------------------------
+    miny=minval(y)
+    do i=1,npnts
+       wsq(i)=exp(-wfac*(y(i)-miny))**2
+    enddo
+
+    do i=1,npnts
+       y(i)=y(i)*wsq(i)
+       Xmat(i,:)=Xmat(i,:)*wsq(i)
+    enddo
+    
 !----------------------------------------------------------------------
 ! Calculate the coefficients
 !----------------------------------------------------------------------
