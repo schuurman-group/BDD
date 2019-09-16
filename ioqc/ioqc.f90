@@ -1665,5 +1665,182 @@ contains
   end subroutine nm2xmat
 
 !######################################################################
+
+  subroutine geten(v,nsta,filename)
+
+    use constants
+    use iomod
+    
+    implicit none
+
+    integer, intent(in)          :: nsta
+    integer                      :: entyp
+    real(dp), dimension(nsta)    :: v
+    character(len=*), intent(in) :: filename
+
+!----------------------------------------------------------------------
+! Determine the quantum chemistry program used to calculate the
+! adiabatic energies
+!----------------------------------------------------------------------
+    call entype(entyp,filename)
+
+!----------------------------------------------------------------------
+! Read the energies
+!----------------------------------------------------------------------
+    if (entyp.eq.5) then
+       call geten_dftmrci(v,nsta,filename)
+    endif
+    
+    return
+    
+  end subroutine geten
+  
+!######################################################################
+! entype: determines the quantum chemistry program used for the
+!         energy calculation, and sets entyp accordingly:
+!          
+!         entyp = 5 <-> DFT/MRCI
+!######################################################################
+
+  subroutine entype(entyp,filename)
+
+    use constants
+    use iomod
+    
+    implicit none
+
+    integer                      :: entyp
+    character(len=*), intent(in) :: filename
+
+!----------------------------------------------------------------------
+! Initialisation
+!----------------------------------------------------------------------
+    entyp=-1
+
+!----------------------------------------------------------------------
+! Determine the quantum chemistry program used for the energy
+! calculation
+!---------------------------------------------------------------------
+    if (isdftmrci(filename)) then
+       entyp=5
+    endif
+    
+!----------------------------------------------------------------------
+! Check that the quantum chemistry program used is supported
+!----------------------------------------------------------------------
+    if (entyp.eq.-1) then
+       errmsg='The quantum chemistry program used for the &
+            energy calculation is not supported.'
+       call error_control
+    endif
+    
+    return
+    
+  end subroutine entype
+
+!######################################################################
+
+  function isdftmrci(filename) result(found)
+
+    use constants
+    use iomod
+
+    implicit none
+
+    integer            :: unit
+    character(len=*)   :: filename
+    character(len=120) :: string
+    logical            :: found
+
+!----------------------------------------------------------------------
+! Open file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=filename,form='formatted',status='old')
+
+!----------------------------------------------------------------------
+! Check whether the calculation was performed using DFT/MRCI code
+!----------------------------------------------------------------------
+    found=.false.
+    
+5   read(unit,'(a)',end=10) string
+    if (index(string,' *              M R - C I               *').ne.0) then
+       found=.true.
+    else
+       goto 5
+    endif
+10  continue
+
+!----------------------------------------------------------------------
+! Close file
+!----------------------------------------------------------------------
+    close(unit)
+    
+    return
+    
+  end function isdftmrci
+  
+!######################################################################
+
+  subroutine geten_dftmrci(v,nsta,filename)
+
+    use constants
+    use iomod
+
+    implicit none
+
+    integer, intent(in)          :: nsta
+    integer                      :: unit,ista
+    real(dp), dimension(nsta)    :: v
+    character(len=*), intent(in) :: filename
+    character(len=120)           :: string,searchstring
+    
+!----------------------------------------------------------------------
+! Open the DFT/MRCI output file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=filename,form='formatted',status='old')
+
+!----------------------------------------------------------------------
+! Read the energies
+!----------------------------------------------------------------------
+    v=0.0d0
+    ista=0
+
+    searchstring='state         method'
+    
+5   read(unit,'(a)',end=100) string
+    if (index(string,trim(searchstring)).ne.0) then
+       ista=ista+1
+       read(unit,*)
+       read(unit,'(30x,F13.6)') v(ista)
+    endif
+
+    if (ista.eq.nsta) then
+       goto 100
+    else
+       goto 5
+    endif
+       
+100 continue
+
+!----------------------------------------------------------------------
+! Exit if not all state energies were found
+!----------------------------------------------------------------------
+    if (ista.ne.nsta) then
+       errmsg='Not all state energies found in: '//trim(filename)
+       call error_control
+    endif
+       
+!----------------------------------------------------------------------
+! Close the DFT/MRCI output file
+!----------------------------------------------------------------------
+    close(unit)
+
+    return
+    
+  end subroutine geten_dftmrci
+
+!######################################################################
   
 end module ioqc

@@ -79,6 +79,7 @@ OBJECTS_BLOCKDIAG = $(MULTI) \
 	$(INCLUDE) \
 	$(IOMODULES) \
 	$(UTILITIES) \
+	$(IOQC) \
 	$(BLOCKDIAG)
 OBJ_BLOCKDIAG = accuracy.o \
 	printing.o \
@@ -92,10 +93,12 @@ OBJ_BLOCKDIAG = accuracy.o \
 	import_gamess.o \
 	constants.o \
 	channels.o \
+	sysinfo.o \
 	timingmod.o \
 	iomod.o \
 	parsemod.o \
 	utils.o \
+	ioqc.o \
 	bdglobal.o \
 	adt.o \
 	mooverlaps.o \

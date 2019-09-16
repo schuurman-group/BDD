@@ -45,7 +45,8 @@ module bdglobal
   
   ! Adiabatic potential matrix
   real(dp), allocatable           :: Vmat(:,:),Vmat1(:,:)
-
+  character(len=120)              :: avmat
+  
   ! Diabatic potential matrix
   real(dp), allocatable           :: Wmat(:,:)
   logical                         :: ldiabpot

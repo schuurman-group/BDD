@@ -55,6 +55,12 @@ program blockdiag
 ! Read the input file
 !----------------------------------------------------------------------
   call rdinpfile
+
+!----------------------------------------------------------------------
+! Read the dispplaced geometry adiabatic energies from a quantum
+! chemistry ouput file if needed
+!----------------------------------------------------------------------
+  if (avmat.ne.'') call rdvmat
   
 !----------------------------------------------------------------------
 ! Load the MOs for the reference and displaced geometries
@@ -342,6 +348,8 @@ contains
     dthresh=1e-6_dp
     normcut=1.0d0
     ltruncate=.false.
+    areftrans=''
+    avmat=''
     
 !----------------------------------------------------------------------
 ! Second pass: read the input file
@@ -401,18 +409,24 @@ contains
 
        else if (keyword(i).eq.'$energies') then
           ldiabpot=.true.
-          do
-             call rdinp(iin,.false.)
-             if (keyword(1).eq.'$end') exit
-             if (lend) then
-                errmsg='End of file reached whilst reading the &
-                     $energies section'
-                call error_control
-             endif
-             read(keyword(2),*) k
-             read(keyword(1),*) Vmat1(k,k)
-          enddo
 
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             avmat=keyword(i)
+          else
+             do
+                call rdinp(iin,.false.)
+                if (keyword(1).eq.'$end') exit
+                if (lend) then
+                   errmsg='End of file reached whilst reading the &
+                        $energies section'
+                   call error_control
+                endif
+                read(keyword(2),*) k
+                read(keyword(1),*) Vmat1(k,k)
+             enddo
+          endif
+             
        else if (keyword(i).eq.'$ref_trans') then
           lreftrans=.true.
 
@@ -672,7 +686,31 @@ contains
     return
     
   end subroutine finalise
+
+!######################################################################
+
+  subroutine rdvmat
+
+    use constants
+    use channels
+    use ioqc
+    use bdglobal
     
+    implicit none
+
+    integer                        :: i
+    real(dp), dimension(nsta_disp) :: vtmp
+
+    call geten(vtmp,nsta_disp,avmat)
+    
+    do i=1,nsta_disp
+       Vmat1(i,i)=vtmp(i)
+    enddo
+
+    return
+    
+  end subroutine rdvmat
+  
 !######################################################################
 
   subroutine loadmos

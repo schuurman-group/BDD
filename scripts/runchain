@@ -127,13 +127,7 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
     echo >>$stem/$stem.inp
     #
     # Adiabatic energies
-    echo "\$energies" >>$stem/$stem.inp
-    for (( S=1; S<=$ndispsta; S++ )); do
-	e=`grep -m$S "DFTCI.*-" $currdir/out3 | tail -1 | sed 's/#//g' | awk '{print $4}'`
-	echo $e $S >>$stem/$stem.inp
-    done
-    echo "\$end" >>$stem/$stem.inp
-    echo >>$stem/$stem.inp
+    echo "\$energies=../$currdir/out3" >>$stem/$stem.inp
     #
     # Ref. ADT
     if [ ! -z $oldstem ]; then
