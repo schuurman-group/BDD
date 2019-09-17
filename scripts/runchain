@@ -6,8 +6,8 @@
 #           Assumptions: (1) The quantum chemistry output is from the
 #                            DFT/MRCI code, with files named out3,
 #                            mos.dat and det.1.n.bin being parsed.
-#                        (2) C1 symmetry was used in the DFT/MRCI
-#                            calculation.
+#                        (2) C1 symmetry was used in the quantum
+#                            chemistry calculation.
 #                        (3) The first directory in the $filein file
 #                            corresponds to the reference geometry,
 #                            and the remaining directories are in the
@@ -63,6 +63,14 @@ dirarr=( $(cat $filein) )
 
 # Q0 DFT/MRCI output directory
 refdir=${dirarr[0]}
+
+# Try and determine the name of the quantum
+# chemistry output files if any are present
+if [ -f $refdir/ciudgsm.drt1.sp ]; then
+    qctyp='columbus'
+elif [ -f $refdir/out3 ]; then
+    qctyp='dftmrci'
+fi
 
 # Extract any tar.gz determinant files in the Q0 DFT/MRCI output directory
 cd $refdir
@@ -127,7 +135,11 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
     echo >>$stem/$stem.inp
     #
     # Adiabatic energies
-    echo "\$energies=../$currdir/out3" >>$stem/$stem.inp
+    if [ "$qctyp" == 'columbus' ]; then
+	echo "\$energies=../$currdir/ciudgsm.drt1.sp" >>$stem/$stem.inp
+    elif [ "$qctyp" == 'dftmrci' ]; then
+	echo "\$energies=../$currdir/out3" >>$stem/$stem.inp
+    fi
     #
     # Ref. ADT
     if [ ! -z $oldstem ]; then
@@ -147,17 +159,17 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
 	echo >>$stem/$stem.inp
     fi
     # Transition dipoles from the ground state
-    ntrans=`grep -c "dipole (L)" $currdir/singlets.prp`
-    if [ "$ntrans" != '0' ]; then
-	echo "\$dipole" >>$stem/$stem.inp
-    	for (( s1=1; s1<=$ntrans; s1++ )); do
-	    s=$((s1+1))
-	    tdip=`grep -m$s1 "dipole (L)" $currdir/singlets.prp | awk '{print $3, " ", $4, " ", $5}' | tail -1` 
-	    echo $tdip 1 $s >>$stem/$stem.inp
-	done
-	echo "\$end" >>$stem/$stem.inp
-	echo >>$stem/$stem.inp
-    fi
+    #ntrans=`grep -c "dipole (L)" $currdir/singlets.prp`
+    #if [ "$ntrans" != '0' ]; then
+    #	echo "\$dipole" >>$stem/$stem.inp
+    #	for (( s1=1; s1<=$ntrans; s1++ )); do
+    #	    s=$((s1+1))
+    #	    tdip=`grep -m$s1 "dipole (L)" $currdir/singlets.prp | awk '{print $3, " ", $4, " ", $5}' | tail -1` 
+    #	    echo $tdip 1 $s >>$stem/$stem.inp
+    #	done
+    #	echo "\$end" >>$stem/$stem.inp
+    #	echo >>$stem/$stem.inp
+    #fi
 
     # Run blockdiag
     cd $stem
@@ -166,7 +178,7 @@ for (( i=1; i<${#dirarr[@]}; i++ )); do
 
     # Cleanup
     cd $refdir
-    rm det.1.{?,??}.bin
+    for file in `ls det.*.bin`; do rm $file; done
     cd $maindir
     
     # Re-set $refdir
@@ -179,5 +191,5 @@ done
 
 # Cleanup
 cd $refdir
-rm det.1.{?,??}.bin
+for file in `ls det.*.bin`; do rm $file; done
 cd $maindir
