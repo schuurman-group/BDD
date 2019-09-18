@@ -4,6 +4,7 @@ import sys
 import re
 import os
 import glob
+import copy
 
 #
 # Parsing of the input file
@@ -158,12 +159,78 @@ def lastdir(path):
     return lbl
 
 #
+# Determine the names of the disp. determinant files
+#
+def getdispdets():
+
+    dispdets=glob.glob('disp/*.bin')
+    dispdets.sort(key=natural_keys)
+
+    return dispdets
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
+
+#
+# Determine the ref. states from the blockdiag output at
+# the previous geometry
+#
+def getrefstates(lastlbl):
+
+    statelist=[]
+    
+    filename=lastlbl+'.log'
+    
+    with open(filename,"r") as logfile:
+        log=logfile.readlines()
+
+    for line in log:
+        if 'Selected state' in line:
+            state=line.split()[-1:]
+            statelist.append(int(state[0]))
+
+    return statelist
+    
+#
 # Write a blockdiag input file
 #
-def wrbdinp(filename):
+def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
+            normcut):
 
-    print('FINISH WRITING WRBDINP!')
-    sys.exit()
+    # Open the blockdiag input file
+    f=open(filename,"w+")
+    
+    # MO files
+    f.write('$mos_ref=ref/mos.dat \n')
+    f.write('$mos_disp=disp/mos.dat \n')
+    
+    # Ref. determinants
+    f.write('\n$dets_ref')
+    for k in range(len(refcurr)):
+        f.write('\n ref/det.1.'+str(refcurr[k])+'.bin '+str(k+1))
+    f.write('\n$end\n')
+
+    # Disp. determinants
+    f.write('\n$dets_disp')
+    for k in range(len(dispdets)):
+        f.write('\n '+dispdets[k]+' '+str(k+1))
+    f.write('\n$end\n')
+
+    # Ref. ADT matrix file
+    if i!=1:
+        f.write('\n$ref_trans='+lastlbl+'.log\n')
+
+    # Hadamard screening threshold
+    f.write('\n$dthresh='+str(dthresh)+'\n')
+
+    # Norm cutoff
+    f.write('\n$norm_cutoff='+str(normcut)+'\n')
+    
+    # Close the blockdiag input file
+    f.close()
     
 #
 # Main routine
@@ -183,28 +250,52 @@ dirlist=rddirfile(dirfile)
 # Set the reference geometry directory
 refdir=dirlist[0]
 
-# Make sure that the directory outdir exists and is
+# Make sure that the determinant directories exists and are
 # empty
 if os.path.isdir('ref'):
     os.system('rm -r ref')
 os.system('mkdir ref')
 
-# Extract and tar.gz determinant files in the reference directory
-extract_dets(refdir,'ref')
+if os.path.isdir('disp'):
+    os.system('rm -r disp')
+os.system('mkdir disp')
+
+# Initialise lastlbl
+lastlbl=''
 
 # Perform the chain of blockdiag calculations
 for i in range(1,len(dirlist)):
-
-    # Current directory
-    currdir=dirlist[i]
-
+    
     # Ouput our progress
-    lbl=lastdir(currdir)
+    lbl=lastdir(dirlist[i])+'_diab'
     print('\n'+lbl)
     
     # Extract any tar.gz determinant files
-    extract_dets(currdir,'./')
+    extract_dets(dirlist[i-1],'ref')
+    extract_dets(dirlist[i],'disp')
+    
+    # Copy over the MO files
+    os.system('cp '+dirlist[i-1]+'/mos.dat ref/')
+    os.system('cp '+dirlist[i]+'/mos.dat disp/')
+    
+    # Determine the ref. states to include
+    if i==1:
+        refcurr=refsta
+    else:
+        refcurr=getrefstates(lastlbl)
 
+    # Get the list of all disp. determinant files
+    dispdets=getdispdets()
+    
     # Write the blockdiag input file
-    bdinpfile=lbl+'_diab.inp'
-    wrbdinp(bdinpfile)
+    bdinpfile=lbl+'.inp'
+    wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
+            normcut)
+
+    # Run the blockdiag calculation
+    inputfile=lbl+'.inp'
+    os.system('blockdiag.x '+inputfile)
+    
+    # Update lastlbl
+    lastlbl=copy.deepcopy(lbl)
+    
