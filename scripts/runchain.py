@@ -1,5 +1,10 @@
 #!/usr/bin/python
 
+#######################################################################
+# Runchain: a simple, if badly written, code to automate the running
+#           of a chain of blockdiag calculations
+#######################################################################
+
 import sys
 import re
 import os
@@ -101,7 +106,31 @@ def clean_keyword(keyword):
     clean_keyword=clean_keyword.strip()
 
     return clean_keyword
+
+#
+# Determination of the quantum chemistry code used
+#
+def getqctype(directory):
+
+    qctype=None
+
+    # DFT/MRCI?
+    for f in ('auxbasis','out3','control'):
+        check=glob.glob(directory+'/'+f)
+        if len(check)!=0:
+            qctype='dftmrci'
+
+    # Columbus MRCI?
+    check=glob.glob(directory+'/ciudgin.drt1')
+    if len(check)!=0:
+        qctype='colmrci'
+
+    # Exit if we could not determine the calculation type
+    if qctype==None:
+        print('\n Error: the quantum chemistry code used could not be determined\n')
+        sys.exit()
     
+    return qctype
 #
 # Parsing of the directory file
 #
@@ -193,12 +222,43 @@ def getrefstates(lastlbl):
             statelist.append(int(state[0]))
 
     return statelist
+
+#
+# Read the disp. state energies
+#
+def rddispen(qctype,directory):
+    
+    ener=[]
+
+    # DFT/MRCI
+    if qctype=='dftmrci':
+
+        filename=directory+'/out3'
+
+        if not os.path.exists(filename):
+            print('\nCould not find the DFT/MRCI output file'+filename+'\n')
+            sys.exit()
+
+        with open(filename,"r") as outfile:
+            lines=outfile.readlines()
+
+        for line in lines:
+            if 'DFTCI  ' in line:
+                string=line.split()
+                ener.append(string[string.index('DFTCI')+1])
+
+    # Columbus MRCI
+    elif qctyp=='colmrci':
+        print('\n FINISH WRITING THE COLUMBUS MRCI PARSING CODE!\n')
+        sys.exit()
+        
+    return ener
     
 #
 # Write a blockdiag input file
 #
 def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut):
+            normcut,dispen):
 
     # Open the blockdiag input file
     f=open(filename,"w+")
@@ -223,6 +283,12 @@ def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
     if i!=1:
         f.write('\n$ref_trans='+lastlbl+'.log\n')
 
+    # Disp. state energies
+    f.write('\n$energies')
+    for k in range(len(dispen)):
+        f.write('\n'+str(dispen[k])+' '+str(k+1))
+    f.write('\n$end\n')
+    
     # Hadamard screening threshold
     f.write('\n$dthresh='+str(dthresh)+'\n')
 
@@ -247,8 +313,8 @@ dirfile,normcut,dthresh,refsta=rdinp(infile)
 # Parse the directory file
 dirlist=rddirfile(dirfile)
 
-# Set the reference geometry directory
-refdir=dirlist[0]
+# Try and determine the quantum chemistry code used
+qctype=getqctype(dirlist[0])
 
 # Make sure that the determinant directories exists and are
 # empty
@@ -286,11 +352,14 @@ for i in range(1,len(dirlist)):
 
     # Get the list of all disp. determinant files
     dispdets=getdispdets()
+
+    # Get the disp. geometry adiabatic energies
+    dispen=rddispen(qctype,dirlist[i])
     
     # Write the blockdiag input file
     bdinpfile=lbl+'.inp'
     wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut)
+            normcut,dispen)
 
     # Run the blockdiag calculation
     inputfile=lbl+'.inp'
@@ -298,4 +367,5 @@ for i in range(1,len(dirlist)):
     
     # Update lastlbl
     lastlbl=copy.deepcopy(lbl)
+    
     
