@@ -297,7 +297,23 @@ def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
     
     # Close the blockdiag input file
     f.close()
-    
+
+#
+# Check whether or not a blockdiag calculation ran to completion
+#
+def blockdiag_status(filename):
+
+    completed=False
+
+    with open(filename,"r") as outfile:
+        lines=outfile.readlines()
+
+    for line in lines:
+        if 'CPU Time:' in line:
+            completed=True
+        
+    return completed
+
 #
 # Main routine
 #
@@ -364,8 +380,13 @@ for i in range(1,len(dirlist)):
     # Run the blockdiag calculation
     inputfile=lbl+'.inp'
     os.system('blockdiag.x '+inputfile)
+
+    # Exit here if the blockdiag calculation failed
+    completed=blockdiag_status(lbl+'.log')
+    if not completed:
+        print('\n Blockdiag failed...\n')
+        sys.exit()
     
     # Update lastlbl
     lastlbl=copy.deepcopy(lbl)
-    
     
