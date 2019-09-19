@@ -121,9 +121,10 @@ def getqctype(directory):
             qctype='dftmrci'
 
     # Columbus MRCI?
-    check=glob.glob(directory+'/ciudgin.drt1')
-    if len(check)!=0:
-        qctype='colmrci'
+    for f in ('ciudgin.drt1','ciudgsm.drt1.sp'):
+        check=glob.glob(directory+'/'+f)
+        if len(check)!=0:
+            qctype='colmrci'
 
     # Exit if we could not determine the calculation type
     if qctype==None:
@@ -232,26 +233,45 @@ def rddispen(qctype,directory):
 
     # DFT/MRCI
     if qctype=='dftmrci':
-
         filename=directory+'/out3'
-
         if not os.path.exists(filename):
             print('\nCould not find the DFT/MRCI output file'+filename+'\n')
             sys.exit()
-
         with open(filename,"r") as outfile:
             lines=outfile.readlines()
-
         for line in lines:
             if 'DFTCI  ' in line:
                 string=line.split()
                 ener.append(string[string.index('DFTCI')+1])
 
     # Columbus MRCI
-    elif qctyp=='colmrci':
-        print('\n FINISH WRITING THE COLUMBUS MRCI PARSING CODE!\n')
-        sys.exit()
-        
+    elif qctype=='colmrci':
+        # Check to see if ciudgsm.drt1.sp is present in
+        # directory/. or directory/LISTINGS
+        found=False
+        filename=directory+'/ciudgsm.drt1.sp'
+        if os.path.exists(filename):
+            found=True
+            with open(filename,"r") as outfile:
+                lines=outfile.readlines()
+        else:
+            filename=directory+'/LISTINGS/ciudgsm.drt1.sp'
+            if os.path.exists(filename):
+                found=True
+                with open(filename,"r") as outfile:
+                    lines=outfile.readlines()
+
+        # Exit if ciudgsm.drt1.sp could not be found
+        if not found:
+            print('\nCoule not find the MRCI output file ciudgsm.drt1.sp\n')
+            sys.exit()
+
+        # Parse ciudgsm.drt1.sp
+        for line in lines:
+            if 'eci       =' in line:
+                string=line.split()
+                ener.append(string[string.index('=')+1])
+
     return ener
     
 #
