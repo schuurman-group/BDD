@@ -143,6 +143,11 @@ program blockdiag
 ! we have access to the ADT matrix of the previous geometry
 !----------------------------------------------------------------------
   if (lreftrans) call switch_diabats
+
+!----------------------------------------------------------------------
+! Write the adiabatic potentials to the log file
+!----------------------------------------------------------------------
+  call write_adiabpot
   
 !----------------------------------------------------------------------
 ! Write the ADT matrix to the log file
@@ -1530,7 +1535,35 @@ contains
     return
     
   end subroutine write_adt
-  
+
+!######################################################################
+
+  subroutine write_adiabpot
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer :: i
+
+!----------------------------------------------------------------------
+! Write the energies of the selected adiabatic states to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Adiabatic Potentials (Selected States Only)'
+    write(ilog,'(82a)') ('+',i=1,82)
+
+    do i=1,nsta
+       write(ilog,'(2x,i2,2x,F15.10)') i,vmat(i,i)
+    enddo
+    
+    return
+    
+  end subroutine write_adiabpot
+    
 !######################################################################
 
   subroutine diabpotmat
