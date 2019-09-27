@@ -555,7 +555,7 @@ contains
     
     implicit none
 
-    integer               :: n,m1,m2,s1,s2,ndat
+    integer               :: n,m1,m2,s1,s2,ndat,mask
     real(dp), allocatable :: q(:,:),w(:)
     real(dp)              :: coeff
     logical               :: present
@@ -598,6 +598,11 @@ contains
                 ! potential to get the correlated contribution
                 call get_2mode_contrib_potential(w(1:ndat),q(:,1:ndat),&
                      ndat,m1,m2,s1,s2)
+
+                ! Skip the fitting if the current bi-linear parameter is
+                ! zero by symmetry
+                mask=mask_pot_2mode(m1,m2,s1,s2)
+                if (mask.eq.0) cycle
                 
                 ! Perform the fitting for the current pair of modes and
                 ! diabatic potential matrix element
@@ -1027,7 +1032,31 @@ contains
     return
     
   end subroutine fill_coeffs2d_dipole
+
+!######################################################################
+
+  function mask_pot_2mode(m1,m2,s1,s2) result(mask)
     
+    use symmetry
+    
+    implicit none
+
+    integer, intent(in) :: m1,m2,s1,s2
+    integer             :: mask
+
+!----------------------------------------------------------------------
+! Determine the mask value for the given mode and state indices
+!----------------------------------------------------------------------
+    ! Intrastate coupling coefficient
+    if (s1.eq.s2) mask=gamma_mask(m1,m2,s1)
+
+    ! Interstate coupling coefficient
+    if (s1.ne.s2) mask=mu_mask(m1,m2,s1,s2)
+        
+    return
+    
+  end function mask_pot_2mode
+  
 !######################################################################
 
   subroutine calc_rmsd
