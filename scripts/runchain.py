@@ -57,8 +57,8 @@ def rdinp(filename):
             if not '=' in line:
                 input_error('$dthresh','no argument given')
             else:
-                dthesh=float((line.split('=')[1]))
-
+                dthresh=float((line.split('=')[1]))
+                
         elif '$norm_cutoff' in line:
             # Norm cutoff
             if not '=' in line:

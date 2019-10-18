@@ -212,7 +212,7 @@ contains
     write(6,'(/,25a)') ('-',i=1,25)
     write(6,'(a)') 'Usage'
     write(6,'(25a)') ('-',i=1,25)
-    write(6,'(a)') 'pltkdc -f -m (-xrange -yrange -npnts -si -sf &
+    write(6,'(a)') 'pltkdc -f -m (-m2 -xrange -yrange -npnts -si -sf &
          -eps -diab -adiab)'
 
     ! Options
@@ -223,6 +223,8 @@ contains
          The Hamiltonian parameters are written to the file F'
     write(6,'(a)') '-m M              : &
          The plot is along the Mth mode'
+    write(6,'(a)') '-m2 M2            : &
+         The plot is along the diagonal of the Mth and M2th modes'
     write(6,'(a)') '-xrange QI QF     : &
          The plot is over the coordinate interval [QI,QF]'
     write(6,'(a)') '-yrange EI EF     : &
@@ -241,7 +243,7 @@ contains
          Plot the adiabatic potentials'
     
     write(6,'(/)')
-    STOP
+    stop
     
     return
     
