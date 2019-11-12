@@ -20,14 +20,15 @@ module bdglobal
   type(gam_structure)             :: gam_ref,gam_disp
 
   ! Wavefunction arrays
+  integer, allocatable            :: isel(:)
   integer, allocatable            :: det_ref(:,:,:),det_disp(:,:,:)
   real(dp), allocatable           :: c_ref(:,:),c_disp(:,:)
-
+  
   ! Alpha and beta string arrays
   integer                         :: nalpha,nbeta
   integer, allocatable            :: iocca_ref(:,:,:),iocca_disp(:,:,:),&
                                      ioccb_ref(:,:,:),ioccb_disp(:,:,:)
-    
+  
   ! Wavefunction norms
   real(dp), allocatable           :: norm_ref(:),norm_disp(:)
 
@@ -65,5 +66,8 @@ module bdglobal
   ! Wavefunction norm cutoff
   real(dp)                       :: normcut
   logical                        :: ltruncate
-   
+
+  ! DFT/MRCI dmat trans output
+  logical                        :: ldmat
+  
 end module bdglobal

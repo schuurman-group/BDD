@@ -21,7 +21,8 @@ def rdinp(filename):
     normcut=1.
     dthresh=1e-6
     refsta=[]
-
+    dmattrans=False
+    
     # Read in the input file
     with open(filename, 'r') as infile:
         inp=infile.readlines()
@@ -65,13 +66,17 @@ def rdinp(filename):
                 input_error('$norm_cutoff','no argument given')
             else:
                 normcut=float((line.split('=')[1]))
-
+        
+        elif '$dmat_trans' in line:
+            # DFT/MRCI dmat transformation file output
+            dmattrans=True
+            
         else:
             # Unknown keyword
             print('\n','Error parsing line: '+line,'\n')
             sys.exit()
             
-    return dirfile,normcut,dthresh,refsta
+    return dirfile,normcut,dthresh,refsta,dmattrans
 
 #
 # blankline
@@ -278,7 +283,7 @@ def rddispen(qctype,directory):
 # Write a blockdiag input file
 #
 def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut,dispen):
+            normcut,dispen,dmattrans):
 
     # Open the blockdiag input file
     f=open(filename,"w+")
@@ -314,6 +319,10 @@ def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
 
     # Norm cutoff
     f.write('\n$norm_cutoff='+str(normcut)+'\n')
+
+    # DFT/MRCI dmat transformation file output
+    if dmattrans==True:
+        f.write('\n$dmat_trans\n')
     
     # Close the blockdiag input file
     f.close()
@@ -344,7 +353,7 @@ if len(sys.argv) < 2:
 infile=str(sys.argv[1])
 
 # Parse the input file
-dirfile,normcut,dthresh,refsta=rdinp(infile)
+dirfile,normcut,dthresh,refsta,dmattrans=rdinp(infile)
 
 # Parse the directory file
 dirlist=rddirfile(dirfile)
@@ -395,7 +404,7 @@ for i in range(1,len(dirlist)):
     # Write the blockdiag input file
     bdinpfile=lbl+'.inp'
     wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut,dispen)
+            normcut,dispen,dmattrans)
 
     # Run the blockdiag calculation
     inputfile=lbl+'.inp'

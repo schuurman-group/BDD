@@ -163,6 +163,12 @@ program blockdiag
 ! Optional: calculate and output the quasi-diabatic dipole matrix
 !----------------------------------------------------------------------
   if (ldipole) call diabdipmat
+
+!----------------------------------------------------------------------
+! Optional: write the ADT matrix to file in a format compatible with
+!           the DFT/MRCI code
+!----------------------------------------------------------------------
+  if (ldmat) call write_dmat_trans
   
 !-----------------------------------------------------------------------
 ! Finalisation
@@ -355,6 +361,7 @@ contains
     ltruncate=.false.
     areftrans=''
     avmat=''
+    ldmat=.false.
     
 !----------------------------------------------------------------------
 ! Second pass: read the input file
@@ -504,6 +511,9 @@ contains
              read(keyword(3),*) adip1(k1,k2,3)
              adip1(k2,k1,:)=adip1(k1,k2,:)
           enddo
+
+       else if (keyword(i).eq.'$dmat_trans') then
+          ldmat=.true.
           
        else
           ! Exit if the keyword is not recognised
@@ -687,6 +697,7 @@ contains
     deallocate(ioccb_ref)
     deallocate(iocca_disp)
     deallocate(ioccb_disp)
+    if (allocated(isel)) deallocate(isel)
     
     return
     
@@ -1097,6 +1108,12 @@ contains
     enddo
     adetdisp=''
     adetdisp(1:nsta_ref)=aswapvec1
+
+!----------------------------------------------------------------------
+! Make a copy of the indices of the selected disp. states
+!----------------------------------------------------------------------
+    allocate(isel(nsta_ref))
+    isel=indx
     
 !----------------------------------------------------------------------
 ! Deallocate arrays
@@ -1639,6 +1656,50 @@ contains
   end subroutine diabdipmat
     
 !######################################################################
+
+  subroutine write_dmat_trans
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
     
+    implicit none
+
+    integer            :: ilbl,unit,i,j
+    character(len=120) :: admat
+    
+!----------------------------------------------------------------------
+! Open the dmat transformation matrix file
+!----------------------------------------------------------------------
+    ! Filename
+    ilbl=index(ain,'.inp')
+    admat=ain(1:ilbl-1)//'.trans'
+
+    ! Open the dmat transformation matrix file
+    call freeunit(unit)
+    open(unit,file=admat,form='formatted',status='unknown')
+
+!----------------------------------------------------------------------
+! Write the dmat transformation matrix file
+! Note that here we must use the indices of the selected adiabats    
+!----------------------------------------------------------------------
+    do i=1,nsta
+       do j=1,nsta
+          write(unit,'(2(2x,i2),2x,F15.10)') isel(i),isel(j),adt(i,j)
+       enddo
+    enddo
+    
+!----------------------------------------------------------------------
+! Close the dmat transformation matrix file
+!----------------------------------------------------------------------
+    close(unit)
+    
+    return
+    
+  end subroutine write_dmat_trans
+    
+!######################################################################
+  
 end program blockdiag
 
