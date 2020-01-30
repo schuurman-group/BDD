@@ -81,7 +81,7 @@ contains
          'Total Wall Time For Wavefunction Overlaps:',tw2-tw1," s"
     write(ilog,'(2x,a,2x,F9.2,1x,a)') &
          'Total CPU Time For Wavefunction Overlaps:',tc2-tc1," s"
-
+    
     return
     
   end subroutine psi_overlaps

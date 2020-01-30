@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 #######################################################################
-# Runchain: a simple, if badly written, code to automate the running
+# Runchain: a simple, if badly written code to automate the running
 #           of a chain of blockdiag calculations
 #######################################################################
 
@@ -22,6 +22,7 @@ def rdinp(filename):
     dthresh=1e-6
     refsta=[]
     dmattrans=False
+    dipoles=False
     
     # Read in the input file
     with open(filename, 'r') as infile:
@@ -70,13 +71,17 @@ def rdinp(filename):
         elif '$dmat_trans' in line:
             # DFT/MRCI dmat transformation file output
             dmattrans=True
+
+        elif '$dipoles' in line:
+            # Diabatisation of the dipole matrix
+            dipoles=True
             
         else:
             # Unknown keyword
             print('\n','Error parsing line: '+line,'\n')
             sys.exit()
             
-    return dirfile,normcut,dthresh,refsta,dmattrans
+    return dirfile,normcut,dthresh,refsta,dmattrans,dipoles
 
 #
 # blankline
@@ -278,12 +283,68 @@ def rddispen(qctype,directory):
                 ener.append(string[string.index('=')+1])
 
     return ener
+
+#
+# Read the disp. state dipole matrix elements
+#
+def rddispdip(qctype,directory):
     
+    # Currently only supported for DFT/MRCI
+    if qctype=='dftmrci':
+        # Check that the singlets.prp file exists
+        filename=directory+'/singlets.prp'
+        if not os.path.exists(filename):
+            print('\nCould not find the PROPER output file'+filename+'\n')
+            sys.exit()
+
+        # Read in singlets.prp
+        with open(filename,"r") as outfile:
+            lines=outfile.readlines()
+
+        # Get the no. states and initialise the dip array
+        for line in lines:
+            if '# states' in line:
+                string=line.split()
+                nsta=int(string[3])
+            #dip=[[[0. for i in range(nsta)] for j in range(nsta)] for k in range(3)]
+        dip=[[[0. for i in range(3)] for j in range(nsta)] for k in range(nsta)]
+            
+        # Parse the transition dipoles
+        for line in lines:
+            if 'transition' in line and 'excitation' in line:
+                string=line.split()
+                i1=int(string[1][0:string[1].index('a')])
+                i2=int(string[3][0:string[3].index('a')])
+                string=lines[lines.index(line)+3].split()
+                dip[i1-1][i2-1][0]=string[2]
+                dip[i1-1][i2-1][1]=string[3]
+                dip[i1-1][i2-1][2]=string[4]
+                dip[i2-1][i1-1][0]=string[2]
+                dip[i2-1][i1-1][1]=string[3]
+                dip[i2-1][i1-1][2]=string[4]
+                
+        # Parse the dipoles
+        for line in lines:
+            if 'state' in line and 'energy' in line:
+                string=line.split()
+                i=int(string[1][0:string[1].index('a')])
+                string=lines[lines.index(line)+3].split()
+                dip[i-1][i-1][0]=string[2]
+                dip[i-1][i-1][1]=string[3]
+                dip[i-1][i-1][2]=string[4]
+
+    else:
+        print('\nThe reading of dipole matrix elements is only'
+              +' currently supported for DFT/MRCI\n')
+        sys.exit()
+
+    return dip
+        
 #
 # Write a blockdiag input file
 #
 def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut,dispen,dmattrans):
+            normcut,dispen,dmattrans,dipoles,dispdip):
 
     # Open the blockdiag input file
     f=open(filename,"w+")
@@ -323,7 +384,18 @@ def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
     # DFT/MRCI dmat transformation file output
     if dmattrans==True:
         f.write('\n$dmat_trans\n')
-    
+
+    # Dipole matrix elements
+    if dipoles==True:
+        f.write('\n$dipole')
+        for i in range(len(dispdip)):
+            for j in range(i,len(dispdip)):
+                f.write('\n'+str(dispdip[i][j][0])+' '
+                        +str(dispdip[i][j][1])+' '
+                        +str(dispdip[i][j][2])+' '
+                        +str(i+1)+' '+str(j+1))
+        f.write('\n$end\n')
+                
     # Close the blockdiag input file
     f.close()
 
@@ -353,7 +425,7 @@ if len(sys.argv) < 2:
 infile=str(sys.argv[1])
 
 # Parse the input file
-dirfile,normcut,dthresh,refsta,dmattrans=rdinp(infile)
+dirfile,normcut,dthresh,refsta,dmattrans,dipoles=rdinp(infile)
 
 # Parse the directory file
 dirlist=rddirfile(dirfile)
@@ -400,11 +472,15 @@ for i in range(1,len(dirlist)):
 
     # Get the disp. geometry adiabatic energies
     dispen=rddispen(qctype,dirlist[i])
-    
+
+    # Get the disp. geometry dipole matrix elements
+    if (dipoles==True):
+        dispdip=rddispdip(qctype,dirlist[i])
+        
     # Write the blockdiag input file
     bdinpfile=lbl+'.inp'
     wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut,dispen,dmattrans)
+            normcut,dispen,dmattrans,dipoles,dispdip)
 
     # Run the blockdiag calculation
     inputfile=lbl+'.inp'

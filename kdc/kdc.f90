@@ -439,7 +439,7 @@ contains
        errmsg='The name of the frequency calculation file has not &
             been given'
        call error_control
-    endif    
+    endif
 
     if (pntgrp.eq.'') then
        errmsg='The point group has not been given'
