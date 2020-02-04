@@ -1066,14 +1066,17 @@ contains
     use parameters
     use potfuncs
     use sysinfo
+    use utils
     use kdcglobal
     
     implicit none
 
-    integer                        :: m,m1,m2,s1,s2,n,ndat,indx,&
+    integer                        :: m,m1,m2,s1,s2,s,n,ndat,indx,&
                                       ndat_tot
     real(dp), dimension(nsta,nsta) :: wmod,wact
-
+    real(dp), dimension(nsta)      :: vmod,vact
+    real(dp), dimension(nsta,nsta) :: eigvec
+    
 !----------------------------------------------------------------------
 ! Allocate and initialise the RMSD arrays
 !----------------------------------------------------------------------
@@ -1103,7 +1106,8 @@ contains
           
           ! Model potential (in eV)
           wmod=diabaticpot(qvec(:,indx))
-
+          vmod=adiabaticpot(qvec(:,indx))
+          
           ! Actual potential (in eV)
           do s1=1,nsta
              wact(s1,s1)=(diabpot(s1,s1,indx)-q0pot(s1))*eh2ev
@@ -1114,27 +1118,16 @@ contains
                 wact(s2,s1)=wact(s1,s2)
              enddo
           enddo
-                
+          call diag_matrix(diabpot(:,:,indx),vact,nsta)
+          vact=(vact-q0pot(1))*eh2ev
+          
           ! RMSD contribution
-          do s1=1,nsta-1
-             do s2=s1+1,nsta
-                rmsd1m(m)=rmsd1m(m)&
-                     +(wmod(s1,s2)-wact(s1,s2))**2
-             enddo
+          do s=1,nsta
+             rmsd1m(m)=rmsd1m(m)+(vmod(s)-vact(s))**2
           enddo
           
        enddo
        
-    enddo
-
-    ! Contribution to the total RMSD
-    rmsd=rmsd+sum(rmsd1m(:))
-    
-    ! RMSDs for the single displaced mode geometries
-    do m=1,nmodes
-       ndat=nfiles1m(m)
-       if (ndat.eq.0) cycle
-       rmsd1m(m)=sqrt(rmsd1m(m)/(ndat*nsta*(nsta-1)/2))
     enddo
 
 !----------------------------------------------------------------------
@@ -1158,7 +1151,8 @@ contains
 
              ! Model potential (in eV)
              wmod=diabaticpot(qvec(:,indx))
-
+             vmod=adiabaticpot(qvec(:,indx))
+             
              ! Actual potential (in eV)
              do s1=1,nsta
                 wact(s1,s1)=(diabpot(s1,s1,indx)-q0pot(s1))*eh2ev
@@ -1169,25 +1163,16 @@ contains
                    wact(s2,s1)=wact(s1,s2)
                 enddo
              enddo
+             call diag_matrix(diabpot(:,:,indx),vact,nsta)
+             vact=(vact-q0pot(1))*eh2ev
              
           enddo
-             
-       enddo
-    enddo
 
-    ! Contribution to the total RMSD
-    do m1=1,nmodes-1
-       do m2=m1+1,nmodes
-          rmsd=rmsd+rmsd2m(m1,m2)
-       enddo
-    enddo
+          ! RMSD contribution
+          do s=1,nsta
+             rmsd2m(m1,m2)=rmsd2m(m1,m2)+(vmod(s)-vact(s))**2
+          enddo
           
-    ! RMSDs for the doubly displaced mode geometries
-    do m1=1,nmodes-1
-       do m2=m1+1,nmodes
-          ndat=nfiles2m(m1,m2)
-          if (ndat.eq.0) cycle
-          rmsd2m(m1,m2)=sqrt(rmsd2m(m1,m2)/(ndat*nsta*(nsta-1)/2))
        enddo
     enddo
 
@@ -1203,7 +1188,33 @@ contains
     enddo
 
     ! Total RMSD
-    rmsd=sqrt(rmsd/ndat_tot)
+    rmsd=sum(rmsd1m)
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+          rmsd=rmsd+rmsd2m(m1,m2)
+       enddo
+    enddo
+    rmsd=sqrt(rmsd/(ndat_tot*nsta))
+
+!----------------------------------------------------------------------
+! One-mode RMSDs
+!----------------------------------------------------------------------
+    do m=1,nmodes
+       ndat=nfiles1m(m)
+       if (ndat.eq.0) cycle
+       rmsd1m(m)=sqrt(rmsd1m(m)/(ndat*nsta))
+    enddo
+
+!----------------------------------------------------------------------
+! Two-mode RMSDs
+!----------------------------------------------------------------------
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+          ndat=nfiles2m(m1,m2)
+          if (ndat.eq.0) cycle
+          rmsd2m(m1,m2)=rmsd2m(m1,m2)/(ndat*nsta)
+       enddo
+    enddo
     
     return
     
