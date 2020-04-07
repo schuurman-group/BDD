@@ -135,7 +135,7 @@ contains
     
     ! Maximum number of determinants
     maxdet=max(maxval(ndet_ref),maxval(ndet_disp))
-
+    
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
@@ -163,26 +163,39 @@ contains
     ! Reference geometry
     do i=1,nsta_ref
        open(idet,file=adetref(i),form='formatted',status='old')
+
+
+       !do k=1,ndet_ref(i)
+       !   call rdinp(idet)
+       !   read(keyword(1),*) c_ref(k,i)
+       !   do n=2,inkw
+       !      read(keyword(n),*) det_ref(n-1,k,i)
+       !   enddo          
+       !enddo
+
        do k=1,ndet_ref(i)
-          call rdinp(idet)
-          read(keyword(1),*) c_ref(k,i)
-          do n=2,inkw
-             read(keyword(n),*) det_ref(n-1,k,i)
-          enddo          
+          read(idet,*) c_ref(k,i),(det_ref(n,k,i),n=1,nmo_ref)
        enddo
+          
        close(idet)
     enddo
-    
+
     ! Displaced geometry
     do i=1,nsta_disp
        open(idet,file=adetdisp(i),form='formatted',status='old')
+
+       !do k=1,ndet_disp(i)
+       !   call rdinp(idet)
+       !   read(keyword(1),*) c_disp(k,i)          
+       !   do n=2,inkw
+       !      read(keyword(n),*) det_disp(n-1,k,i)
+       !   enddo          
+       !enddo
+
        do k=1,ndet_disp(i)
-          call rdinp(idet)
-          read(keyword(1),*) c_disp(k,i)          
-          do n=2,inkw
-             read(keyword(n),*) det_disp(n-1,k,i)
-          enddo          
+          read(idet,*) c_disp(k,i),(det_disp(n,k,i),n=1,nmo_ref)
        enddo
+       
        close(idet)
     enddo
 

@@ -21,8 +21,8 @@ F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable
 CCOPTS  = -g -O0
 
 # External libraries
-#LIBS= -lblas -llapack
-LIBS = -mkl
+LIBS= -lblas -llapack
+#LIBS = -mkl
 
 #-----------------------------------------------------------------------
 # Define object files

@@ -142,6 +142,23 @@ def getqctype(directory):
         sys.exit()
     
     return qctype
+
+#
+# Determination of the type of determinant file (ascii or binary)
+#
+def getdettype(directory):
+
+    dettype=None
+
+    # Do binary determinant files exist?
+    check=glob.glob(directory+'*.bin.tar.gz')
+    if len(check)!=0:
+        dettype='binary'
+    else:
+        dettype='ascii'
+        
+    return dettype
+
 #
 # Parsing of the directory file
 #
@@ -180,13 +197,21 @@ def rddirfile(dirfile):
 #
 # Extract determinant files
 #
-def extract_dets(detdir,outdir):
-        
+def extract_dets(detdir,outdir,dettype):
+
     # Extract the determinant files in the directory
     # detdir to the directory outdir
-    targz=glob.glob(detdir+'/*.bin.tar.gz')
-    for i in range(len(targz)):
-        os.system('tar -zxvf '+targz[i]+' -C'+outdir)
+
+    if dettype=='ascii':
+        # Ascii determinant files
+        files=glob.glob(detdir+'/det*')
+        for i in range(len(files)):
+            os.system('cp '+files[i]+' '+outdir)
+    elif dettype=='binary':
+        # Binary determinant files
+        targz=glob.glob(detdir+'/*.bin.tar.gz')
+        for i in range(len(targz)):
+            os.system('tar -zxvf '+targz[i]+' -C'+outdir)
 
 #
 # Last directory in a path
@@ -201,10 +226,14 @@ def lastdir(path):
 #
 # Determine the names of the disp. determinant files
 #
-def getdispdets():
+def getdispdets(dettype):
 
-    dispdets=glob.glob('disp/*.bin')
-    dispdets.sort(key=natural_keys)
+    if dettype=='ascii':
+        dispdets=glob.glob('disp/det.*')
+        dispdets.sort(key=natural_keys)
+    elif dettype=='binary':
+        dispdets=glob.glob('disp/*.bin')
+        dispdets.sort(key=natural_keys)
 
     return dispdets
 
@@ -231,7 +260,7 @@ def getrefstates(lastlbl):
         if 'Selected state' in line:
             state=line.split()[-1:]
             statelist.append(int(state[0]))
-
+            
     return statelist
 
 #
@@ -344,8 +373,8 @@ def rddispdip(qctype,directory):
 # Write a blockdiag input file
 #
 def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut,dispen,dmattrans,dipoles,dispdip):
-
+            normcut,dispen,dmattrans,dipoles,dettype,dispdip=None):
+    
     # Open the blockdiag input file
     f=open(filename,"w+")
     
@@ -355,10 +384,14 @@ def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
     
     # Ref. determinants
     f.write('\n$dets_ref')
-    for k in range(len(refcurr)):
-        f.write('\n ref/det.1.'+str(refcurr[k])+'.bin '+str(k+1))
+    if dettype=='ascii':
+        for k in range(len(refcurr)):
+            f.write('\n ref/det.1.'+str(refcurr[k])+' '+str(k+1))
+    elif dettype=='binary':
+        for k in range(len(refcurr)):
+            f.write('\n ref/det.1.'+str(refcurr[k])+'.bin '+str(k+1))
     f.write('\n$end\n')
-
+    
     # Disp. determinants
     f.write('\n$dets_disp')
     for k in range(len(dispdets)):
@@ -433,6 +466,9 @@ dirlist=rddirfile(dirfile)
 # Try and determine the quantum chemistry code used
 qctype=getqctype(dirlist[0])
 
+# Determine whether we are using ascii or binary determinant files
+dettype=getdettype(dirlist[0])
+
 # Make sure that the determinant directories exists and are
 # empty
 if os.path.isdir('ref'):
@@ -454,8 +490,8 @@ for i in range(1,len(dirlist)):
     print('\n'+lbl)
     
     # Extract any tar.gz determinant files
-    extract_dets(dirlist[i-1],'ref')
-    extract_dets(dirlist[i],'disp')
+    extract_dets(dirlist[i-1],'ref',dettype)
+    extract_dets(dirlist[i],'disp',dettype)
     
     # Copy over the MO files
     os.system('cp '+dirlist[i-1]+'/mos.dat ref/')
@@ -466,9 +502,11 @@ for i in range(1,len(dirlist)):
         refcurr=refsta
     else:
         refcurr=getrefstates(lastlbl)
-
+        if len(refcurr)==0:
+            refcurr=refsta
+        
     # Get the list of all disp. determinant files
-    dispdets=getdispdets()
+    dispdets=getdispdets(dettype)
 
     # Get the disp. geometry adiabatic energies
     dispen=rddispen(qctype,dirlist[i])
@@ -479,9 +517,13 @@ for i in range(1,len(dirlist)):
         
     # Write the blockdiag input file
     bdinpfile=lbl+'.inp'
-    wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut,dispen,dmattrans,dipoles,dispdip)
-
+    if (dipoles==True):
+        wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
+                normcut,dispen,dmattrans,dipoles,dettype,dispdip)
+    else:
+        wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
+                normcut,dispen,dmattrans,dipoles,dettype)
+        
     # Run the blockdiag calculation
     inputfile=lbl+'.inp'
     os.system('blockdiag.x '+inputfile)
