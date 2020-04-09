@@ -211,7 +211,7 @@ def extract_dets(detdir,outdir,dettype):
         # Binary determinant files
         targz=glob.glob(detdir+'/*.bin.tar.gz')
         for i in range(len(targz)):
-            os.system('tar -zxvf '+targz[i]+' -C'+outdir)
+            os.system('tar -zxvf '+targz[i]+' -C'+outdir+' &>/dev/null')
 
 #
 # Last directory in a path

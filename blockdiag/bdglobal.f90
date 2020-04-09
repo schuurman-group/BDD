@@ -5,10 +5,13 @@ module bdglobal
   
   implicit none
 
+  ! Diabatisation algorithm
+  character(len=20)               :: algorithm
+  
   ! Dimensions
   integer                         :: nsta,nsta_disp,nsta_ref,&
-                                     maxdet,nmo_ref,nmo_disp,&
-                                     nel
+                                     nsta_diab,nsta_adiab,&
+                                     maxdet,nmo_ref,nmo_disp,nel
   integer, allocatable            :: ndet_ref(:),ndet_disp(:)
   
   ! Filenames

@@ -59,6 +59,8 @@ BLOCKDIAG = blockdiag/bdglobal.o \
 	blockdiag/adt.o \
 	blockdiag/mooverlaps.o \
 	blockdiag/wfoverlaps.o \
+	blockdiag/tamura.o \
+	blockdiag/pacher.o \
 	blockdiag/detparsing.o \
 	blockdiag/blockdiag.o
 
@@ -103,6 +105,8 @@ OBJ_BLOCKDIAG = accuracy.o \
 	adt.o \
 	mooverlaps.o \
 	wfoverlaps.o \
+	tamura.o \
+	pacher.o \
 	detparsing.o \
 	blockdiag.o
 
