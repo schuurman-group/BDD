@@ -45,6 +45,17 @@ contains
     call wroverlaps
 
 !----------------------------------------------------------------------
+! Rephasing of the disp. states
+!----------------------------------------------------------------------
+    call rephase
+
+!----------------------------------------------------------------------
+! Optional transformation of the reference geometry wavefunctions
+! (via the transformation of the wavefunction overlap matrix)
+!----------------------------------------------------------------------
+  if (lreftrans) call trans_refpsi
+    
+!----------------------------------------------------------------------
 ! Calculate the ADT matrix
 !----------------------------------------------------------------------
     call get_adt
@@ -470,17 +481,6 @@ contains
             'WARNING: state crossing detected!'
 
     enddo
-
-!----------------------------------------------------------------------
-! Rephasing of the disp. states
-!----------------------------------------------------------------------
-    call rephase
-
-!----------------------------------------------------------------------
-! Optional transformation of the reference geometry wavefunctions
-! (via the transformation of the wavefunction overlap matrix)
-!----------------------------------------------------------------------
-  if (lreftrans) call trans_refpsi
     
     return
     

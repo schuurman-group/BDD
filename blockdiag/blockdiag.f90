@@ -634,9 +634,9 @@ contains
     
     ! Overlaps between the electronic states at the two geometries
     if (algorithm.eq.'tamura') then
-       allocate(spsi(nsta_ref,nsta_disp))
+       allocate(spsi(nsta_disp,nsta_ref))
     else
-       allocate(spsi(nsta_diab,nsta_diab))
+       allocate(spsi(nsta_adiab,nsta_adiab))
     endif
     spsi=0.0d0
 

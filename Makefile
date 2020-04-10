@@ -17,7 +17,7 @@
 F90	 = ifort
 F77	 = ifort
 CC	 = icc
-F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291
+F90OPTS = -cpp -g -free -fopenmp -traceback -O0 -check all -diag-disable 8290 -diag-disable 8291
 CCOPTS  = -g -O0
 
 # External libraries

@@ -338,7 +338,7 @@ contains
     return
     
   end subroutine sqrt_matrix
-
+  
 !######################################################################
 
   subroutine diag_matrix(mat,eigval,dim)
