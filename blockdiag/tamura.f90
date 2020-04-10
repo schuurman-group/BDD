@@ -17,6 +17,7 @@ contains
     use channels
     use bdglobal
     use adtmod
+    use iomod
     
     implicit none
 
@@ -55,6 +56,43 @@ contains
 ! Calculation of the projection diabatisation ADT matrix
 !----------------------------------------------------------------------
     call adt_tamura(protocoeff)
+
+!----------------------------------------------------------------------
+! Check on the swapping of diabats. Note that this can only be done if
+! we have access to the ADT matrix of the previous geometry
+!----------------------------------------------------------------------
+    ! This will need altering
+    !if (lreftrans) call switch_diabats_tamura
+
+!----------------------------------------------------------------------
+! Write the adiabatic potentials to the log file
+!----------------------------------------------------------------------
+    call write_adiabpot_tamura
+
+!----------------------------------------------------------------------
+! Write the ADT matrix to the log file
+!----------------------------------------------------------------------
+    call write_adt_tamura
+
+!----------------------------------------------------------------------
+! Optional: calculate and output the quasi-diabatic potential matrix
+!----------------------------------------------------------------------
+    if (ldiabpot) call diabpotmat_tamura
+
+!----------------------------------------------------------------------
+! Optional: calculate and output the quasi-diabatic dipole matrix
+!----------------------------------------------------------------------
+    if (ldipole) call diabdipmat_tamura
+
+!----------------------------------------------------------------------
+! Optional: write the ADT matrix to file in a format compatible with
+!           the DFT/MRCI code
+!----------------------------------------------------------------------
+    if (ldmat) then
+       errmsg='DFT/MRCI formatted output of the Tamura ADT matrix is &
+            not yet supported'
+       call error_control
+    endif
     
     return
 
@@ -315,24 +353,218 @@ contains
 
     real(dp), intent(in) :: protocoeff(nsta_adiab,nsta_diab)
     real(dp)             :: coecoeT(nsta_adiab,nsta_adiab)
-    real(dp)             :: inv_coecoeT(nsta_adiab,nsta_adiab)
-    real(dp)             :: invsqrt_coecoeT(nsta_adiab,nsta_adiab)
+    real(dp)             :: invsqrt(nsta_adiab,nsta_adiab)
     logical              :: pseudo
     
     coecoeT=matmul(protocoeff,transpose(protocoeff))
 
-    call invert_matrix(coecoeT,inv_coecoeT,nsta_adiab,pseudo)
-
-    if (pseudo) write(ilog,'(/,a)') 'WARNING: Pseudoinverse used in &
-         the construction of the ADT matrix!'
-
-    call sqrt_matrix(inv_coecoeT,invsqrt_coecoeT,nsta_adiab)
-
-    adt=matmul(invsqrt_coecoeT,protocoeff)
+    call invsqrt_matrix(coecoeT,invsqrt,nsta_adiab)
+    
+    adt=matmul(invsqrt,protocoeff)
     
     return
     
   end subroutine adt_tamura
+  
+!######################################################################
+
+!    subroutine switch_diabats_tamura
+!
+!    use constants
+!    use channels
+!    use bdglobal
+!    
+!    implicit none
+!
+!    integer                        :: i,j,ilbl
+!    real(dp), dimension(nsta,nsta) :: tau,tmpmat
+!    real(dp), dimension(nsta)      :: tmpvec
+!    real(dp)                       :: mxv
+!    
+!!----------------------------------------------------------------------
+!! Overlaps between the quasi-diabatic states at ref. and disp.
+!! geometries: tau_ij = < i_disp | j_ref >
+!!
+!! Note that if we are here, then the ref. wavefunctions in spsi
+!! have already been transformed using the reftrans transformation.
+!! i.e., we only need to transform the disp. wavefunctions
+!!----------------------------------------------------------------------
+!    tau=matmul(adt,spsi)
+!    
+!!----------------------------------------------------------------------
+!! Analysis of the ref. - disp. quasi-diabatic wavefunction overlap
+!! matrix
+!!----------------------------------------------------------------------
+!    write(ilog,'(/,82a)') ('+',i=1,82)
+!    write(ilog,'(2x,a)') 'Quasi-Diabatic Wavefunction Overlaps'
+!    write(ilog,'(82a)') ('+',i=1,82)
+!
+!    write(ilog,'(/,47a)') ('-',i=1,47)
+!    write(ilog,'(a)') '  Disp. State  |  Ref. State  |  Overlap'
+!    write(ilog,'(a)') '     |I>       |    |J>       |   <I|J>'
+!    write(ilog,'(47a)') ('-',i=1,47)
+!    
+!    do i=1,nsta
+!       do j=1,nsta
+!          if (i.ne.j.and.abs(tau(i,j)).gt.0.8d0) then
+!             write(ilog,'(5x,i2,13x,i2,11x,F13.10,2x,a)') i,j,&
+!                  tau(i,j),'*'
+!          else
+!             write(ilog,'(5x,i2,13x,i2,11x,F13.10)') i,j,tau(i,j)
+!          endif
+!       enddo
+!    enddo
+!
+!!----------------------------------------------------------------------
+!! Check: can we fix things by transposing states?
+!!----------------------------------------------------------------------
+!    do i=1,nsta
+!       mxv=0.0d0
+!       do j=1,nsta
+!          if (abs(tau(i,j)).gt.mxv) then
+!             mxv=abs(tau(i,j))
+!             ilbl=j
+!          endif
+!       enddo
+!       tmpmat(i,:)=adt(ilbl,:)
+!    enddo
+!    adt=tmpmat
+!    
+!    return
+!    
+!  end subroutine switch_diabats
+  
+!######################################################################
+
+    subroutine write_adiabpot_tamura
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer :: i
+
+!----------------------------------------------------------------------
+! Write the energies of the selected adiabatic states to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Adiabatic Potentials'
+    write(ilog,'(82a)') ('+',i=1,82)
+
+    do i=1,nsta_adiab
+       write(ilog,'(2x,i2,2x,F15.10)') i,vmat(i,i)
+    enddo
+    
+    return
+    
+  end subroutine write_adiabpot_tamura
+  
+!######################################################################
+
+  subroutine write_adt_tamura
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer :: i,j
+    
+!----------------------------------------------------------------------
+! Write the ADT matrix to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'ADT Matrix'
+    write(ilog,'(82a)') ('+',i=1,82)
+
+    do i=1,nsta_adiab
+       do j=1,nsta_diab
+          write(ilog,'(2(2x,i2),2x,F15.10)') i,j,adt(i,j)
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine write_adt_tamura
+  
+!######################################################################
+
+    subroutine diabpotmat_tamura
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer :: i,j
+    
+!----------------------------------------------------------------------
+! Calculate the quasi-diabatic potential matrix
+!----------------------------------------------------------------------
+    Wmat=matmul(transpose(adt),matmul(Vmat,adt))
+    
+!----------------------------------------------------------------------
+! Write the quasi-diabatic potential matrix to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Quasi-Diabatic Potential Matrix'
+    write(ilog,'(82a)') ('+',i=1,82)
+
+    do i=1,nsta_diab
+       do j=i,nsta_diab
+          write(ilog,'(2(2x,i2),2x,F15.10)') i,j,Wmat(i,j)
+       enddo
+    enddo
+
+    return
+    
+  end subroutine diabpotmat_tamura
+
+!######################################################################
+
+    subroutine diabdipmat_tamura
+
+    use constants
+    use channels
+    use iomod
+    use bdglobal
+    
+    implicit none
+
+    integer :: i,j
+
+!----------------------------------------------------------------------
+! Calculate the quasi-diabatic dipole matrix
+!----------------------------------------------------------------------
+    do i=1,3
+       ddip(:,:,i)=matmul(transpose(adt),matmul(adip(:,:,i),adt))
+    enddo
+
+!----------------------------------------------------------------------
+! Write the quasi-diabatic potential matrix to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Quasi-Diabatic Dipole Matrix'
+    write(ilog,'(82a)') ('+',i=1,82)
+
+    write(ilog,'(2x,3(16x,a1))') 'x','y','z'
+
+    do i=1,nsta_diab
+       do j=i,nsta_diab
+          write(ilog,'(2(2x,i2),3(2x,F15.10))') i,j,ddip(i,j,:)
+       enddo
+    enddo
+        
+    return
+    
+  end subroutine diabdipmat_tamura
   
 !######################################################################
   
