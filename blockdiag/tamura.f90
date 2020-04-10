@@ -221,7 +221,7 @@ contains
     write(ilog,'(/,82a)') ('+',i=1,82)
     write(ilog,'(2x,a)') 'Phase Factors'
     write(ilog,'(82a)') ('+',i=1,82)
-    do i=1,nsta
+    do i=1,nsta_disp
        write(ilog,'(2x,i2,2x,i2)') i,int(phfac(i))
     enddo
 

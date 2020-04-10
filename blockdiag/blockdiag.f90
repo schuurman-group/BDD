@@ -854,11 +854,11 @@ contains
     
     implicit none
 
-    integer                  :: unit,i
-    integer, dimension(nsta) :: refphase
-    character(len=120)       :: string
-    logical                  :: found
-    
+    integer                      :: unit,i
+    integer, dimension(nsta_ref) :: refphase
+    character(len=120)           :: string
+    logical                      :: found
+
 !-----------------------------------------------------------------------
 ! Exit if the previous log file does not exist
 !-----------------------------------------------------------------------
@@ -879,13 +879,17 @@ contains
 !-----------------------------------------------------------------------
 ! Read the phase factors from the old log file
 !-----------------------------------------------------------------------
+    refphase=1
+    
 5   read(unit,'(a)',end=999) string
     if (index(string,'Phase Factors').eq.0) goto 5
     
     read(unit,*)
 
-    do i=1,nsta_adiab
-       read(unit,'(6x,i2)') refphase(i)
+    do i=1,nsta_ref
+       read(unit,'(a)') string
+       if (string.eq.'') exit
+       read(string,'(6x,i2)') refphase(i)
     enddo
     
 !-----------------------------------------------------------------------
@@ -896,7 +900,7 @@ contains
 !-----------------------------------------------------------------------
 ! Adjust the phases of the ref. geometry wavefunctions
 !-----------------------------------------------------------------------
-    do i=1,nsta
+    do i=1,nsta_ref
        c_ref(:,i)=c_ref(:,i)*refphase(i)
     enddo
     

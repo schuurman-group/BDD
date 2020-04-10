@@ -23,6 +23,7 @@ def rdinp(filename):
     refsta=[]
     dmattrans=False
     dipoles=False
+    algorithm='pacher'
     
     # Read in the input file
     with open(filename, 'r') as infile:
@@ -75,13 +76,21 @@ def rdinp(filename):
         elif '$dipoles' in line:
             # Diabatisation of the dipole matrix
             dipoles=True
-            
+
+        elif '$algorithm' in line:
+            if not '=' in line:
+                input_error('$algorithm','no argument given')
+            else:
+                algorithm=(line.split('=')[1])
+            if ('tamura' not in algorithm) and ('pacher' not in algorithm):
+                input_error('$algorithm','unknown algorithm: '+algorithm)
+                
         else:
             # Unknown keyword
             print('\n','Error parsing line: '+line,'\n')
             sys.exit()
             
-    return dirfile,normcut,dthresh,refsta,dmattrans,dipoles
+    return dirfile,normcut,dthresh,refsta,dmattrans,dipoles,algorithm
 
 #
 # blankline
@@ -247,19 +256,22 @@ def natural_keys(text):
 # Determine the ref. states from the blockdiag output at
 # the previous geometry
 #
-def getrefstates(lastlbl):
+def getrefstates(lastlbl,algorithm):
 
     statelist=[]
-    
-    filename=lastlbl+'.log'
-    
-    with open(filename,"r") as logfile:
-        log=logfile.readlines()
 
-    for line in log:
-        if 'Selected state' in line:
-            state=line.split()[-1:]
-            statelist.append(int(state[0]))
+    if 'tamura' in algorithm:
+        dets=glob.glob('ref/det*')
+        for i in range(len(dets)):
+            statelist.append(i+1)        
+    else:    
+        filename=lastlbl+'.log'
+        with open(filename,"r") as logfile:
+            log=logfile.readlines()
+        for line in log:
+            if 'Selected state' in line:
+                state=line.split()[-1:]
+                statelist.append(int(state[0]))
             
     return statelist
 
@@ -373,11 +385,17 @@ def rddispdip(qctype,directory):
 # Write a blockdiag input file
 #
 def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
-            normcut,dispen,dmattrans,dipoles,dettype,dispdip=None):
+            normcut,dispen,dmattrans,dipoles,dettype,algorithm,
+            nref,dispdip=None):
+
     
     # Open the blockdiag input file
     f=open(filename,"w+")
-    
+
+    # Diabatisation algorithm
+    if 'tamura' in algorithm:
+        f.write('$algorithm=tamura,'+str(nref)+' \n')
+        
     # MO files
     f.write('$mos_ref=ref/mos.dat \n')
     f.write('$mos_disp=disp/mos.dat \n')
@@ -458,7 +476,7 @@ if len(sys.argv) < 2:
 infile=str(sys.argv[1])
 
 # Parse the input file
-dirfile,normcut,dthresh,refsta,dmattrans,dipoles=rdinp(infile)
+dirfile,normcut,dthresh,refsta,dmattrans,dipoles,algorithm=rdinp(infile)
 
 # Parse the directory file
 dirlist=rddirfile(dirfile)
@@ -492,7 +510,7 @@ for i in range(1,len(dirlist)):
     # Extract any tar.gz determinant files
     extract_dets(dirlist[i-1],'ref',dettype)
     extract_dets(dirlist[i],'disp',dettype)
-    
+
     # Copy over the MO files
     os.system('cp '+dirlist[i-1]+'/mos.dat ref/')
     os.system('cp '+dirlist[i]+'/mos.dat disp/')
@@ -501,7 +519,7 @@ for i in range(1,len(dirlist)):
     if i==1:
         refcurr=refsta
     else:
-        refcurr=getrefstates(lastlbl)
+        refcurr=getrefstates(lastlbl,algorithm)
         if len(refcurr)==0:
             refcurr=refsta
         
@@ -519,11 +537,13 @@ for i in range(1,len(dirlist)):
     bdinpfile=lbl+'.inp'
     if (dipoles==True):
         wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
-                normcut,dispen,dmattrans,dipoles,dettype,dispdip)
+                normcut,dispen,dmattrans,dipoles,dettype,algorithm,
+                len(refsta),dispdip)
     else:
         wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
-                normcut,dispen,dmattrans,dipoles,dettype)
-        
+                normcut,dispen,dmattrans,dipoles,dettype,algorithm,
+                len(refsta))
+
     # Run the blockdiag calculation
     inputfile=lbl+'.inp'
     os.system('blockdiag.x '+inputfile)
