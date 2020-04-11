@@ -44,13 +44,20 @@ contains
 ! Rephasing of the disp. states
 !----------------------------------------------------------------------
     call rephase_tamura
-
+    
 !----------------------------------------------------------------------
 ! Calculation of the prototype functions as the overlaps between the
 !  reference geometry diabats and the displaced geometry adiabats
 !----------------------------------------------------------------------
     allocate(protocoeff(nsta_adiab,nsta_diab))
     call prototype_coefficients(protocoeff)
+
+!----------------------------------------------------------------------
+! Write the squared norms of the prototype functions to the log file
+! These can be used to determine whether enough adiabats have been
+! included, or even if the distance between geometries is too large
+!----------------------------------------------------------------------
+    call write_prototype_inner_products(protocoeff)
     
 !----------------------------------------------------------------------
 ! Calculation of the projection diabatisation ADT matrix
@@ -73,7 +80,7 @@ contains
 ! Write the ADT matrix to the log file
 !----------------------------------------------------------------------
     call write_adt_tamura
-
+    
 !----------------------------------------------------------------------
 ! Optional: calculate and output the quasi-diabatic potential matrix
 !----------------------------------------------------------------------
@@ -250,7 +257,7 @@ contains
        protocoeff=spsi
        return
     endif
-       
+
 !----------------------------------------------------------------------
 ! If needed, read the transformation matrix from a previous log file
 !----------------------------------------------------------------------
@@ -293,7 +300,7 @@ contains
     integer            :: unit,i,j,itmp,jtmp
     character(len=120) :: string
     logical            :: found
-    
+
 !-----------------------------------------------------------------------
 ! Exit if the previous log file does not exist
 !-----------------------------------------------------------------------
@@ -338,7 +345,40 @@ contains
     call error_control
     
   end subroutine rdreftrans_tamura
-  
+
+!######################################################################
+
+  subroutine write_prototype_inner_products(protocoeff)
+
+    use constants
+    use channels
+    use bdglobal
+    
+    implicit none
+
+    integer              :: i
+    real(dp), intent(in) :: protocoeff(nsta_adiab,nsta_diab)
+    real(dp)             :: sqnorm
+
+!----------------------------------------------------------------------
+! Write the squared norms of the prototype functions to the log file
+!----------------------------------------------------------------------
+    ! Section header
+    write(ilog,'(/,82a)') ('+',i=1,82)
+    write(ilog,'(2x,a)') 'Prototype Function Squared Norms'
+    write(ilog,'(82a)') ('+',i=1,82)
+    
+    ! Loop over prototype functions
+    do i=1,nsta_diab
+       ! Squared norm
+       sqnorm=dot_product(protocoeff(:,i),protocoeff(:,i))
+       write(ilog,'(2x,i2,2x,F15.10)') i,sqnorm
+    enddo
+    
+    return
+    
+  end subroutine write_prototype_inner_products
+    
 !######################################################################
 
   subroutine adt_tamura(protocoeff)
