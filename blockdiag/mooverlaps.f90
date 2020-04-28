@@ -73,7 +73,7 @@ contains
 ! Calculation of the displaced (bra) - reference (ket) MO overlap matrix
 !-----------------------------------------------------------------------
     smo=matmul(transpose(ao2mo_disp),matmul(sao,ao2mo_ref))
-
+    
 !-----------------------------------------------------------------------
 ! Deallocate arrays
 !-----------------------------------------------------------------------

@@ -172,7 +172,7 @@ contains
        !      read(keyword(n),*) det_ref(n-1,k,i)
        !   enddo          
        !enddo
-
+       
        do k=1,ndet_ref(i)
           read(idet,*) c_ref(k,i),(det_ref(n,k,i),n=1,nmo_ref)
        enddo

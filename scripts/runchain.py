@@ -160,12 +160,12 @@ def getdettype(directory):
     dettype=None
 
     # Do binary determinant files exist?
-    check=glob.glob(directory+'*.bin.tar.gz')
+    check=glob.glob(directory+'/det*.bin*')    
     if len(check)!=0:
         dettype='binary'
     else:
         dettype='ascii'
-        
+
     return dettype
 
 #
@@ -210,7 +210,6 @@ def extract_dets(detdir,outdir,dettype):
 
     # Extract the determinant files in the directory
     # detdir to the directory outdir
-
     if dettype=='ascii':
         # Ascii determinant files
         files=glob.glob(detdir+'/det*')
@@ -218,10 +217,15 @@ def extract_dets(detdir,outdir,dettype):
             os.system('cp '+files[i]+' '+outdir)
     elif dettype=='binary':
         # Binary determinant files
-        targz=glob.glob(detdir+'/*.bin.tar.gz')
-        for i in range(len(targz)):
-            os.system('tar -zxvf '+targz[i]+' -C'+outdir+' &>/dev/null')
-
+        targz=glob.glob(detdir+'/det*.bin.tar.gz')
+        if len(targz) != 0:
+            for i in range(len(targz)):
+                os.system('tar -zxvf '+targz[i]+' -C'+outdir+' &>/dev/null')
+        else:
+            files=glob.glob(detdir+'/det*')
+            for i in range(len(files)):
+                os.system('cp '+files[i]+' '+outdir)
+            
 #
 # Last directory in a path
 #
@@ -544,7 +548,7 @@ for i in range(1,len(dirlist)):
                 normcut,dispen,dmattrans,dipoles,dettype,algorithm,
                 len(refsta))
 
-    # Run the blockdiag calculation
+    # Run the blockdiag calculation    
     inputfile=lbl+'.inp'
     os.system('blockdiag.x '+inputfile)
 
