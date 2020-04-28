@@ -24,6 +24,7 @@ def rdinp(filename):
     dmattrans=False
     dipoles=False
     algorithm='pacher'
+    q0trans=''
     
     # Read in the input file
     with open(filename, 'r') as infile:
@@ -84,13 +85,19 @@ def rdinp(filename):
                 algorithm=(line.split('=')[1])
             if ('tamura' not in algorithm) and ('pacher' not in algorithm):
                 input_error('$algorithm','unknown algorithm: '+algorithm)
-                
+
+        elif '$ref_trans' in line:
+            if not '=' in line:
+                input_error('$ref_trans','no argument given')
+            else:
+                q0trans=(line.split('=')[1])
+                                
         else:
             # Unknown keyword
             print('\n','Error parsing line: '+line,'\n')
             sys.exit()
             
-    return dirfile,normcut,dthresh,refsta,dmattrans,dipoles,algorithm
+    return dirfile,normcut,dthresh,refsta,dmattrans,dipoles,algorithm,q0trans
 
 #
 # blankline
@@ -392,7 +399,6 @@ def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
             normcut,dispen,dmattrans,dipoles,dettype,algorithm,
             nref,dispdip=None):
 
-    
     # Open the blockdiag input file
     f=open(filename,"w+")
 
@@ -421,6 +427,8 @@ def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
     f.write('\n$end\n')
 
     # Ref. ADT matrix file
+    if i==1 and len(q0trans) !=0:
+        f.write('\n$ref_trans='+q0trans+'\n')
     if i!=1:
         f.write('\n$ref_trans='+lastlbl+'.log\n')
 
@@ -480,7 +488,7 @@ if len(sys.argv) < 2:
 infile=str(sys.argv[1])
 
 # Parse the input file
-dirfile,normcut,dthresh,refsta,dmattrans,dipoles,algorithm=rdinp(infile)
+dirfile,normcut,dthresh,refsta,dmattrans,dipoles,algorithm,q0trans=rdinp(infile)
 
 # Parse the directory file
 dirlist=rddirfile(dirfile)
@@ -542,11 +550,11 @@ for i in range(1,len(dirlist)):
     if (dipoles==True):
         wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
                 normcut,dispen,dmattrans,dipoles,dettype,algorithm,
-                len(refsta),dispdip)
+                len(refsta),q0trans,dispdip)
     else:
         wrbdinp(bdinpfile,i,dispdets,refcurr,lastlbl,dthresh,
                 normcut,dispen,dmattrans,dipoles,dettype,algorithm,
-                len(refsta))
+                len(refsta),q0trans)
 
     # Run the blockdiag calculation    
     inputfile=lbl+'.inp'
