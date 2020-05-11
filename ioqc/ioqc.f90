@@ -1261,12 +1261,13 @@ contains
 
     implicit none
 
-    integer                        :: unit
-    integer                        :: i,j,nm,nblock,indx1,indx2
-    real(dp), dimension(ncoo,ncoo) :: matrix
-    real(dp), dimension(6)         :: ftmp
-    character(len=3), dimension(6) :: atmp
-    character(len=120)             :: string
+    integer                           :: unit
+    integer                           :: i,j,k,ilbl,jlbl,nm,nblock,&
+                                         indx1,indx2,indx
+    real(dp), dimension(ncoo,ncoo)    :: matrix1,matrix
+    real(dp), dimension(ncoo)         :: freq1
+    character(len=3), dimension(ncoo) :: nmlab1
+    character(len=120)                :: string
 
 !----------------------------------------------------------------------
 ! Open the frequency file
@@ -1281,49 +1282,85 @@ contains
 
 !----------------------------------------------------------------------
 ! Read in the normal modes
+! New: we will read in all 3N normal modes and later on filter out
+! those of zero frequency. This is necessary as imaginary frequency
+! modes come first in the AOFORCE output.
 !----------------------------------------------------------------------
-    ! Read to the start of the non-zero frequency modes
-5   read(unit,'(a)',end=100) string
-    if (index(string,'reduced mass(g/mol)').eq.0) goto 5
-
     ! No. blocks of normal modes in the output
-    nblock=ceiling(real(nmodes)/6)
+    nblock=ceiling(real(ncoo)/6)
+    
+    ! Read to the start of the normal mode section
+5   read(unit,'(a)',end=100) string
+    if (index(string,'WARNING: values of IR').eq.0) goto 5
 
     ! Read blocks of normal modes
     do i=1,nblock
 
        ! Indices of the first and last mode in the block
        indx1=(i-1)*6+1
-       indx2=min(i*6,nmodes)
+       indx2=min(i*6,ncoo)
 
-       ! Frequencies
+
+       ! Frequencies: this is quite convoluted due to the fact
+       ! that the imaginary frequencies are printed as iomega,
+       ! so we need to detect and remove the i's.
        do j=1,4
           read(unit,*)
        enddo
-       read(unit,'(20x,6(F9.2))') freq(indx1:indx2)
+       read(unit,'(20x,a)') string       
+       do j=indx1,indx2
+          ! Trim off the leading whitespace
+          string=adjustl(string)
+          ! Start of the current frequency in the string
+          if (string(1:1).eq.'i') then
+             ilbl=2
+          else
+             ilbl=1
+          endif
+          ! End of the current frequency in the string
+          jlbl=index(string,' ')-1
+          ! Read in the frequency of the current mode
+          read(string(ilbl:jlbl),*) freq1(j)
+          ! Remove the current frequency from the string
+          do k=1,jlbl
+             string(k:k)=''
+          enddo
+       enddo
 
        ! Symmetry labels
        read(unit,*)
-       read(unit,'(19x,6(6x,a3))') (nmlab(j),j=indx1,indx2)
+       read(unit,'(19x,6(6x,a3))') (nmlab1(j),j=indx1,indx2)
 
        ! Normal mode vectors
        do j=1,8
           read(unit,*)
        enddo
        do j=1,ncoo
-          read(unit,'(20x,6(F9.5))') matrix(j,indx1:indx2)
+          read(unit,'(20x,6(F9.5))') matrix1(j,indx1:indx2)
        enddo
 
        ! Skip to the end of this block
        read(unit,*)
        read(unit,*)
-       
+              
     enddo
-
+    
 !----------------------------------------------------------------------
 ! Close the frequency file
 !----------------------------------------------------------------------
     close(unit)
+
+!----------------------------------------------------------------------
+! Filter out the zero frequency modes
+!----------------------------------------------------------------------
+    indx=0
+    do i=1,ncoo
+       if (freq1(i).eq.0.0d0) cycle
+       indx=indx+1
+       freq(indx)=freq1(i)
+       nmlab(indx)=nmlab1(i)
+       matrix(:,indx)=matrix1(:,i)
+    enddo
 
 !-----------------------------------------------------------------------
 ! Scale to mass-weighted x to obtain true normal mode vectors
@@ -1347,8 +1384,8 @@ contains
 !-----------------------------------------------------------------------
 ! Save the normal modes in the nmcoo array
 !-----------------------------------------------------------------------
-    nmcoo=matrix(1:ncoo,1:nmodes)    
-    
+    nmcoo=matrix(1:ncoo,1:nmodes)
+
     return
 
 100 continue
