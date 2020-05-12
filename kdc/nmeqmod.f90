@@ -21,7 +21,7 @@ contains
 ! Perform the fitting for the 1-mode terms
 !----------------------------------------------------------------------
     call fit_1mode_terms
-
+    
 !----------------------------------------------------------------------
 ! Perform the fitting of the 2-mode terms
 ! Note that this has to be done after the 1-mode terms have been
@@ -45,7 +45,7 @@ contains
 ! Calculate the RMSD of the fit
 !----------------------------------------------------------------------
     call calc_rmsd
-    
+
     return
     
   end subroutine get_coefficients_nmeq

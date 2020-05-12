@@ -68,7 +68,7 @@ program kdc
 ! Parse the blockdiag files
 !----------------------------------------------------------------------
   call parse_bdfiles
-
+  
 !----------------------------------------------------------------------
 ! Determine which coupling coefficients are zero by symmetry
 !----------------------------------------------------------------------
@@ -84,7 +84,7 @@ program kdc
 ! Determine the coupling coefficients
 !----------------------------------------------------------------------
   call get_coefficients
- 
+  
 !----------------------------------------------------------------------
 ! Check to see if symmetry constraints are being satisfied
 !----------------------------------------------------------------------
@@ -1295,7 +1295,7 @@ contains
     write(ibin) q0pot
     write(ibin) diabpot
     write(ibin) qvec
-
+    
 !----------------------------------------------------------------------
 ! Diabatic dipole coefficients and masks
 !----------------------------------------------------------------------

@@ -407,7 +407,7 @@ contains
 
     tmp=mat
     
-    call dsyev('V','U',dim,mat,dim,eigval,work,3*dim,error)
+    call dsyev('V','U',dim,tmp,dim,eigval,work,3*dim,error)
 
     if (error.ne.0) then
        errmsg='Diagonalisation failed in subroutine diag_matrix'
