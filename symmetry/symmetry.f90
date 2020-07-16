@@ -404,8 +404,7 @@ contains
 !         the decomposition of the direct product representation
 !
 ! chel(i,j): character of the ith irrep of the jth symmetry operation
-!----------------------------------------------------------------------
-
+!----------------------------------------------------------------------    
     ! Contributions from differentiation wrt the normal modes
     do i=1,nmodes
        if (nmchk(i).gt.0) then            

@@ -697,7 +697,7 @@ contains
     write(unit,'(a)') 'unset key'
     write(unit,'(a)') 'monitorSize=system("xrandr | awk &
          ''/\*/{sub(/x/,\",\");print $1;exit}''")'
-    write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
+    !write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
 
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''Energy (eV)'''
@@ -828,7 +828,7 @@ contains
     write(unit,'(a)') 'unset key'
     write(unit,'(a)') 'monitorSize=system("xrandr | awk &
          ''/\*/{sub(/x/,\",\");print $1;exit}''")'
-    write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
+    !write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
 
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''Energy (eV)'''
@@ -952,7 +952,7 @@ contains
     write(unit,'(a)') 'set size square'
     write(unit,'(a)') 'monitorSize=system("xrandr | awk &
          ''/\*/{sub(/x/,\",\");print $1;exit}''")'
-    write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
+    !write(unit,'(a,/)') 'set terminal x11 size @monitorSize'
 
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''D (a.u.)'''
