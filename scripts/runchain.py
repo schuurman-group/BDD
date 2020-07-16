@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 #######################################################################
 # Runchain: a simple, if badly written code to automate the running
@@ -34,7 +34,7 @@ def rdinp(filename):
     inp = [re.split('#|!', ln)[0] for ln in inp]
 
     # Remove blank lines
-    filtered_inp = filter(blankline, inp)
+    filtered_inp = list(filter(blankline, inp))
 
     # Parse the input
     for line in filtered_inp:
@@ -202,7 +202,7 @@ def rddirfile(dirfile):
         inp[i]=clean_keyword(inp[i])
         
     # Remove blank lines
-    filtered_inp = filter(blankline,inp)
+    filtered_inp = list(filter(blankline,inp))
     
     # Parse the directory names
     for line in filtered_inp:
@@ -238,8 +238,9 @@ def extract_dets(detdir,outdir,dettype):
 #
 def lastdir(path):
 
-    filtered=filter(blankline, path.split('/'))
-    lbl=str(filtered[-1:])[2:-2]    
+    filtered=list(filter(blankline, path.split('/')))
+
+    lbl=str(filtered[-1:])[2:-2]
 
     return lbl
 
