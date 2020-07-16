@@ -705,6 +705,8 @@ contains
        lbl='N'
     else if (num.eq.8) then
        lbl='O'
+    else if (num.eq.16) then
+       lbl='S'
     else
        write(errmsg,'(a,x,i2,x,a)') 'The atomic number',num,&
             'is not supported. See function num2lbl.'
@@ -735,6 +737,8 @@ contains
        mass=14.0067d0
     else if (num.eq.8) then
        mass=15.9994d0
+    else if (num.eq.16) then
+       mass=32.065d0
     else
        write(errmsg,'(a,x,i2,x,a)') 'The atomic number',num,&
             'is not supported. See function num2mass.'
@@ -765,6 +769,8 @@ contains
        mass=14.0067d0
     else if (lbl.eq.'O') then
        mass=15.9994d0
+    else if (lbl.eq.'S') then
+       mass=32.065d0
     else
        errmsg='The atom type '//trim(lbl)//' is not supported.'&
             //' See function lbl2mass'
@@ -1288,18 +1294,18 @@ contains
 !----------------------------------------------------------------------
     ! No. blocks of normal modes in the output
     nblock=ceiling(real(ncoo)/6)
-    
+
     ! Read to the start of the normal mode section
 5   read(unit,'(a)',end=100) string
-    if (index(string,'WARNING: values of IR').eq.0) goto 5
-
+    if (index(string,'WARNING: values of IR').eq.0 &
+         .and. index(string,'dDIP/dQ is').eq.0) goto 5
+    
     ! Read blocks of normal modes
     do i=1,nblock
 
        ! Indices of the first and last mode in the block
        indx1=(i-1)*6+1
        indx2=min(i*6,ncoo)
-
 
        ! Frequencies: this is quite convoluted due to the fact
        ! that the imaginary frequencies are printed as iomega,
@@ -1308,6 +1314,7 @@ contains
           read(unit,*)
        enddo
        read(unit,'(20x,a)') string       
+
        do j=indx1,indx2
           ! Trim off the leading whitespace
           string=adjustl(string)
@@ -1391,6 +1398,7 @@ contains
 100 continue
     errmsg='The normal modes could not be found in the file: '&
          //trim(freqfile)
+    call error_control
     
   end subroutine getmodes_aoforce
   
