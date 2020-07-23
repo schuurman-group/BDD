@@ -1297,9 +1297,11 @@ contains
 
     ! Read to the start of the normal mode section
 5   read(unit,'(a)',end=100) string
-    if (index(string,'WARNING: values of IR').eq.0 &
-         .and. index(string,'dDIP/dQ is').eq.0) goto 5
-    
+    if (index(string,'|dDIP/dQ|').eq.0) goto 5
+    do i=1,10
+       backspace(unit)
+    enddo
+
     ! Read blocks of normal modes
     do i=1,nblock
 
@@ -1313,7 +1315,7 @@ contains
        do j=1,4
           read(unit,*)
        enddo
-       read(unit,'(20x,a)') string       
+       read(unit,'(20x,a)') string
 
        do j=indx1,indx2
           ! Trim off the leading whitespace
