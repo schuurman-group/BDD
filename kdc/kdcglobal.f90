@@ -24,6 +24,10 @@ module kdcglobal
   ! Adiabatic potential at Q0
   real(dp), allocatable           :: q0pot(:)
   
+  ! Zeroth-order parameter shifts
+  real(dp), allocatable           :: shift0(:)
+  logical                         :: lshift
+  
   ! Diabatic potential matrices at the displaced geometries
   real(dp), allocatable           :: diabpot(:,:,:)
 

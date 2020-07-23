@@ -38,20 +38,26 @@ contains
     integer                        :: nzdip3
     integer                        :: nzdip4
     real(dp), parameter            :: thrsh=5e-4_dp
+    real(dp), dimension(nsta,nsta) :: scalefac
     character(len=2)               :: am,am1,am2,as,as1,as2,afel,aft
     character(len=5)               :: aunit
     character(len=90)              :: string
     character(len=3)               :: amode
     character(len=8)               :: atmp
     character(len=1), dimension(3) :: acomp
-    
+
 !----------------------------------------------------------------------
 ! Determine the no. non-zero coupling coefficients in each class
 !----------------------------------------------------------------------
     call get_nzpar(nzkappa,nzlambda,nzgamma1,nzgamma2,nzmu1,nzmu2,&
          nziota,nztau,nzepsilon,nzxi,nzdip0,nzdip1,nzdip2,nzdip3,&
          nzdip4,thrsh)
-
+    
+!----------------------------------------------------------------------
+! Scaling factors
+!----------------------------------------------------------------------
+    call get_scaling_factors(scalefac)
+    
 !----------------------------------------------------------------------
 ! Unit label
 !----------------------------------------------------------------------
@@ -101,7 +107,7 @@ contains
     do s=1,nsta
        write(as,'(i2)') s
        write(iop,'(a,F9.6,a)') &
-            'E'//adjustl(as)//' = ',e0(s),aunit
+            'E'//adjustl(as)//' = ',e0(s)+shift0(s),aunit
     enddo
 
     ! 1st-order intrastate coupling constants (kappa)
@@ -134,7 +140,7 @@ contains
                 write(am,'(i2)') m
                 write(iop,'(a,F9.6,a)') 'lambda'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))//'_'//adjustl(am)//&
-                     ' = ',lambda(m,s1,s2),aunit
+                     ' = ',lambda(m,s1,s2)*scalefac(s1,s2),aunit
              enddo
           enddo
        enddo
@@ -192,7 +198,7 @@ contains
                 write(iop,'(a,F9.6,a)') 'mu'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))//'_'//&
                      trim(adjustl(am))//'_'//adjustl(am)//' = ',&
-                     mu(m,m,s1,s2),aunit
+                     mu(m,m,s1,s2)*scalefac(s1,s2),aunit
              enddo
           enddo
        enddo
@@ -215,7 +221,7 @@ contains
                    write(iop,'(a,F9.6,a)') 'mu'//trim(adjustl(as1))&
                         //'_'//trim(adjustl(as2))//'_'//&
                         trim(adjustl(am1))//'_'//adjustl(am2)//&
-                        ' = ',mu(m1,m2,s1,s2),aunit
+                        ' = ',mu(m1,m2,s1,s2)*scalefac(s1,s2),aunit
                 enddo
              enddo
           enddo
@@ -252,7 +258,8 @@ contains
                 write(am,'(i2)') m
                 write(iop,'(a,F9.6,a)') 'tau'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))//'_'//&
-                     trim(adjustl(am))//' = ',tau(m,s1,s2),aunit
+                     trim(adjustl(am))//' = ',&
+                     tau(m,s1,s2)*scalefac(s1,s2),aunit
              enddo
           enddo
        enddo
@@ -288,7 +295,8 @@ contains
                 write(am,'(i2)') m
                 write(iop,'(a,F9.6,a)') 'xi'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))//'_'//&
-                     trim(adjustl(am))//' = ',xi(m,s1,s2),aunit
+                     trim(adjustl(am))//' = ',&
+                     xi(m,s1,s2)*scalefac(s1,s2),aunit
              enddo
           enddo
        enddo
@@ -1194,4 +1202,60 @@ contains
     
 !######################################################################
 
+  subroutine get_scaling_factors(scalefac)
+
+    use constants
+    use sysinfo
+    use parameters
+    use kdcglobal
+    
+    implicit none
+
+    integer               :: s1,s2
+    real(dp), intent(out) :: scalefac(nsta,nsta)
+    real(dp)              :: de(nsta,nsta,2)
+    
+!----------------------------------------------------------------------
+! If no zeroth-order parameter shifts were given, then set all scaling
+! factors to 1 and return
+!----------------------------------------------------------------------
+    if (.not.lshift) then
+       scalefac=1.0d0
+       return
+    endif
+
+!----------------------------------------------------------------------
+! Compute the scaling factors
+!----------------------------------------------------------------------
+    ! Original |dE| values
+    do s1=1,nsta       
+       do s2=1,nsta
+          de(s1,s2,1)=abs(e0(s1)-e0(s2))
+       enddo
+    enddo
+
+    ! New |dE| values
+    do s1=1,nsta       
+       do s2=1,nsta
+          de(s1,s2,2)=abs(e0(s1)-e0(s2)+shift0(s1)-shift0(s2))
+       enddo
+    enddo
+
+    ! Ratios of the old and new |dE| values
+    do s1=1,nsta
+       scalefac(s1,s1)=1.0d0
+    enddo
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          scalefac(s1,s2)=de(s1,s2,2)/de(s1,s2,1)
+          scalefac(s2,s1)=scalefac(s1,s2)
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine get_scaling_factors
+  
+!######################################################################
+  
 end module opermod

@@ -253,6 +253,11 @@ contains
     allocate(q0pot(nsta))
     q0pot=0.0d0
 
+    ! Zeroth-order parameter shifts
+    lshift=.false.
+    allocate(shift0(nsta))
+    shift0=0.0d0
+    
     ! Point group
     pntgrp=''
 
@@ -323,6 +328,20 @@ contains
              read(keyword(1),*) q0pot(k)
           enddo
 
+       else if (keyword(i).eq.'$shifts') then
+          lshift=.true.
+          do
+             call rdinp(iin)
+             if (keyword(1).eq.'$end') exit
+             if (lend) then
+                errmsg='End of file reached whilst reading the &
+                     $shifts section'
+                call error_control
+             endif
+             read(keyword(2),*) k
+             read(keyword(1),*) shift0(k)
+          enddo
+          
        else if (keyword(i).eq.'$point_group') then
           if (keyword(i+1).eq.'=') then
              i=i+2
