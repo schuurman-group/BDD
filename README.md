@@ -14,3 +14,6 @@ using block diagonalisation diabatisation:
 
 (4) pltkdc: plotting of the vibronic coupling Hamiltonian potentials
             using the output of the kdc program.
+
+(5) gridfunc: calculation of various useful operators on direct product
+              grids
