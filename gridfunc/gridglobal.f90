@@ -4,11 +4,15 @@ module gridglobal
 
   implicit none
   
-  ! DVR information
+  ! DVR basis information
   real(dp), allocatable :: dvrpar(:,:)
   integer, allocatable  :: idvr(:)
   integer, allocatable  :: ndvr(:)
   integer, parameter    :: maxdvrpar=10
+
+  ! DVR grids
+  integer               :: maxgrid
+  real(dp), allocatable :: grid(:,:)
   
   ! Function type
   integer               :: ifunc
