@@ -15,10 +15,11 @@ contains
     
     implicit none
 
-    integer(8) :: ntotal,i
-    integer    :: m,m1
-    integer    :: indx(nfuncmode),iswap(nfuncmode)
-    real(dp)   :: q(nfuncmode)
+    integer(8)            :: ntotal,i
+    integer               :: m,m1,s1,s2
+    integer               :: indx(nfuncmode),iswap(nfuncmode)
+    real(dp)              :: q(nfuncmode)
+    real(dp), allocatable :: func(:,:,:)
     
 !----------------------------------------------------------------------
 ! Sort the direct product (sub) grid modes to be in ascending order
@@ -41,7 +42,14 @@ contains
     enddo
 
 !----------------------------------------------------------------------
-! Compute the function on the (sub) direct product grid
+! Allocate arrays
+!----------------------------------------------------------------------
+    allocate(func(nsta,nsta,ntotal))
+    func=0.0d0
+    
+!----------------------------------------------------------------------
+! Compute the matrix representation of the function on the
+! (sub) direct product grid
 !----------------------------------------------------------------------
     ! Loop over grid points
     do i=1,ntotal
@@ -53,11 +61,31 @@ contains
        select case(ifunc)
 
           case(1) ! Projector onto an adiabatic state
-             call adiabatic_projector(q)
+             func(:,:,i)=adiabatic_projector(q)
              
        end select
        
     enddo
+
+!----------------------------------------------------------------------
+! Write the elements of the matrix representation of the function
+! to disk
+!----------------------------------------------------------------------
+    ! Loop over pairs of states
+    do s1=1,nsta
+       do s2=s1,nsta
+
+          ! Write the current element of the matrix representation
+          ! of the function to disk
+          call wrfunc_1element(s1,s2,func(s1,s2,:),ntotal)
+
+       enddo
+    enddo
+       
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(func)
     
     return
     
@@ -74,7 +102,7 @@ contains
 
     integer(8), intent(in) :: i
     integer(8)             :: j,jj
-    integer                :: m1,m
+    integer                :: m1,m,indx
     real(dp), intent(out)  :: q(nfuncmode)
 
 !----------------------------------------------------------------------
@@ -86,7 +114,8 @@ contains
     do m1=1,nfuncmode
        m=funcmode(m1)
        jj=j/ndvr(m)
-       q(m1)=j-jj*ndvr(m)+1
+       indx=j-jj*ndvr(m)+1
+       q(m1)=grid(indx,m)
        j=jj
     enddo
     
@@ -96,7 +125,7 @@ contains
   
 !######################################################################
 
-  subroutine adiabatic_projector(q)
+  function adiabatic_projector(q) result(proj)
 
     use constants
     use sysinfo
@@ -105,29 +134,88 @@ contains
     
     implicit none
 
-    integer              :: m,m1
+    integer              :: m,m1,i,j,iproj
     real(dp), intent(in) :: q(nfuncmode)
+    real(dp)             :: proj(nsta,nsta)
     real(dp)             :: q1(nmodes)
-    
+    real(dp)             :: adt(nsta,nsta)
+        
 !----------------------------------------------------------------------
-! Compute the ADT matrix at the grid point q
+! Normal mode coordinates in the full space
 !----------------------------------------------------------------------
-    ! Normal mode coordinates in the full space
     q1=0.0d0
     do m1=1,nfuncmode
        m=funcmode(m1)
        q1(m)=q(m1)
     enddo
 
-    ! Get the ADT matrix via the diagonalisation of the model
-    ! diabatic potential at the grid point q
-    print*,"SORT THIS OUT!"
-    stop
+!----------------------------------------------------------------------
+! Compute the ADT matrix at the grid point q
+!----------------------------------------------------------------------    
+    adt=adtmatrix(q1)
+
+!----------------------------------------------------------------------
+! Diabatic representation of the projector onto the adiabatic state
+! of interest
+!----------------------------------------------------------------------
+    ! Adiabatic state
+    iproj=funcsta(1)
+
+    ! Form the matrix representation of the projector
+    do i=1,nsta
+       do j=1,nsta
+          proj(j,i)=adt(j,iproj)*adt(i,iproj)
+       enddo
+    enddo
+       
+    return
     
+  end function adiabatic_projector
+    
+!######################################################################
+
+  subroutine wrfunc_1element(s1,s2,func,ntotal)
+
+    use constants
+    use iomod
+    use sysinfo
+    use gridglobal
+    
+    implicit none
+
+    integer, intent(in)    :: s1,s2
+    integer(8), intent(in) :: ntotal
+    integer                :: unit
+    real(dp), intent(in)   :: func(ntotal)
+    character(len=80)      :: filename,stem
+    
+!----------------------------------------------------------------------
+! Open the output file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+
+    select case(ifunc)
+    case(1) ! Projector onto an adiabatic state
+       write(stem,'(a,i0)') 'aproj',funcsta(1)
+    end select
+
+    write(filename,'(a,i0,a,i0,a)') trim(stem)//'_',s1,'_',s2,'.dat'
+
+    open(unit,file=filename,form='unformatted',status='unknown')
+
+!----------------------------------------------------------------------
+! Write the function to file
+!----------------------------------------------------------------------
+    write(unit) func
+    
+!----------------------------------------------------------------------
+! Close the output file
+!----------------------------------------------------------------------
+    close(unit)
     
     return
     
-  end subroutine adiabatic_projector
+  end subroutine wrfunc_1element
     
 !######################################################################
   

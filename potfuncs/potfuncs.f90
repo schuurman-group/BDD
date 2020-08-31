@@ -63,7 +63,50 @@ contains
     return
 
   end function diabaticpot
-  
+
+!######################################################################
+
+  function adtmatrix(q) result(adt)
+
+    use constants
+    use iomod
+    use sysinfo
+    
+    implicit none
+
+    integer                        :: e2,error
+    real(dp), dimension(nmodes)    :: q
+    real(dp), dimension(nsta)      :: v
+    real(dp), dimension(nsta,nsta) :: w
+    real(dp), dimension(nsta,nsta) :: adt
+    real(dp), dimension(3*nsta)    :: work
+    
+!----------------------------------------------------------------------
+! Construct the model potential
+!----------------------------------------------------------------------
+    w=pot(q)
+
+!----------------------------------------------------------------------
+! Diagonalise the model potential
+!----------------------------------------------------------------------
+    e2=3*nsta
+    call dsyev('V','U',nsta,w,nsta,v,work,e2,error)
+
+    if (error.ne.0) then
+       write(6,'(/,2x,a,/)') 'Diagonalisation of the potential &
+            matrix failed'
+       stop
+    endif
+
+!----------------------------------------------------------------------
+! Return the eigenvectors of the model diabatic potential matrix
+!----------------------------------------------------------------------
+    adt=w
+    
+    return
+    
+  end function adtmatrix
+    
 !######################################################################
 
   function pot(q) result(w)

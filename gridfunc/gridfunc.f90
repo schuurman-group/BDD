@@ -60,12 +60,18 @@ program gridfunc
   call rdprimbasis
 
 !----------------------------------------------------------------------
+! Read the potential file
+!----------------------------------------------------------------------
+  call rdpotfile
+  
+!----------------------------------------------------------------------
 ! Compute the 1D DVR grids
 !----------------------------------------------------------------------
   call dvr_grids
 
 !----------------------------------------------------------------------
-! Compute the function on the direct product (sub) grid
+! Compute and output the diabatic state representation of the
+! requested function on the direct product (sub) grid
 !----------------------------------------------------------------------
   call calc_func
   
@@ -391,6 +397,117 @@ contains
     
   end subroutine rdprimbasis
   
+!######################################################################
+
+  subroutine rdpotfile
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use symmetry
+    use parameters
+    
+    implicit none
+
+    integer  :: nmodes1,ndat1
+    real(dp) :: freq1(nmodes)
+    logical  :: ldip1
+    
+!----------------------------------------------------------------------
+! Open the parameter file
+!----------------------------------------------------------------------
+    call freeunit(ibin)
+    open(ibin,file=abin,form='unformatted',status='old')
+
+!----------------------------------------------------------------------
+! System dimensions
+!----------------------------------------------------------------------
+    ! Number of modes
+    read(ibin) nmodes1
+
+    ! Number of states
+    read(ibin) nsta
+
+    ! Exit if the number of modes does not match the number read from
+    ! the freqency calculation output file
+    if (nmodes1.ne.nmodes) then
+       errmsg='Inconsistent normal mode numbers in rdpotfile'
+       call error_control
+    endif
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    ! Model diabatic potential arrays
+    allocate(e0(nsta))
+    allocate(kappa(nmodes,nsta))
+    allocate(lambda(nmodes,nsta,nsta))
+    allocate(gamma(nmodes,nmodes,nsta))
+    allocate(mu(nmodes,nmodes,nsta,nsta))
+    allocate(iota(nmodes,nsta))
+    allocate(tau(nmodes,nsta,nsta))
+    allocate(epsilon(nmodes,nsta))
+    allocate(xi(nmodes,nsta,nsta))
+    allocate(kappa_mask(nmodes,nsta))
+    allocate(lambda_mask(nmodes,nsta,nsta))
+    allocate(gamma_mask(nmodes,nmodes,nsta))
+    allocate(mu_mask(nmodes,nmodes,nsta,nsta))
+    allocate(iota_mask(nmodes,nsta))
+    allocate(tau_mask(nmodes,nsta,nsta))
+    allocate(epsilon_mask(nmodes,nsta))
+    allocate(xi_mask(nmodes,nsta,nsta))
+    
+!----------------------------------------------------------------------
+! Skip past variables that we do not need
+!----------------------------------------------------------------------
+    read(ibin) ndat1
+    read(ibin) ldip1
+
+!----------------------------------------------------------------------
+! Vertical excitation energies
+!----------------------------------------------------------------------
+    read(ibin) e0
+    
+!----------------------------------------------------------------------
+! Frequencies (read into a dummy array - we already have this
+! information)
+!----------------------------------------------------------------------
+    read(ibin) freq1
+
+!----------------------------------------------------------------------
+! Coupling coefficients
+!----------------------------------------------------------------------
+    read(ibin) kappa
+    read(ibin) lambda
+    read(ibin) gamma
+    read(ibin) mu
+    read(ibin) iota
+    read(ibin) tau
+    read(ibin) epsilon
+    read(ibin) xi
+    
+!----------------------------------------------------------------------
+! Masks
+!----------------------------------------------------------------------
+    read(ibin) kappa_mask
+    read(ibin) lambda_mask
+    read(ibin) gamma_mask
+    read(ibin) mu_mask
+    read(ibin) iota_mask
+    read(ibin) tau_mask
+    read(ibin) epsilon_mask
+    read(ibin) xi_mask
+
+!----------------------------------------------------------------------
+! Close the parameter file
+!----------------------------------------------------------------------
+    close(ibin)
+    
+    return
+    
+  end subroutine rdpotfile
+    
 !######################################################################
   
 end program gridfunc
