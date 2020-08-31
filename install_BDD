@@ -5,7 +5,7 @@ target=$1
 #-----------------------------------------------------------------------
 # Calls to make
 #-----------------------------------------------------------------------
-list=(displace blockdiag kdc pltkdc)
+list=(displace blockdiag kdc pltkdc gridfunc)
 
 if [ -z $target ]; then
     for T in "${list[@]}"; do
