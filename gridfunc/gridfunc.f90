@@ -9,6 +9,7 @@ program gridfunc
   use constants
   use ioqc
   use dvr
+  use func
   
   implicit none
 
@@ -62,6 +63,11 @@ program gridfunc
 ! Compute the 1D DVR grids
 !----------------------------------------------------------------------
   call dvr_grids
+
+!----------------------------------------------------------------------
+! Compute the function on the direct product (sub) grid
+!----------------------------------------------------------------------
+  call calc_func
   
 contains
 

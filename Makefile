@@ -78,6 +78,7 @@ PLTKDC = pltkdc/pltglobal.o \
 	pltkdc/pltkdc.o
 
 GRIDFUNC = gridfunc/gridglobal.o \
+	gridfunc/func.o \
 	gridfunc/dvr.o \
 	gridfunc/gridfunc.o
 
@@ -194,6 +195,7 @@ OBJ_GRIDFUNC = constants.o \
 	symmetry.o \
 	potfuncs.o \
 	gridglobal.o \
+	func.o \
 	dvr.o \
 	gridfunc.o
 
