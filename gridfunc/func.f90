@@ -62,6 +62,9 @@ contains
 
           case(1) ! Projector onto an adiabatic state
              func(:,:,i)=adiabatic_projector(q)
+
+          case(2) ! Adiabatic state excitation operator
+             func(:,:,i)=adiabatic_excitation(q)
              
        end select
        
@@ -158,7 +161,7 @@ contains
 ! Diabatic representation of the projector onto the adiabatic state
 ! of interest
 !----------------------------------------------------------------------
-    ! Adiabatic state
+    ! Adiabatic state index
     iproj=funcsta(1)
 
     ! Form the matrix representation of the projector
@@ -171,7 +174,57 @@ contains
     return
     
   end function adiabatic_projector
+
+!######################################################################
+
+  function adiabatic_excitation(q) result(proj)
+
+    use constants
+    use sysinfo
+    use potfuncs
+    use gridglobal
     
+    implicit none
+
+    integer              :: m,m1,i,j,iexci1,iexci2
+    real(dp), intent(in) :: q(nfuncmode)
+    real(dp)             :: proj(nsta,nsta)
+    real(dp)             :: q1(nmodes)
+    real(dp)             :: adt(nsta,nsta)
+        
+!----------------------------------------------------------------------
+! Normal mode coordinates in the full space
+!----------------------------------------------------------------------
+    q1=0.0d0
+    do m1=1,nfuncmode
+       m=funcmode(m1)
+       q1(m)=q(m1)
+    enddo
+
+!----------------------------------------------------------------------
+! Compute the ADT matrix at the grid point q
+!----------------------------------------------------------------------    
+    adt=adtmatrix(q1)
+
+!----------------------------------------------------------------------
+! Diabatic representation of the adiabatic state excitation operator
+!----------------------------------------------------------------------
+    ! Adiabatic state indices
+    iexci1=funcsta(1)
+    iexci2=funcsta(2)
+    
+    ! Form the matrix representation of the excitation operator
+    do i=1,nsta
+       do j=1,nsta
+          proj(j,i)=adt(j,iexci1)*adt(i,iexci2) &
+               +adt(i,iexci1)*adt(j,iexci2)
+       enddo
+    enddo
+       
+    return
+    
+  end function adiabatic_excitation
+  
 !######################################################################
 
   subroutine wrfunc_1element(s1,s2,func,ntotal)
@@ -196,7 +249,9 @@ contains
 
     select case(ifunc)
     case(1) ! Projector onto an adiabatic state
-       write(stem,'(a,i0)') 'aproj',funcsta(1)
+       write(stem,'(a,i0)') 'adproj',funcsta(1)
+    case(2) ! Adiabatic state excitation operator
+       write(stem,'(a,2(i0))') 'adexci',funcsta(1),funcsta(2)
     end select
 
     write(filename,'(a,i0,a,i0,a)') trim(stem)//'_',s1,'_',s2,'.dat'

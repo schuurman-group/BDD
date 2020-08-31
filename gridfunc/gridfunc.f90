@@ -205,7 +205,11 @@ contains
           if (keyword(i+1).eq.'=') then
              i=i+2
              if (keyword(i).eq.'adiab_proj') then
+                ! Projector onto an adiabatic state
                 ifunc=1
+             else if (keyword(i).eq.'adiab_exci') then
+                ! Adiabatic state excitation operator
+                ifunc=2
              else
                 errmsg='Unknown function type: '//trim(keyword(i))
                 call error_control
@@ -302,12 +306,18 @@ contains
         errmsg='The function type has not been given'
         call error_control
     endif
-
+    
     if (funcsta(1).eq.0) then
        errmsg='The function states have not been given'
        call error_control
     endif
 
+    if (ifunc.eq.2.and.funcsta(2).eq.0) then
+       errmsg='Adiabatic excitation operators require the &
+            specification of two state labels'
+       call error_control
+    endif
+    
     if (nfuncmode.eq.0) then
        errmsg='The function modes have not been given'
        call error_control
