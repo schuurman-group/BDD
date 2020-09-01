@@ -10,7 +10,7 @@ program gridfunc
   use ioqc
   use dvr
   use func
-  
+
   implicit none
 
 !----------------------------------------------------------------------
@@ -170,6 +170,9 @@ contains
 
     ! Primitive section found
     primsection=.false.
+
+    ! J
+    Jval=0
     
 !----------------------------------------------------------------------
 ! Read the input file
@@ -210,6 +213,9 @@ contains
              else if (keyword(i).eq.'adiab_exci') then
                 ! Adiabatic state excitation operator
                 ifunc=2
+             else if (keyword(i).eq.'roten') then
+                ! Rotational energy on the grid
+                ifunc=3
              else
                 errmsg='Unknown function type: '//trim(keyword(i))
                 call error_control
@@ -258,6 +264,14 @@ contains
              goto 100
           endif
 
+       else if (keyword(i).eq.'$j') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             read(keyword(i),*) Jval
+          else
+             goto 100
+          endif
+          
        else if (index(keyword(i),'pbasis-section').ne.0) then
           ! Read past the primitive basis section: this will
           ! be parsed after we know the no. modes
@@ -306,15 +320,22 @@ contains
         errmsg='The function type has not been given'
         call error_control
     endif
-    
-    if (funcsta(1).eq.0) then
-       errmsg='The function states have not been given'
-       call error_control
-    endif
 
+    if (ifunc.ne.3) then
+       if (funcsta(1).eq.0) then
+          errmsg='The function states have not been given'
+          call error_control
+       endif
+    endif
+    
     if (ifunc.eq.2.and.funcsta(2).eq.0) then
        errmsg='Adiabatic excitation operators require the &
             specification of two state labels'
+       call error_control
+    endif
+
+    if (ifunc.eq.3.and.Jval.eq.0) then
+       errmsg='The value of J has not been given'
        call error_control
     endif
     

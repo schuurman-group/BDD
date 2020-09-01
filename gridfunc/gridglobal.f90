@@ -23,5 +23,8 @@ module gridglobal
   ! Mode indices
   integer               :: nfuncmode
   integer, allocatable  :: funcmode(:)
+
+  ! Rotational energies
+  integer               :: Jval
   
 end module gridglobal

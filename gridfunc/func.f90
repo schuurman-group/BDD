@@ -20,7 +20,7 @@ contains
     integer               :: indx(nfuncmode),iswap(nfuncmode)
     real(dp)              :: q(nfuncmode)
     real(dp), allocatable :: func(:,:,:)
-    
+
 !----------------------------------------------------------------------
 ! Sort the direct product (sub) grid modes to be in ascending order
 !----------------------------------------------------------------------
@@ -42,11 +42,52 @@ contains
     enddo
 
 !----------------------------------------------------------------------
+! Make the output directory
+!----------------------------------------------------------------------
+    call mkoutdir
+    
+!----------------------------------------------------------------------
+! Compute the function value at the grid points
+!----------------------------------------------------------------------
+    select case(ifunc)
+       
+    case(1) ! Projector onto an adiabatic state
+       call calc_adproj(ntotal)
+       
+    case(2) ! Adiabatic state excitation operator
+       call calc_adexci(ntotal)
+       
+    case(3) ! Rotational energies
+       call calc_roten(ntotal)
+       
+    end select
+    
+    return
+    
+  end subroutine calc_func
+
+!######################################################################
+
+  subroutine calc_adproj(ntotal)
+
+    use constants
+    use sysinfo
+    use gridglobal
+
+    implicit none
+
+    integer(8), intent(in) :: ntotal
+    integer(8)             :: i
+    integer                :: s1,s2
+    real(dp)               :: q(nfuncmode)
+    real(dp), allocatable  :: func(:,:,:)
+
+!----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
     allocate(func(nsta,nsta,ntotal))
     func=0.0d0
-    
+
 !----------------------------------------------------------------------
 ! Compute the matrix representation of the function on the
 ! (sub) direct product grid
@@ -57,16 +98,9 @@ contains
        ! Mode values at the current grid point
        call mode_values(i,q)
 
-       ! Function value at the current grid point
-       select case(ifunc)
-
-          case(1) ! Projector onto an adiabatic state
-             func(:,:,i)=adiabatic_projector(q)
-
-          case(2) ! Adiabatic state excitation operator
-             func(:,:,i)=adiabatic_excitation(q)
-             
-       end select
+       ! Value of the elements of the diabatic state representation
+       ! of the adiabatic state projector at the current grid point
+       func(:,:,i)=adiabatic_projector(q)
        
     enddo
 
@@ -92,8 +126,111 @@ contains
     
     return
     
-  end subroutine calc_func
+  end subroutine calc_adproj
 
+!######################################################################
+
+  subroutine calc_adexci(ntotal)
+
+    use constants
+    use sysinfo
+    use gridglobal
+
+    implicit none
+
+    integer(8), intent(in) :: ntotal
+    integer(8)             :: i
+    integer                :: s1,s2
+    real(dp)               :: q(nfuncmode)
+    real(dp), allocatable  :: func(:,:,:)
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    allocate(func(nsta,nsta,ntotal))
+    func=0.0d0
+
+!----------------------------------------------------------------------
+! Compute the matrix representation of the function on the
+! (sub) direct product grid
+!----------------------------------------------------------------------
+    ! Loop over grid points
+    do i=1,ntotal
+
+       ! Mode values at the current grid point
+       call mode_values(i,q)
+
+       ! Value of the elements of the diabatic state representation
+       ! of the adiabatic state excitation operator at the current
+       ! grid point
+       func(:,:,i)=adiabatic_excitation(q)
+       
+    enddo
+
+!----------------------------------------------------------------------
+! Write the elements of the matrix representation of the function
+! to disk
+!----------------------------------------------------------------------
+    ! Loop over pairs of states
+    do s1=1,nsta
+       do s2=s1,nsta
+          
+          ! Write the current element of the matrix representation
+          ! of the function to disk
+          call wrfunc_1element(s1,s2,func(s1,s2,:),ntotal)
+
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine calc_adexci
+
+!######################################################################
+
+  subroutine calc_roten(ntotal)
+
+    use constants
+    use sysinfo
+    use gridglobal
+
+    implicit none
+
+    integer(8), intent(in) :: ntotal
+    integer(8)             :: i
+    real(dp)               :: q(nfuncmode)
+    real(dp), allocatable  :: func(:)
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    allocate(func(ntotal))
+    func=0.0d0
+
+!----------------------------------------------------------------------
+! Compute the matrix representation of the function on the
+! (sub) direct product grid
+!----------------------------------------------------------------------
+    ! Loop over grid points
+    do i=1,ntotal
+
+       ! Mode values at the current grid point
+       call mode_values(i,q)
+
+       ! Value of the rotational energy at the current grid point
+       func(i)=rotational_energy(q)
+       
+    enddo
+    
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(func)
+    
+    return
+    
+  end subroutine calc_roten
+  
 !######################################################################
 
   subroutine mode_values(i,q)
@@ -227,6 +364,105 @@ contains
   
 !######################################################################
 
+  function rotational_energy(q) result(EJ)
+
+    use constants
+    use iomod
+    use sysinfo
+    use gridglobal
+    
+    implicit none
+
+    integer              :: m,m1,i,error
+    real(dp), intent(in) :: q(nfuncmode)
+    real(dp)             :: EJ
+    real(dp)             :: q1(nmodes)
+    real(dp)             :: x(ncoo)
+    real(dp)             :: itensor(3,3)
+    real(dp)             :: iteig(3)
+    real(dp)             :: work(9)
+    
+!----------------------------------------------------------------------
+! Normal mode coordinates in the full space
+!----------------------------------------------------------------------
+    q1=0.0d0
+    do m1=1,nfuncmode
+       m=funcmode(m1)
+       q1(m)=q(m1)
+    enddo
+
+!----------------------------------------------------------------------
+! Cartesian coordinates in a.u.
+!----------------------------------------------------------------------
+    x=xcoo0+matmul(nmcoo,q1)*ang2bohr
+
+!----------------------------------------------------------------------
+! Moment of intertia tensor in a.u.
+!----------------------------------------------------------------------
+    itensor=0.0d0
+    do i=1,natm
+       itensor(1,1)=itensor(1,1)+mass(i*3)*x(i*3-1)**2+x(i*3)**2
+       itensor(2,2)=itensor(2,2)+mass(i*3)*x(i*3-2)**2+x(i*3)**2
+       itensor(3,3)=itensor(3,3)+mass(i*3)*x(i*3-2)**2+x(i*3-1)**2
+       itensor(1,2)=itensor(1,2)-mass(i*3)*x(i*3-2)*x(i*3-1)
+       itensor(1,3)=itensor(1,3)-mass(i*3)*x(i*3-2)*x(i*3)
+       itensor(2,3)=itensor(2,3)-mass(i*3)*x(i*3-1)*x(i*3)
+    enddo
+    itensor(2,1)=itensor(1,2)
+    itensor(3,1)=itensor(1,3)
+    itensor(3,2)=itensor(2,3)
+
+    ! Convert to atomic units of mass
+    itensor=itensor*mu2me
+
+!-----------------------------------------------------------------------
+! Diagonalise the moment of inertia tensor
+!-----------------------------------------------------------------------
+    call dsyev('V','U',3,itensor,3,iteig,work,9,error)
+
+    if (error.ne.0) then
+       errmsg='Diagonalisation of the moment of inertia tensor in &
+            rotational_energy failed'
+       call error_control
+    endif
+
+    return
+    
+  end function rotational_energy
+    
+!######################################################################
+  
+  subroutine mkoutdir
+
+    use constants
+    use gridglobal
+    
+    implicit none
+
+    character(len=80) :: dirname
+
+    ! Output directory name
+    select case(ifunc)
+    case(1) ! Projector onto an adiabatic state
+       write(dirname,'(a,i0)') 'adproj',funcsta(1)
+    case(2) ! Adiabatic state excitation operator
+       write(dirname,'(a,2(i0))') 'adexci',funcsta(1),funcsta(2)
+    case(3) ! Rotational energies
+       write(dirname,'(a,i0)') 'EJ',Jval
+    end select
+
+    ! Clean up
+    call system('rm -rf '//trim(dirname)//' 2>/dev/null')
+
+    ! Make the output directory
+    call system('mkdir '//trim(dirname))
+    
+    return
+    
+  end subroutine mkoutdir
+  
+!######################################################################
+  
   subroutine wrfunc_1element(s1,s2,func,ntotal)
 
     use constants
@@ -252,10 +488,13 @@ contains
        write(stem,'(a,i0)') 'adproj',funcsta(1)
     case(2) ! Adiabatic state excitation operator
        write(stem,'(a,2(i0))') 'adexci',funcsta(1),funcsta(2)
+    case(3) ! Rotational energies
+       write(stem,'(a,i0)') 'EJ',Jval
     end select
-
-    write(filename,'(a,i0,a,i0,a)') trim(stem)//'_',s1,'_',s2,'.dat'
-
+    
+    write(filename,'(a,i0,a,i0,a)') &
+         trim(stem)//'/'//trim(stem)//'_',s1,'_',s2,'.dat'
+    
     open(unit,file=filename,form='unformatted',status='unknown')
 
 !----------------------------------------------------------------------
