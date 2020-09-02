@@ -57,7 +57,7 @@ contains
     case(2) ! Adiabatic state excitation operator
        call calc_adexci(ntotal)
        
-    case(3) ! Rotational energies
+    case(3) ! Rigid rotor energies
        call calc_roten(ntotal)
        
     end select
@@ -198,13 +198,14 @@ contains
 
     integer(8), intent(in) :: ntotal
     integer(8)             :: i
+    integer                :: K
     real(dp)               :: q(nfuncmode)
-    real(dp), allocatable  :: func(:)
+    real(dp), allocatable  :: func(:,:)
 
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
-    allocate(func(ntotal))
+    allocate(func(2*Jval+1,ntotal))
     func=0.0d0
 
 !----------------------------------------------------------------------
@@ -217,9 +218,17 @@ contains
        ! Mode values at the current grid point
        call mode_values(i,q)
 
-       ! Value of the rotational energy at the current grid point
-       func(i)=rotational_energy(q)
+       ! Value of the rigid rotor energy at the current grid point
+       func(:,i)=rigid_rotor_energy(q)
        
+    enddo
+
+!----------------------------------------------------------------------
+! Write the rigid rotor energies to disk
+!----------------------------------------------------------------------
+    ! Loop over K values
+    do K=-Jval,Jval
+       call wrfunc_1element(Jval,K,func(K+Jval+1,i),ntotal)
     enddo
     
 !----------------------------------------------------------------------
@@ -364,26 +373,32 @@ contains
   
 !######################################################################
 
-  function rotational_energy(q) result(EJ)
+  function rigid_rotor_energy(q) result(EJK)
 
     use constants
     use iomod
+    use utils
     use sysinfo
     use gridglobal
     
     implicit none
 
-    integer              :: m,m1,i,j,error
-    real(dp), intent(in) :: q(nfuncmode)
-    real(dp)             :: EJ
-    real(dp)             :: q1(nmodes)
-    real(dp)             :: x(ncoo)
-    real(dp)             :: itensor(3,3)
-    real(dp)             :: iteig(3)
-    real(dp)             :: work(9)
-    real(dp)             :: totmass,com(3)
-    real(dp)             :: xx,xy,xz,xm
-    real(dp)             :: A,B,C
+    integer               :: m,m1
+    integer               :: hdim
+    real(dp), intent(in)  :: q(nfuncmode)
+    real(dp)              :: EJK(2*Jval+1)
+    real(dp)              :: q1(nmodes)
+    real(dp)              :: x(ncoo)
+    real(dp)              :: A,B,C
+    real(dp), allocatable :: hmat(:,:)
+    
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    hdim=2*Jval+1
+
+    allocate(hmat(hdim,hdim))
+    hmat=0.0d0
     
 !----------------------------------------------------------------------
 ! Normal mode coordinates in the full space
@@ -398,6 +413,50 @@ contains
 ! Cartesian coordinates in a.u.
 !----------------------------------------------------------------------
     x=xcoo0+matmul(nmcoo,q1)*ang2bohr
+
+!----------------------------------------------------------------------
+! Rotational constants
+!----------------------------------------------------------------------
+    call rotational_constants(x,A,B,C)
+    
+!-----------------------------------------------------------------------
+! Construct the rigid rotor Hamiltonian matrix
+!-----------------------------------------------------------------------
+    call rigid_rotor_hamiltonian(hmat,A,B,C,hdim)
+
+!-----------------------------------------------------------------------
+! Diagonalise the rigid rotor Hamiltonian matrix
+!-----------------------------------------------------------------------
+    call diag_matrix(hmat,EJK,hdim)
+
+!-----------------------------------------------------------------------
+! Deallocate arrays
+!-----------------------------------------------------------------------
+    deallocate(hmat)
+    
+    return
+    
+  end function rigid_rotor_energy
+    
+!######################################################################
+
+  subroutine rotational_constants(x1,A,B,C)
+
+    use constants
+    use iomod
+    use sysinfo
+    
+    implicit none
+
+    integer               :: i,j,error
+    real(dp), intent(in)  :: x1(ncoo)
+    real(dp), intent(out) :: A,B,C
+    real(dp)              :: x(ncoo)
+    real(dp)              :: itensor(3,3)
+    real(dp)              :: iteig(3)
+    real(dp)              :: work(9)
+    real(dp)              :: totmass,com(3)
+    real(dp)              :: xx,xy,xz,xm
     
 !----------------------------------------------------------------------
 ! Shift to the centre of mass
@@ -412,25 +471,18 @@ contains
     com=0.0d0
     do i=1,natm
        do j=1,3
-          com(j)=com(j)+mass(i*3)*x(i*3-3+j)
+          com(j)=com(j)+mass(i*3)*x1(i*3-3+j)
        enddo
     enddo
     com=com/totmass
 
     ! Shift the origin to the centre of mass
+    x=x1
     do i=1,natm
        do j=1,3
           x(i*3-3+j)=x(i*3-3+j)-com(j)
        enddo
     enddo
-
-    com=0.0d0
-    do i=1,natm
-       do j=1,3
-          com(j)=com(j)+mass(i*3)*x(i*3-3+j)
-       enddo
-    enddo
-    com=com/totmass
     
 !----------------------------------------------------------------------
 ! Moment of intertia tensor in a.u.
@@ -472,11 +524,64 @@ contains
     A=1.0d0/(2.0d0*iteig(1))
     B=1.0d0/(2.0d0*iteig(2))
     C=1.0d0/(2.0d0*iteig(3))
-
+    
     return
     
-  end function rotational_energy
+  end subroutine rotational_constants
+
+!######################################################################
+
+  subroutine rigid_rotor_hamiltonian(hmat,A,B,C,hdim)
+
+    use constants
+    use gridglobal
     
+    implicit none
+
+    integer, intent(in)   :: hdim
+    integer               :: K,Kp,J,i,ip
+    real(dp), intent(out) :: hmat(hdim,hdim)
+    real(dp), intent(in)  :: A,B,C
+
+!-----------------------------------------------------------------------
+! Initialisation
+!-----------------------------------------------------------------------
+    hmat=0.0d0
+    
+!-----------------------------------------------------------------------
+! Diagonal elements
+!-----------------------------------------------------------------------
+    J=Jval
+    
+    i=0
+    do K=-J,J
+       i=i+1
+       hmat(i,i)=0.5d0*(A+B)*(J*(J+1)-K**2) + C*K**2
+    enddo
+
+!-----------------------------------------------------------------------
+! Off-diagonal elements
+!-----------------------------------------------------------------------
+    do K=-J,J-1
+       i=K+J+1
+       do Kp=K+1,J
+          ip=Kp+J+1
+          if (Kp.eq.K+2) then
+             hmat(i,ip)=(B-A)*sqrt(dble((J-K)*(J-K-1)*(J+K+1)*(J+K+2)))
+             hmat(i,ip)=0.25d0*hmat(i,ip)
+             hmat(ip,i)=hmat(i,ip)
+          else if (Kp.eq.K-2) then
+             hmat(i,ip)=(B-A)*sqrt(dble((J+K)*(J+K-1)*(J-K+1)*(J-K+2)))
+             hmat(i,ip)=0.25d0*hmat(i,ip)
+             hmat(ip,i)=hmat(i,ip)
+          endif
+       enddo
+    enddo
+    
+    return
+    
+  end subroutine rigid_rotor_hamiltonian
+  
 !######################################################################
   
   subroutine mkoutdir
@@ -510,7 +615,7 @@ contains
   
 !######################################################################
   
-  subroutine wrfunc_1element(s1,s2,func,ntotal)
+  subroutine wrfunc_1element(indx1,indx2,func,ntotal)
 
     use constants
     use iomod
@@ -519,7 +624,7 @@ contains
     
     implicit none
 
-    integer, intent(in)    :: s1,s2
+    integer, intent(in)    :: indx1,indx2
     integer(8), intent(in) :: ntotal
     integer                :: unit
     real(dp), intent(in)   :: func(ntotal)
@@ -533,15 +638,18 @@ contains
     select case(ifunc)
     case(1) ! Projector onto an adiabatic state
        write(stem,'(a,i0)') 'adproj',funcsta(1)
+       write(filename,'(a,i0,a,i0,a)') &
+            trim(stem)//'/'//trim(stem)//'_',indx1,'_',indx2,'.dat'
     case(2) ! Adiabatic state excitation operator
        write(stem,'(a,2(i0))') 'adexci',funcsta(1),funcsta(2)
+       write(filename,'(a,i0,a,i0,a)') &
+            trim(stem)//'/'//trim(stem)//'_',indx1,'_',indx2,'.dat'
     case(3) ! Rotational energies
-       write(stem,'(a,i0)') 'EJ',Jval
+       write(stem,'(a,i0)') 'EJ',indx1
+       write(filename,'(a,i0,a)') &
+            trim(stem)//'/'//trim(stem)//'_K',indx2,'.dat'
     end select
-    
-    write(filename,'(a,i0,a,i0,a)') &
-         trim(stem)//'/'//trim(stem)//'_',s1,'_',s2,'.dat'
-    
+
     open(unit,file=filename,form='unformatted',status='unknown')
 
 !----------------------------------------------------------------------
