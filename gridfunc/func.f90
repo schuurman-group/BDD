@@ -373,7 +373,7 @@ contains
     
     implicit none
 
-    integer              :: m,m1,i,error
+    integer              :: m,m1,i,j,error
     real(dp), intent(in) :: q(nfuncmode)
     real(dp)             :: EJ
     real(dp)             :: q1(nmodes)
@@ -381,6 +381,9 @@ contains
     real(dp)             :: itensor(3,3)
     real(dp)             :: iteig(3)
     real(dp)             :: work(9)
+    real(dp)             :: totmass,com(3)
+    real(dp)             :: xx,xy,xz,xm
+    real(dp)             :: A,B,C
     
 !----------------------------------------------------------------------
 ! Normal mode coordinates in the full space
@@ -395,18 +398,55 @@ contains
 ! Cartesian coordinates in a.u.
 !----------------------------------------------------------------------
     x=xcoo0+matmul(nmcoo,q1)*ang2bohr
+    
+!----------------------------------------------------------------------
+! Shift to the centre of mass
+!----------------------------------------------------------------------
+    ! Total mass
+    totmass=0.0d0
+    do i=1,natm
+       totmass=totmass+mass(i*3)
+    enddo
 
+    ! Center of mass
+    com=0.0d0
+    do i=1,natm
+       do j=1,3
+          com(j)=com(j)+mass(i*3)*x(i*3-3+j)
+       enddo
+    enddo
+    com=com/totmass
+
+    ! Shift the origin to the centre of mass
+    do i=1,natm
+       do j=1,3
+          x(i*3-3+j)=x(i*3-3+j)-com(j)
+       enddo
+    enddo
+
+    com=0.0d0
+    do i=1,natm
+       do j=1,3
+          com(j)=com(j)+mass(i*3)*x(i*3-3+j)
+       enddo
+    enddo
+    com=com/totmass
+    
 !----------------------------------------------------------------------
 ! Moment of intertia tensor in a.u.
 !----------------------------------------------------------------------
     itensor=0.0d0
     do i=1,natm
-       itensor(1,1)=itensor(1,1)+mass(i*3)*x(i*3-1)**2+x(i*3)**2
-       itensor(2,2)=itensor(2,2)+mass(i*3)*x(i*3-2)**2+x(i*3)**2
-       itensor(3,3)=itensor(3,3)+mass(i*3)*x(i*3-2)**2+x(i*3-1)**2
-       itensor(1,2)=itensor(1,2)-mass(i*3)*x(i*3-2)*x(i*3-1)
-       itensor(1,3)=itensor(1,3)-mass(i*3)*x(i*3-2)*x(i*3)
-       itensor(2,3)=itensor(2,3)-mass(i*3)*x(i*3-1)*x(i*3)
+       xx=x(i*3-2)
+       xy=x(i*3-1)
+       xz=x(i*3)
+       xm=mass(i*3)
+       itensor(1,1)=itensor(1,1)+xm*(xy**2+xz**2)
+       itensor(2,2)=itensor(2,2)+xm*(xx**2+xz**2)
+       itensor(3,3)=itensor(3,3)+xm*(xx**2+xy**2)
+       itensor(1,2)=itensor(1,2)-xm*xx*xy
+       itensor(1,3)=itensor(1,3)-xm*xx*xz
+       itensor(2,3)=itensor(2,3)-xm*xy*xz
     enddo
     itensor(2,1)=itensor(1,2)
     itensor(3,1)=itensor(1,3)
@@ -419,12 +459,19 @@ contains
 ! Diagonalise the moment of inertia tensor
 !-----------------------------------------------------------------------
     call dsyev('V','U',3,itensor,3,iteig,work,9,error)
-
+    
     if (error.ne.0) then
        errmsg='Diagonalisation of the moment of inertia tensor in &
             rotational_energy failed'
        call error_control
     endif
+
+!-----------------------------------------------------------------------
+! Rotational constants in a.u.
+!-----------------------------------------------------------------------
+    A=1.0d0/(2.0d0*iteig(1))
+    B=1.0d0/(2.0d0*iteig(2))
+    C=1.0d0/(2.0d0*iteig(3))
 
     return
     

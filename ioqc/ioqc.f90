@@ -844,9 +844,9 @@ contains
 !-----------------------------------------------------------------------
     itold=0.0d0
     do i=1,natm
-       itold(1,1)=itold(1,1)+mass(i*3)*xcoo0(i*3-1)**2+xcoo0(i*3)**2
-       itold(2,2)=itold(2,2)+mass(i*3)*xcoo0(i*3-2)**2+xcoo0(i*3)**2
-       itold(3,3)=itold(3,3)+mass(i*3)*xcoo0(i*3-2)**2+xcoo0(i*3-1)**2
+       itold(1,1)=itold(1,1)+mass(i*3)*(xcoo0(i*3-1)**2+xcoo0(i*3)**2)
+       itold(2,2)=itold(2,2)+mass(i*3)*(xcoo0(i*3-2)**2+xcoo0(i*3)**2)
+       itold(3,3)=itold(3,3)+mass(i*3)*(xcoo0(i*3-2)**2+xcoo0(i*3-1)**2)
        itold(1,2)=itold(1,2)-mass(i*3)*xcoo0(i*3-2)*xcoo0(i*3-1)
        itold(1,3)=itold(1,3)-mass(i*3)*xcoo0(i*3-2)*xcoo0(i*3)
        itold(2,3)=itold(2,3)-mass(i*3)*xcoo0(i*3-1)*xcoo0(i*3)
