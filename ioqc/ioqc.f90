@@ -278,8 +278,7 @@ contains
        call error_control
     else if (freqtyp.eq.3) then
        ! Hessian file
-       errmsg='The interface for Hessian files still needs writing!'       
-       call error_control
+       call getnatm_hessian
     else if (freqtyp.eq.4) then
        ! Turbomole, aoforce
        call getnatm_aoforce
@@ -399,7 +398,57 @@ contains
     call error_control
     
   end subroutine getnatm_aoforce
-  
+
+!######################################################################
+
+  subroutine getnatm_hessian
+
+    use constants
+    use channels
+    use sysinfo
+    use iomod
+    use parsemod
+    
+    implicit none
+
+    integer            :: unit,i
+    character(len=120) :: string
+
+!----------------------------------------------------------------------
+! Open the Hessian file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=freqfile,form='formatted',status='old')
+
+!----------------------------------------------------------------------
+! Determine the number of atoms
+!----------------------------------------------------------------------
+    read(unit,*)
+
+    natm=0
+    
+5   call rdinp(unit)
+
+    if (lend) goto 999
+
+    if (inkw.eq.4) then
+       natm=natm+1
+       goto 5
+    endif
+    
+!----------------------------------------------------------------------
+! Close the Hessian file
+!----------------------------------------------------------------------
+    close(unit)
+    
+    return
+
+999 continue
+    errmsg='End of the Hessian file reached in getnatm_hessian'
+    call error_control
+    
+  end subroutine getnatm_hessian
+    
 !######################################################################
 
     subroutine getxcoo0
@@ -763,6 +812,8 @@ contains
 
     if (lbl.eq.'H') then
        mass=1.00794d0
+    else if (lbl.eq.'D') then
+       mass=2.01410177811d0
     else if (lbl.eq.'C') then
        mass=12.0107d0
     else if (lbl.eq.'N') then

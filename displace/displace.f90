@@ -503,7 +503,7 @@ contains
           q=0.0d0
           q(n1)=i*dq
           q(n2)=j*dq
-
+          
           ! Cartesian coordinates
           x=xcoo0/ang2bohr+matmul(nmcoo,q)
 
