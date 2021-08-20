@@ -152,6 +152,8 @@ def getqctype(directory):
         if len(check)!=0:
             qctype='colmrci'
 
+    # GRaCI
+            
     # Exit if we could not determine the calculation type
     if qctype==None:
         print('\n Error: the quantum chemistry code used could not be determined\n')

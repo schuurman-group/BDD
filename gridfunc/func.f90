@@ -135,7 +135,7 @@ contains
     use constants
     use sysinfo
     use gridglobal
-
+    
     implicit none
 
     integer(8), intent(in) :: ntotal
@@ -143,7 +143,7 @@ contains
     integer                :: s1,s2
     real(dp)               :: q(nfuncmode)
     real(dp), allocatable  :: func(:,:,:)
-
+    
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
@@ -174,7 +174,7 @@ contains
     ! Loop over pairs of states
     do s1=1,nsta
        do s2=s1,nsta
-          
+
           ! Write the current element of the matrix representation
           ! of the function to disk
           call wrfunc_1element(s1,s2,func(s1,s2,:),ntotal)
@@ -626,7 +626,7 @@ contains
 
     integer, intent(in)    :: indx1,indx2
     integer(8), intent(in) :: ntotal
-    integer                :: unit
+    integer                :: unit,i
     real(dp), intent(in)   :: func(ntotal)
     character(len=80)      :: filename,stem
     
@@ -655,7 +655,9 @@ contains
 !----------------------------------------------------------------------
 ! Write the function to file
 !----------------------------------------------------------------------
-    write(unit) func
+    do i=1,ntotal
+       write(unit) func(i)
+    enddo
     
 !----------------------------------------------------------------------
 ! Close the output file
