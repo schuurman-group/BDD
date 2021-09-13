@@ -316,7 +316,7 @@ contains
           proj(j,i)=adt(j,iproj)*adt(i,iproj)
        enddo
     enddo
-       
+
     return
     
   end function adiabatic_projector
@@ -332,7 +332,7 @@ contains
     
     implicit none
 
-    integer              :: m,m1,i,j,iexci1,iexci2
+    integer              :: m,m1,n,i,j,iexci1,iexci2
     real(dp), intent(in) :: q(nfuncmode)
     real(dp)             :: proj(nsta,nsta)
     real(dp)             :: q1(nmodes)
@@ -366,7 +366,7 @@ contains
                +adt(i,iexci1)*adt(j,iexci2)
        enddo
     enddo
-       
+
     return
     
   end function adiabatic_excitation
