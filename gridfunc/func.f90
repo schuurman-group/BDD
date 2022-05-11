@@ -279,6 +279,7 @@ contains
     use constants
     use sysinfo
     use potfuncs
+    use extfunc
     use gridglobal
     
     implicit none
@@ -301,7 +302,11 @@ contains
 !----------------------------------------------------------------------
 ! Compute the ADT matrix at the grid point q
 !----------------------------------------------------------------------    
-    adt=adtmatrix(q1)
+    if (idiabfunc == 1) then
+       adt=adtmatrix(q1)
+    else
+       adt=extfunc_adtmatrix(q1)
+    endif
 
 !----------------------------------------------------------------------
 ! Diabatic representation of the projector onto the adiabatic state
@@ -328,6 +333,7 @@ contains
     use constants
     use sysinfo
     use potfuncs
+    use extfunc
     use gridglobal
     
     implicit none
@@ -350,7 +356,11 @@ contains
 !----------------------------------------------------------------------
 ! Compute the ADT matrix at the grid point q
 !----------------------------------------------------------------------    
-    adt=adtmatrix(q1)
+    if (idiabfunc == 1) then
+       adt=adtmatrix(q1)
+    else
+       adt=extfunc_adtmatrix(q1)
+    endif
 
 !----------------------------------------------------------------------
 ! Diabatic representation of the adiabatic state excitation operator

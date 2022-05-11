@@ -7,10 +7,16 @@
 program gridfunc
 
   use constants
+  use gridglobal
   use ioqc
+  use extfunc
   use dvr
   use func
 
+
+  use sysinfo
+
+  
   implicit none
 
 !----------------------------------------------------------------------
@@ -26,33 +32,39 @@ program gridfunc
 !----------------------------------------------------------------------
 ! Determine the normal mode file type
 !----------------------------------------------------------------------
-  call freqtype
+  if (idiabfunc == 1) call freqtype
 
 !----------------------------------------------------------------------
 ! Determine the no. atoms and allocate xcoo0 and related arrays
 !----------------------------------------------------------------------
-  call getdim
-
+  if (idiabfunc == 1) then
+     ! KDC potential or rotational energy functions
+     call getdim
+  else
+     ! Model potential functions
+     call getdim_extfunc(idiabfunc)
+  endif
+     
 !----------------------------------------------------------------------
 ! Read the Cartesian coordinates
 !----------------------------------------------------------------------
-  call getxcoo0
+  if (idiabfunc == 1) call getxcoo0
   
 !----------------------------------------------------------------------
 ! Determine the number of normal modes from the moment of intertia
 ! tensor and allocate associated arrays
 !----------------------------------------------------------------------
-  call getnmodes
+  if (idiabfunc == 1) call getnmodes
 
 !----------------------------------------------------------------------
 ! Read the normal modes, frequencies and symmetry labels
 !----------------------------------------------------------------------
-  call getmodes
+  if (idiabfunc == 1) call getmodes
 
 !----------------------------------------------------------------------
 ! Create the normal mode transformation matrices
 !----------------------------------------------------------------------
-  call nm2xmat
+  if (idiabfunc == 1) call nm2xmat
 
 !----------------------------------------------------------------------
 ! Parse the primitive basis section in the input file
@@ -62,7 +74,7 @@ program gridfunc
 !----------------------------------------------------------------------
 ! Read the potential file
 !----------------------------------------------------------------------
-  call rdpotfile
+  if (idiabfunc == 1) call rdpotfile
   
 !----------------------------------------------------------------------
 ! Compute the 1D DVR grids
@@ -173,6 +185,11 @@ contains
 
     ! J
     Jval=0
+
+    ! Diabatic function index
+    ! Default: vibronic coupling Hamiltonian with parameters
+    ! read from a KDC potential parameter file
+    idiabfunc=1
     
 !----------------------------------------------------------------------
 ! Read the input file
@@ -200,6 +217,19 @@ contains
           if (keyword(i+1).eq.'=') then
              i=i+2
              abin=keyword(i)
+          else
+             goto 100
+          endif
+
+       else if (keyword(i).eq.'$potfunc') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             if (keyword(i).eq.'bma_lvc') then
+                idiabfunc=2
+             else
+                errmsg='Unknown potential function: '//trim(keyword(i))
+                call error_control
+             endif
           else
              goto 100
           endif
@@ -304,13 +334,13 @@ contains
 !----------------------------------------------------------------------
 ! Make sure that all the required information has been given
 !----------------------------------------------------------------------
-    if (freqfile.eq.'') then
+    if (freqfile.eq.'' .and. idiabfunc.eq.1) then
        errmsg='The name of the frequency calculation file has not &
             been given'
        call error_control
     endif
 
-    if (abin.eq.'') then
+    if (abin.eq.'' .and. idiabfunc.eq.1) then
        errmsg='The name of the potential parameter file has not been &
             given'
        call error_control

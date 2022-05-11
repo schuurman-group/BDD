@@ -16,7 +16,7 @@ module gridglobal
   
   ! Function type
   integer               :: ifunc
-
+  
   ! Electronic state indices
   integer               :: funcsta(2)
 
@@ -26,5 +26,8 @@ module gridglobal
 
   ! Rotational energies
   integer               :: Jval
+
+  ! Potential function
+  integer               :: idiabfunc
   
 end module gridglobal

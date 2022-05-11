@@ -78,8 +78,9 @@ PLTKDC = pltkdc/pltglobal.o \
 	pltkdc/pltkdc.o
 
 GRIDFUNC = gridfunc/gridglobal.o \
-	gridfunc/func.o \
-	gridfunc/dvr.o \
+	gridfunc/extfunc.o \
+        gridfunc/func.o \
+        gridfunc/dvr.o \
 	gridfunc/gridfunc.o
 
 OBJECTS_BLOCKDIAG = $(MULTI) \
@@ -195,7 +196,8 @@ OBJ_GRIDFUNC = constants.o \
 	symmetry.o \
 	potfuncs.o \
 	gridglobal.o \
-	func.o \
+        extfunc.o \
+        func.o \
 	dvr.o \
 	gridfunc.o
 
