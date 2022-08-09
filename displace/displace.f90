@@ -425,15 +425,18 @@ contains
     implicit none
 
     integer, intent(in)         :: n
-    integer                     :: i
+    integer                     :: i,j,k,unit
     real(dp), dimension(nmodes) :: q
     real(dp), dimension(ncoo)   :: x
     character(len=60)           :: filename
-    character(len=3)            :: aq,ai
+    character(len=3)            :: aq,ai,an
     character(len=1)            :: ad
-    
+
     write(aq,'(i3)') n
 
+!----------------------------------------------------------------------
+! Individual geometry xyz files
+!----------------------------------------------------------------------
     ! Loop over displacements
     do i=-npnts,npnts
 
@@ -461,7 +464,74 @@ contains
        call write_1file(x,filename)
        
     enddo
+
+!----------------------------------------------------------------------
+! Concatenated xyz files
+!----------------------------------------------------------------------
+    !
+    ! Positive direction
+    !
+    ! Open the concatenated xyz file
+    call freeunit(unit)
+    filename='q'//trim(adjustl(aq))//'r.xyz'
+    open(unit,file='geoms/'//trim(filename),form='formatted',&
+         status='unknown')
+
+    ! Loop over displacements
+    do i=0,npnts
+
+       ! Point in normal modes
+       q=0.0d0
+       q(n)=i*dq
+
+       ! Cartesian coordinates
+       x=xcoo0/ang2bohr+matmul(nmcoo,q)
+
+       ! Write the Cartesian coordintates to file
+       write(an,'(i3)') natm
+       write(unit,'(a)') trim(adjustl(an))
+       write(unit,*)
+       do j=1,natm
+          write(unit,'(a2,3(2x,F10.7))') atlbl(j),(x(k),k=j*3-2,j*3)
+       enddo
        
+    enddo
+    
+    ! Close the concatenated xyz file
+    close(unit)
+
+    !
+    ! Negative direction
+    !
+    ! Open the concatenated xyz file
+    call freeunit(unit)
+    filename='q'//trim(adjustl(aq))//'l.xyz'
+    open(unit,file='geoms/'//trim(filename),form='formatted',&
+         status='unknown')
+
+    ! Loop over displacements
+    do i=0,-npnts,-1
+
+       ! Point in normal modes
+       q=0.0d0
+       q(n)=i*dq
+       
+       ! Cartesian coordinates
+       x=xcoo0/ang2bohr+matmul(nmcoo,q)
+       
+       ! Write the Cartesian coordintates to file
+       write(an,'(i3)') natm
+       write(unit,'(a)') trim(adjustl(an))
+       write(unit,*)
+       do j=1,natm
+          write(unit,'(a2,3(2x,F10.7))') atlbl(j),(x(k),k=j*3-2,j*3)
+       enddo
+       
+    enddo
+    
+    ! Close the concatenated xyz file
+    close(unit)
+    
     return
     
   end subroutine makecut_1d
