@@ -4,9 +4,17 @@ module kdcglobal
   
   implicit none
 
-  ! Number of blockdiag files
+  ! Program used to generate the BDD potentials
+  ! iprog = 1 <-> BDD
+  !         2 <-> GRaCI
+  integer                         :: iprog
+  
+  ! Number of BDD output files
   integer                         :: nfiles
 
+  ! Number of displaced geometries
+  integer                         :: ngeom
+  
   ! Filenames
   character(len=120)              :: setfile
   character(len=120), allocatable :: bdfiles(:)
@@ -16,8 +24,8 @@ module kdcglobal
   integer, allocatable            :: coefftyp(:)
   integer, allocatable            :: findx1m(:,:)
   integer, allocatable            :: findx2m(:,:,:)
-  integer, allocatable            :: nfiles1m(:)
-  integer, allocatable            :: nfiles2m(:,:)
+  integer, allocatable            :: ngeom1m(:)
+  integer, allocatable            :: ngeom2m(:,:)
   integer                         :: maxfiles1m,maxfiles2m
   logical                         :: lbilinear
   

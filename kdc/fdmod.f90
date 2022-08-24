@@ -56,7 +56,7 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
-    allocate(coefftyp(nfiles))
+    allocate(coefftyp(ngeom))
     coefftyp=0
 
     allocate(findx1m(nmodes,2))
@@ -66,7 +66,7 @@ contains
     findx2m=0
     
 !----------------------------------------------------------------------
-! Determine the displacement type for each file/geometry
+! Determine the displacement type for each geometry
 !
 ! coefftyp(n) = 1 <-> linear or quadratic terms
 !                     (kappa_a, lambda_a, gamma_aa, mu_aa)
@@ -77,7 +77,7 @@ contains
     lbilinear=.false.
 
     ! Loop over displaced geometries
-    do n=1,nfiles
+    do n=1,ngeom
 
        ! Determine the no. displaced modes
        ndisp=0
@@ -103,7 +103,7 @@ contains
 ! Set the mapping for file <-> mode displacement
 !----------------------------------------------------------------------
     ! Linear and quadratic terms
-    do n=1,nfiles
+    do n=1,ngeom
 
        ! Skip if not a file for linear and quadratic terms
        if (coefftyp(n).ne.1) cycle
@@ -126,7 +126,7 @@ contains
     ! Bi-linear terms
     if (lbilinear) then
 
-       do n=1,nfiles
+       do n=1,ngeom
 
           ! Skip if not a file for bi-linear terms
           if (coefftyp(n).ne.2) cycle

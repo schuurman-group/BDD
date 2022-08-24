@@ -238,9 +238,9 @@ contains
     write(6,'(a)') '-eps              : &
          Also write the model potentials to an eps file'
     write(6,'(a)') '-diab             : &
-         Plot the diabatic potentials (default)'
+         Plot the diabatic potentials'
     write(6,'(a)') '-adiab            : &
-         Plot the adiabatic potentials'
+         Plot the adiabatic potentials (default)'
     
     write(6,'(/)')
     stop

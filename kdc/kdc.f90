@@ -60,14 +60,24 @@ program kdc
   call nm2xmat
   
 !----------------------------------------------------------------------
-! Read the names of the blockdiag files
+! Read the names of the BDD output files
 !----------------------------------------------------------------------
-  call rdbdfilenames
+  call rdfilenames
+
+!----------------------------------------------------------------------
+! Determine the BDD output file type
+!----------------------------------------------------------------------
+  call get_iprog
   
 !----------------------------------------------------------------------
-! Parse the blockdiag files
+! Parse the BDD output files
 !----------------------------------------------------------------------
-  call parse_bdfiles
+  select case(iprog)
+  case(1) ! blockdiag
+     call parse_bdfiles
+  case(2) ! GRaCI
+     call parse_gracifiles
+  end select
   
 !----------------------------------------------------------------------
 ! Determine which coupling coefficients are zero by symmetry
@@ -492,7 +502,7 @@ contains
     
 !######################################################################
 
-  subroutine rdbdfilenames
+  subroutine rdfilenames
 
     use kdcglobal
     
@@ -500,19 +510,19 @@ contains
 
     if (lsetfile) then
        ! Read the blockdiag filenames from a set files
-       call rdbdfilenames_setfile
+       call rdfilenames_setfile
     else
        ! Read the blockdiag filenames from the input file
-       call rdbdfilenames_inpfile
+       call rdfilenames_inpfile
     endif
     
     return
     
-  end subroutine rdbdfilenames
+  end subroutine rdfilenames
 
 !######################################################################
 
-  subroutine rdbdfilenames_setfile
+  subroutine rdfilenames_setfile
 
     use constants
     use channels
@@ -567,11 +577,11 @@ contains
     
     return
     
-  end subroutine rdbdfilenames_setfile
+  end subroutine rdfilenames_setfile
     
 !######################################################################
 
-  subroutine rdbdfilenames_inpfile
+  subroutine rdfilenames_inpfile
 
     use constants
     use channels
@@ -624,8 +634,68 @@ contains
     errmsg='The $bdfiles section could not be found'
     call error_control
     
-  end subroutine rdbdfilenames_inpfile
+  end subroutine rdfilenames_inpfile
 
+!######################################################################
+
+  subroutine get_iprog
+
+    use constants
+    use iomod
+    use kdcglobal
+    
+    implicit none
+
+    integer            :: unit,ierr
+    character(len=120) :: string
+    
+!----------------------------------------------------------------------
+! Initialisation
+!----------------------------------------------------------------------
+    iprog=-1
+
+!----------------------------------------------------------------------    
+! Open the first output file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=bdfiles(1),form='formatted',status='old')
+    
+!----------------------------------------------------------------------
+! Determine the file type
+!----------------------------------------------------------------------
+10  read(unit,'(a)',end=20) string
+
+    if (index(string, 'B L O C K D I A G') /= 0) then
+       ! blockdiag output
+       iprog=1
+       goto 20
+    else if (index(string, 'GRaCI') /= 0) then
+       ! GRaCI output
+       iprog=2
+       goto 20
+    endif
+    
+    goto 10
+    
+20  continue
+
+!----------------------------------------------------------------------    
+! Close the first output file
+!----------------------------------------------------------------------
+    close(unit)
+
+!----------------------------------------------------------------------
+! Exit if the program type was not recognised
+!----------------------------------------------------------------------
+    if (iprog == -1) then
+       errmsg='Error: BDD program type not recognised'
+       call error_control
+    endif
+    
+    return
+    
+  end subroutine get_iprog
+  
 !######################################################################
 
   subroutine parse_bdfiles
@@ -642,17 +712,21 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
+    ! Number of displaced geometries: equal to the number of output
+    ! files for blockdiag calculations
+    ngeom=nfiles
+
     ! Diabatic potential matrix at the displaced geometries
-    allocate(diabpot(nsta,nsta,nfiles))
+    allocate(diabpot(nsta,nsta,ngeom))
     diabpot=0.0d0
     
     ! Normal mode coordinates at the displaced geometries
-    allocate(qvec(nmodes,nfiles))
+    allocate(qvec(nmodes,ngeom))
     qvec=0.0d0
 
     ! Diabatic dipole matrix elements at the displaced geometries
     if (ldipfit) then
-       allocate(diabdip(nsta,nsta,3,nfiles))
+       allocate(diabdip(nsta,nsta,3,ngeom))
        diabdip=0.0d0
     endif
     
@@ -714,6 +788,204 @@ contains
     
   end subroutine parse_bdfiles_1file
 
+!######################################################################
+
+  subroutine parse_gracifiles
+
+    use constants
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer :: n,unit,ierr
+    integer :: igeom
+    
+!----------------------------------------------------------------------
+! Determine the total number of displaced geometries
+!----------------------------------------------------------------------
+    call get_ngeom_graci
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    ! Diabatic potential matrix at the displaced geometries
+    allocate(diabpot(nsta,nsta,ngeom))
+    diabpot=0.0d0
+    
+    ! Normal mode coordinates at the displaced geometries
+    allocate(qvec(nmodes,ngeom))
+    qvec=0.0d0
+
+    ! Diabatic dipole matrix elements at the displaced geometries
+    if (ldipfit) then
+       allocate(diabdip(nsta,nsta,3,ngeom))
+       diabdip=0.0d0
+    endif
+
+!----------------------------------------------------------------------
+! Parse the GRaCI output files
+!----------------------------------------------------------------------
+    call freeunit(unit)
+
+    ! Displaced geometry counter
+    igeom=0
+    
+    ! Loop over output files
+    do n=1,nfiles
+
+       ! Open the GRaCI output file
+       open(unit,file=bdfiles(n),form='formatted',status='old',&
+            iostat=ierr)
+       if (ierr.ne.0) goto 999          
+
+       ! Parse the GRaCI output file
+       ! To do: add diabatic dipole matrices
+       call parse_gracifiles_1file(unit,igeom)
+
+       ! Close the blockdiag log file
+       close(unit)
+       
+    enddo
+    
+    return
+
+999 continue
+    errmsg='Error opening the file: '//trim(bdfiles(n))
+    call error_control
+    
+  end subroutine parse_gracifiles
+
+!######################################################################
+
+  subroutine get_ngeom_graci
+
+    use constants
+    use iomod
+    use kdcglobal
+    
+    implicit none
+
+    integer            :: n,unit
+    character(len=120) :: string
+
+!----------------------------------------------------------------------
+! Initialisation
+!----------------------------------------------------------------------
+    ngeom=0
+    
+!----------------------------------------------------------------------
+! Parse the output files, counting the total no. displaced geometries
+!----------------------------------------------------------------------
+    call freeunit(unit)
+
+    ! Loop over files
+    do n=1,nfiles
+
+       ! Open the output file
+       open(unit,file=bdfiles(n),form='formatted',status='old')
+
+       ! Search for diabatic potential sections
+10     read(unit,'(a)',end=20) string
+       if (index(string,'Diabatic potential matrix elements') /= 0) &
+            ngeom=ngeom+1
+       goto 10
+
+20     continue
+       
+       ! Close the output file
+       close(unit)
+       
+    enddo
+       
+    return
+    
+  end subroutine get_ngeom_graci
+
+!######################################################################
+
+  subroutine parse_gracifiles_1file(unit,igeom)
+
+    use constants
+    use iomod
+    use sysinfo
+    use kdcglobal
+    
+    implicit none
+
+    integer, intent(in)         :: unit
+    integer, intent(inout)      :: igeom
+    integer                     :: i,j,itmp,jtmp
+    real(dp), dimension(ncoo)   :: xcoo
+    real(dp), dimension(nmodes) :: qcoo
+    real(dp), parameter         :: q0thrsh=1e-4_dp
+    character(len=120)          :: string
+    character(len=2)            :: atmp
+    
+!----------------------------------------------------------------------
+! Read in the points in normal mode coordinates and the corresponding
+! diabatic potential values
+!----------------------------------------------------------------------
+    rewind(unit)
+
+10  read(unit,'(a)',end=100) string
+
+    ! Are we at a new DFT/MRCI(2) section?
+    if (index(string,'DFT/MRCI(2) computation') /= 0) then
+
+       ! Read to the Cartesian coordinates
+15     read(unit,'(a)',end=100) string
+       if (index(string,'Cartesian Coordinates') /= 0) then
+
+          ! Parse the Cartesian coordinates
+          read(unit,*)
+          do i=1,natm
+             read(unit,*) atmp,(xcoo(j),j=i*3-2,i*3)
+          enddo
+
+          ! Normal mode coordinates
+          qcoo=matmul(coonm,(xcoo-xcoo0/ang2bohr))
+
+          ! Skip if we are at Q0...
+          if (sqrt(dot_product(qcoo,qcoo)) < q0thrsh) then
+             goto 10
+          endif
+          
+          ! ...otherwise save the normal mode coordinates and carry on
+          igeom=igeom+1
+          qvec(:,igeom)=qcoo
+
+          ! Read to the diabatic potential section for this geometry
+20        read(unit,'(a)',end=100) string
+          if (index(string,'Diabatic potential matrix elements') == 0) &
+               goto 20
+          
+          ! Parse the diabatic potential (C1 symmetry assumed)
+          do i=1,3
+             read(unit,*)
+          enddo
+          do i=1,nsta
+             do j=i,nsta
+                read(unit,*) itmp,jtmp,diabpot(i,j,igeom)
+                diabpot(j,i,igeom)=diabpot(i,j,igeom)
+             enddo
+          enddo
+
+       else
+          goto 15
+       endif
+       
+    endif
+    
+    goto 10
+
+100 continue
+    
+    return
+    
+  end subroutine parse_gracifiles_1file
+    
 !######################################################################
 
   subroutine get_qvec_1file(unit,n)
@@ -1267,7 +1539,7 @@ contains
 !----------------------------------------------------------------------
 ! No. ab initio diabatic potential values
 !----------------------------------------------------------------------
-    write(ibin) nfiles
+    write(ibin) ngeom
 
 !----------------------------------------------------------------------
 ! Diabatic dipole flag

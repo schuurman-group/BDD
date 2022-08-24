@@ -172,13 +172,23 @@ contains
 ! to disk
 !----------------------------------------------------------------------
     ! Loop over pairs of states
-    do s1=1,nsta
-       do s2=s1,nsta
+    !do s1=1,nsta
+    !   do s2=s1,nsta
+    !
+    !      ! Write the current element of the matrix representation
+    !      ! of the function to disk
+    !      call wrfunc_1element(s1,s2,func(s1,s2,:),ntotal)
+    !
+    !   enddo
+    !enddo
 
+    do s1=1,nsta
+       do s2=1,nsta
+    
           ! Write the current element of the matrix representation
           ! of the function to disk
           call wrfunc_1element(s1,s2,func(s1,s2,:),ntotal)
-
+    
        enddo
     enddo
     
@@ -370,13 +380,19 @@ contains
     iexci2=funcsta(2)
     
     ! Form the matrix representation of the excitation operator
+    !do i=1,nsta
+    !   do j=1,nsta
+    !      proj(j,i)=adt(j,iexci1)*adt(i,iexci2) &
+    !           +adt(i,iexci1)*adt(j,iexci2)
+    !   enddo
+    !enddo
+
     do i=1,nsta
        do j=1,nsta
-          proj(j,i)=adt(j,iexci1)*adt(i,iexci2) &
-               +adt(i,iexci1)*adt(j,iexci2)
+          proj(j,i)=adt(j,iexci1)*adt(iexci2,i)
        enddo
     enddo
-
+    
     return
     
   end function adiabatic_excitation
@@ -661,7 +677,7 @@ contains
     end select
 
     open(unit,file=filename,form='unformatted',status='unknown')
-
+    
 !----------------------------------------------------------------------
 ! Write the function to file
 !----------------------------------------------------------------------

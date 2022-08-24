@@ -226,6 +226,8 @@ contains
              i=i+2
              if (keyword(i).eq.'bma_lvc') then
                 idiabfunc=2
+             else if (keyword(i).eq.'c4h4_lvc') then
+                idiabfunc=3
              else
                 errmsg='Unknown potential function: '//trim(keyword(i))
                 call error_control

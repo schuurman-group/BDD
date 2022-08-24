@@ -121,7 +121,7 @@ contains
     do m=1,nmodes
 
        ! Cycle if there are no points for the current mode
-       ndat=nfiles1m(m)
+       ndat=ngeom1m(m)
        if (ndat.eq.0) cycle
 
        ! Loop over elements of the diabatic potential matrix
@@ -216,7 +216,7 @@ contains
     do m=1,nmodes
        
        ! Cycle if there are no points for the current mode
-       ndat=nfiles1m(m)
+       ndat=ngeom1m(m)
        if (ndat.eq.0) cycle
        
        ! Loop over elements of the diabatic dipole matrix
@@ -288,11 +288,11 @@ contains
 ! displacements for each mode
 !----------------------------------------------------------------------
     ! Allocate arrays
-    allocate(nfiles1m(nmodes))
-    nfiles1m=0
+    allocate(ngeom1m(nmodes))
+    ngeom1m=0
 
     ! Loop over displaced geometries
-    do n=1,nfiles
+    do n=1,ngeom
 
        ! Determine the no. displaced modes
        ndisp=0
@@ -304,8 +304,8 @@ contains
        enddo
 
        ! If only one mode is displaced, then update the
-       ! corresponding element of nfiles1m
-       if (ndisp.eq.1) nfiles1m(mindx)=nfiles1m(mindx)+1
+       ! corresponding element of ngeom1m
+       if (ndisp.eq.1) ngeom1m(mindx)=ngeom1m(mindx)+1
           
     enddo
 
@@ -314,16 +314,16 @@ contains
 ! displacements
 !----------------------------------------------------------------------
     ! Allocate arrays
-    maxfiles1m=maxval(nfiles1m)
+    maxfiles1m=maxval(ngeom1m)
     allocate(findx1m(nmodes,maxfiles1m))
     findx1m=0
 
-    ! Reset the nfiles1m array to act as a counter (it will also be
+    ! Reset the ngeom1m array to act as a counter (it will also be
     ! re-filled in in the following)
-    nfiles1m=0
+    ngeom1m=0
     
     ! Loop over displaced geometries
-    do n=1,nfiles
+    do n=1,ngeom
 
        ! Determine the no. displaced modes
        ndisp=0
@@ -336,8 +336,8 @@ contains
 
        ! Fill in the findx1m array
        if (ndisp.eq.1) then
-          nfiles1m(mindx)=nfiles1m(mindx)+1
-          findx1m(mindx,nfiles1m(mindx))=n
+          ngeom1m(mindx)=ngeom1m(mindx)+1
+          findx1m(mindx,ngeom1m(mindx))=n
        endif
        
     enddo
@@ -577,7 +577,7 @@ contains
        do m2=m1+1,nmodes
 
           ! Cycle if there are no points for the current pair of modes
-          ndat=nfiles2m(m1,m2)
+          ndat=ngeom2m(m1,m2)
           if (ndat.eq.0) cycle
 
           ! Loop over elements of the diabatic potential matrix
@@ -661,7 +661,7 @@ contains
        do m2=m1+1,nmodes
 
           ! Cycle if there are no points for the current pair of modes
-          ndat=nfiles2m(m1,m2)
+          ndat=ngeom2m(m1,m2)
           if (ndat.eq.0) cycle
 
           ! Loop over elements of the diabatic dipole matrix
@@ -732,11 +732,11 @@ contains
 ! displacements for each mode
 !----------------------------------------------------------------------
     ! Allocate arrays
-    allocate(nfiles2m(nmodes,nmodes))
-    nfiles2m=0
+    allocate(ngeom2m(nmodes,nmodes))
+    ngeom2m=0
 
     ! Loop over displaced geometries
-    do n=1,nfiles
+    do n=1,ngeom
 
        ! Determine the no. displaced modes
        ndisp=0
@@ -752,10 +752,10 @@ contains
        enddo
 
        ! If only two modes are displaced, then update the
-       ! corresponding element of nfiles2m
+       ! corresponding element of ngeom2m
        if (ndisp.eq.2) then
-          nfiles2m(mindx1,mindx2)=nfiles2m(mindx1,mindx2)+1
-          nfiles2m(mindx2,mindx1)=nfiles2m(mindx1,mindx2)
+          ngeom2m(mindx1,mindx2)=ngeom2m(mindx1,mindx2)+1
+          ngeom2m(mindx2,mindx1)=ngeom2m(mindx1,mindx2)
        endif
           
     enddo
@@ -763,7 +763,7 @@ contains
 !----------------------------------------------------------------------
 ! Return if no files containing two-mode displacements were found
 !----------------------------------------------------------------------
-    if (maxval(nfiles2m).gt.0) then
+    if (maxval(ngeom2m).gt.0) then
        present=.true.
     else
        present=.false.
@@ -774,16 +774,16 @@ contains
 ! Determine the sets of files corresponding to two-mode displacements
 !----------------------------------------------------------------------
     ! Allocate arrays
-    maxfiles2m=maxval(nfiles2m)
+    maxfiles2m=maxval(ngeom2m)
     allocate(findx2m(nmodes,nmodes,maxfiles2m))
     findx2m=0
 
-    ! Reset the nfiles1m array to act as a counter (it will also be
+    ! Reset the ngeom1m array to act as a counter (it will also be
     ! re-filled in in the following)
-    nfiles2m=0
+    ngeom2m=0
 
     ! Loop over displaced geometries
-    do n=1,nfiles
+    do n=1,ngeom
 
        ! Determine the no. displaced modes
        ndisp=0
@@ -800,10 +800,10 @@ contains
        
        ! Fill in the findx2m array
        if (ndisp.eq.2) then
-          nfiles2m(mindx1,mindx2)=nfiles2m(mindx1,mindx2)+1
-          nfiles2m(mindx2,mindx1)=nfiles2m(mindx1,mindx2)
-          findx2m(mindx1,mindx2,nfiles2m(mindx1,mindx2))=n
-          findx2m(mindx2,mindx1,nfiles2m(mindx1,mindx2))=n
+          ngeom2m(mindx1,mindx2)=ngeom2m(mindx1,mindx2)+1
+          ngeom2m(mindx2,mindx1)=ngeom2m(mindx1,mindx2)
+          findx2m(mindx1,mindx2,ngeom2m(mindx1,mindx2))=n
+          findx2m(mindx2,mindx1,ngeom2m(mindx1,mindx2))=n
        endif
        
     enddo
@@ -1095,7 +1095,7 @@ contains
     do m=1,nmodes
 
        ! Cycle if there are no points for the current mode
-       ndat=nfiles1m(m)
+       ndat=ngeom1m(m)
        if (ndat.eq.0) cycle
 
        ! Loop over geometries with the current mode displaced
@@ -1139,7 +1139,7 @@ contains
        do m2=m1+1,nmodes
 
           ! Cycle if there are no points for the current pair of modes
-          ndat=nfiles2m(m1,m2)
+          ndat=ngeom2m(m1,m2)
           if (ndat.eq.0) cycle
 
           ! Loop over geometries with the current pair of modes
@@ -1180,10 +1180,10 @@ contains
 ! Total RMSD
 !----------------------------------------------------------------------
     ! Total number of displaced geometries
-    ndat_tot=sum(nfiles1m(:))
+    ndat_tot=sum(ngeom1m(:))
     do m1=1,nmodes-1
        do m2=m1+1,nmodes
-          ndat_tot=ndat_tot+nfiles2m(m1,m2)
+          ndat_tot=ndat_tot+ngeom2m(m1,m2)
        enddo
     enddo
 
@@ -1200,7 +1200,7 @@ contains
 ! One-mode RMSDs
 !----------------------------------------------------------------------
     do m=1,nmodes
-       ndat=nfiles1m(m)
+       ndat=ngeom1m(m)
        if (ndat.eq.0) cycle
        rmsd1m(m)=sqrt(rmsd1m(m)/(ndat*nsta))
     enddo
@@ -1210,7 +1210,7 @@ contains
 !----------------------------------------------------------------------
     do m1=1,nmodes-1
        do m2=m1+1,nmodes
-          ndat=nfiles2m(m1,m2)
+          ndat=ngeom2m(m1,m2)
           if (ndat.eq.0) cycle
           rmsd2m(m1,m2)=rmsd2m(m1,m2)/(ndat*nsta)
        enddo
