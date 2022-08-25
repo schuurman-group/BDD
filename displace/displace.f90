@@ -196,7 +196,7 @@ contains
                 icut=4
              else if (keyword(i).eq.'diag_2d') then
                 ! Diagonal 2D cuts needed for the determination
-                ! of all quadratic
+                ! of all quadratic terms
                 icut=5
              else
                 goto 100
@@ -434,36 +434,36 @@ contains
 
     write(aq,'(i3)') n
 
-!----------------------------------------------------------------------
-! Individual geometry xyz files
-!----------------------------------------------------------------------
-    ! Loop over displacements
-    do i=-npnts,npnts
-
-       ! Skip the reference point
-       if (i.eq.0) cycle
-       
-       ! Point in normal modes
-       q=0.0d0
-       q(n)=i*dq
-
-       ! Cartesian coordinates
-       x=xcoo0/ang2bohr+matmul(nmcoo,q)
-
-       ! Filename
-       write(ai,'(i3)') abs(i)
-       if (i.lt.0) then
-          ad='l'
-       else if (i.gt.0) then
-          ad='r'
-       endif
-       filename='q'//trim(adjustl(aq))//'_'//trim(adjustl(ai)) &
-            //ad//'.xyz'
-       
-       ! Write the Cartesian coordinates to file
-       call write_1file(x,filename)
-       
-    enddo
+!!----------------------------------------------------------------------
+!! Individual geometry xyz files
+!!----------------------------------------------------------------------
+!    ! Loop over displacements
+!    do i=-npnts,npnts
+!
+!       ! Skip the reference point
+!       if (i.eq.0) cycle
+!       
+!       ! Point in normal modes
+!       q=0.0d0
+!       q(n)=i*dq
+!
+!       ! Cartesian coordinates
+!       x=xcoo0/ang2bohr+matmul(nmcoo,q)
+!
+!       ! Filename
+!       write(ai,'(i3)') abs(i)
+!       if (i.lt.0) then
+!          ad='l'
+!       else if (i.gt.0) then
+!          ad='r'
+!       endif
+!       filename='q'//trim(adjustl(aq))//'_'//trim(adjustl(ai)) &
+!            //ad//'.xyz'
+!       
+!       ! Write the Cartesian coordinates to file
+!       call write_1file(x,filename)
+!       
+!    enddo
 
 !----------------------------------------------------------------------
 ! Concatenated xyz files
@@ -607,7 +607,7 @@ contains
 
 !######################################################################
 
-   subroutine makecut_2d_diag(n1,n2)
+  subroutine makecut_2d_diag(n1,n2)
 
     use constants
     use channels
@@ -618,21 +618,64 @@ contains
     implicit none
 
     integer, intent(in)         :: n1,n2
-    integer                     :: i
+    integer                     :: i,j,k,unit
     real(dp), dimension(nmodes) :: q
     real(dp), dimension(ncoo)   :: x
     character(len=60)           :: filename
-    character(len=3)            :: aq1,aq2,ai
+    character(len=3)            :: aq1,aq2,ai,an
     character(len=1)            :: ad1,ad2
 
     write(aq1,'(i3)') n1
     write(aq2,'(i3)') n2
 
-    ! Loop over displacements
-    do i=-npnts,npnts
+!!----------------------------------------------------------------------
+!! Individual geometry xyz files
+!!----------------------------------------------------------------------
+!    ! Loop over displacements
+!    do i=-npnts,npnts
+!
+!       ! Skip the Q0 geometry
+!       if (i.eq.0) cycle
+!
+!       ! Point in normal modes
+!       q=0.0d0
+!       q(n1)=i*dq
+!       q(n2)=i*dq
+!
+!       ! Cartesian coordinates
+!       x=xcoo0/ang2bohr+matmul(nmcoo,q)
+!       
+!       ! Filename
+!       write(ai,'(i3)') abs(i)
+!       if (i.lt.0) then
+!          ad1='l'
+!       else if (i.gt.0) then
+!          ad1='r'
+!       endif
+!       filename='q'//trim(adjustl(aq1))//'_'//trim(adjustl(ai)) &
+!            //ad1//'_q'//trim(adjustl(aq2))//'_' &
+!            //trim(adjustl(ai))//ad1//'.xyz'
+!       
+!       ! Write the Cartesian coordinates to file
+!       call write_1file(x,filename)
+!       
+!    enddo
 
-       ! Skip the Q0 geometry
-       if (i.eq.0) cycle
+!----------------------------------------------------------------------
+! Concatenated xyz files
+!----------------------------------------------------------------------
+    !
+    ! Positive direction
+    !
+    ! Open the concatenated xyz file
+    call freeunit(unit)
+    filename='q'//trim(adjustl(aq1))//'r_q'//trim(adjustl(aq2)) &
+         //'r.xyz'
+    open(unit,file='geoms/'//trim(filename),form='formatted',&
+         status='unknown')
+
+    ! Loop over displacements
+    do i=0,npnts
 
        ! Point in normal modes
        q=0.0d0
@@ -641,23 +684,54 @@ contains
 
        ! Cartesian coordinates
        x=xcoo0/ang2bohr+matmul(nmcoo,q)
-       
-       ! Filename
-       write(ai,'(i3)') abs(i)
-       if (i.lt.0) then
-          ad1='l'
-       else if (i.gt.0) then
-          ad1='r'
-       endif
-       filename='q'//trim(adjustl(aq1))//'_'//trim(adjustl(ai)) &
-            //ad1//'_q'//trim(adjustl(aq2))//'_' &
-            //trim(adjustl(ai))//ad1//'.xyz'
-       
-       ! Write the Cartesian coordinates to file
-       call write_1file(x,filename)
+
+       ! Write the Cartesian coordintates to file
+       write(an,'(i3)') natm
+       write(unit,'(a)') trim(adjustl(an))
+       write(unit,*)
+       do j=1,natm
+          write(unit,'(a2,3(2x,F10.7))') atlbl(j),(x(k),k=j*3-2,j*3)
+       enddo
        
     enddo
+    
+    ! Close the concatenated xyz file
+    close(unit)
 
+    !
+    ! Positive direction
+    !
+    ! Open the concatenated xyz file
+    call freeunit(unit)
+    filename='q'//trim(adjustl(aq1))//'l_q'//trim(adjustl(aq2)) &
+         //'l.xyz'
+    open(unit,file='geoms/'//trim(filename),form='formatted',&
+         status='unknown')
+
+    ! Loop over displacements
+    do i=0,-npnts,-1
+
+       ! Point in normal modes
+       q=0.0d0
+       q(n1)=i*dq
+       q(n2)=i*dq
+
+       ! Cartesian coordinates
+       x=xcoo0/ang2bohr+matmul(nmcoo,q)
+
+       ! Write the Cartesian coordintates to file
+       write(an,'(i3)') natm
+       write(unit,'(a)') trim(adjustl(an))
+       write(unit,*)
+       do j=1,natm
+          write(unit,'(a2,3(2x,F10.7))') atlbl(j),(x(k),k=j*3-2,j*3)
+       enddo
+       
+    enddo
+       
+    ! Close the concatenated xyz file
+    close(unit)
+    
     return
     
   end subroutine makecut_2d_diag

@@ -428,7 +428,7 @@ contains
           enddo
        endif
     enddo
-
+    
     ! Contributions from the dipole operator
     do i=1,3
        if (dipchk(i).gt.0) then            
@@ -440,7 +440,7 @@ contains
           enddo
        endif
     enddo
-
+    
     numsym=0
     ! Loop over operations
     do r=1,chdim
