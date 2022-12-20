@@ -17,6 +17,7 @@ contains
 !                     2 <-> CFOUR
 !                     3 <-> Hessian file
 !                     4 <-> Turbomole, aoforce
+!                     5 <-> ORCA Hessian file
 !######################################################################
 
   subroutine freqtype
@@ -52,6 +53,9 @@ contains
     else if (isaoforce(freqfile)) then
        ! Turbomole, aoforce
        freqtyp=4
+    else if (isorcahess(freqfile)) then
+       ! ORCA Hessian file
+       freqtyp=5
     endif
 
 !----------------------------------------------------------------------
@@ -259,6 +263,61 @@ contains
     return
     
   end function isaoforce
+
+!######################################################################
+
+  function isorcahess (filename) result(found)
+
+    use constants
+    use iomod
+
+    implicit none
+
+    integer            :: unit
+    character(len=*)   :: filename
+    character(len=120) :: string
+    logical            :: found,dir
+
+!----------------------------------------------------------------------
+! First determine whether freqfile is actually a file.
+! This is necessary as for certain programs, the name of a directory
+! will actually be passed instead
+!----------------------------------------------------------------------
+    inquire(file=trim(filename)//'/.',exist=dir)
+
+    if (dir) then
+       found=.false.
+       return
+    endif
+
+!----------------------------------------------------------------------
+! Open file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=filename,form='formatted',status='old')
+
+!----------------------------------------------------------------------
+! Check whether this is an ORCA Hessian file
+!----------------------------------------------------------------------
+    found=.false.
+
+5   read(unit,'(a)',end=10) string
+    if (index(string,'$orca_hessian_file').ne.0) then
+       found=.true.
+    else
+       goto 5
+    endif
+
+10  continue
+    
+!----------------------------------------------------------------------
+! Close file
+!----------------------------------------------------------------------
+    close(unit)
+    
+    return
+    
+  end function isorcahess
   
 !######################################################################
 
@@ -282,6 +341,9 @@ contains
     else if (freqtyp.eq.4) then
        ! Turbomole, aoforce
        call getnatm_aoforce
+    else if (freqtyp.eq.5) then
+       ! ORCA Hessian file
+       call getnatm_orcahess
     endif
     
     return
@@ -401,6 +463,52 @@ contains
 
 !######################################################################
 
+  subroutine getnatm_orcahess
+
+    use constants
+    use channels
+    use sysinfo
+    use iomod
+    
+    implicit none
+
+    integer            :: unit,i
+    character(len=120) :: string
+
+!----------------------------------------------------------------------
+! Open the Hessian file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=freqfile,form='formatted',status='old')
+
+!----------------------------------------------------------------------
+! Determine the number of atoms
+!----------------------------------------------------------------------
+    ! Read to the geometry section
+5   read(unit,'(a)',end=100) string
+    if (index(string,'# The atoms:') == 0) goto 5
+
+    ! Read in the number of atoms
+    read(unit,*)
+    read(unit,*)
+    read(unit,*) natm
+    
+!----------------------------------------------------------------------
+! Close the normal mode file
+!----------------------------------------------------------------------
+    close(unit)
+    
+    return
+
+100 continue
+    errmsg='The Cartesian coordinates could not be found in: '&
+         //trim(freqfile)
+    call error_control
+    
+  end subroutine getnatm_orcahess
+    
+!######################################################################
+  
   subroutine getnatm_hessian
 
     use constants
@@ -482,6 +590,9 @@ contains
     else if (freqtyp.eq.4) then
        ! Turbomole, aoforce
        call getxcoo_aoforce(xcoo,freqfile)
+    else if (freqtyp.eq.5) then
+       ! ORCA Hessian file
+       call getxcoo_orcahess(xcoo,freqfile)
     endif
 
 !----------------------------------------------------------------------
@@ -714,6 +825,57 @@ contains
 
   end subroutine getxcoo_aoforce
 
+!######################################################################
+
+  subroutine getxcoo_orcahess(xcoo,filename)
+
+    use constants
+    use sysinfo
+    use iomod
+
+    implicit none
+  
+    integer                   :: unit,i,j
+    real(dp), dimension(ncoo) :: xcoo
+    real(dp)                  :: mi
+    character(len=*)          :: filename
+    character(len=120)        :: string
+
+!----------------------------------------------------------------------
+! Open file
+!----------------------------------------------------------------------
+    call freeunit(unit)
+    open(unit,file=filename,form='formatted',status='old')
+
+!----------------------------------------------------------------------
+! Read the Cartesian coordinates
+!----------------------------------------------------------------------
+    ! Read to the coordinates section
+5   read(unit,'(a)',end=999) string
+    if (index(string,'$atoms') == 0) goto 5
+
+    ! Read the coordinates (in Bohr)
+    read(unit,*)
+    do i=1,natm
+       read(unit,'(x,a2,3x,F9.5,x,3(3x,F16.12))') atlbl(i),mi,&
+            (xcoo(j), j=i*3-2,i*3)
+       mass(i*3-2:i*3)=lbl2mass(atlbl(i))
+    enddo
+    
+!----------------------------------------------------------------------
+! Close file
+!----------------------------------------------------------------------
+    close(unit)
+
+    return
+
+999 continue
+    errmsg='The Cartesian coordinates could not be found in: '&
+         //trim(filename)
+    call error_control
+
+  end subroutine getxcoo_orcahess
+    
 !######################################################################
 
   subroutine uppercase(string)
@@ -984,6 +1146,9 @@ contains
     else if (freqtyp.eq.4) then
        ! Turbomole, aoforce
        call getmodes_aoforce
+    else if (freqtyp.eq.5) then
+       ! ORCA Hessian file
+       call getmodes_orcahess
     endif
 
 !----------------------------------------------------------------------
@@ -1457,6 +1622,93 @@ contains
   
 !######################################################################
 
+  subroutine getmodes_orcahess
+
+    use constants
+    use iomod
+    use sysinfo
+    use utils
+
+    implicit none
+    
+    integer                        :: unit,i,j,itmp,nblocks,i1,i2
+    real(dp), dimension(ncoo,ncoo) :: hess
+    real(dp), dimension(5)         :: ftmp
+    real(dp)                       :: hij
+    character(len=120)             :: string
+
+
+    ! TEST
+    real(dp) :: eigvec(ncoo,ncoo),eigval(ncoo)
+    ! TEST
+    
+    
+!----------------------------------------------------------------------
+! Read in the Hessian
+!----------------------------------------------------------------------
+    ! Open the ORCA Hessian file
+    call freeunit(unit)
+    open(unit,file=freqfile,form='formatted',status='old')
+
+    ! Read to the Hessian section
+5   read(unit,'(a)',end=100) string
+    if (index(string,'$hessian') == 0) goto 5
+    read(unit,*)
+    
+    ! Read the Hessian
+    nblocks=ceiling(dble(ncoo)/5.0d0)
+    do i=1,nblocks
+
+       ! Column indices for this block
+       i1=(i-1)*5+1
+       i2=min(i1+4,ncoo)
+       
+       read(unit,*)
+
+       do j=1,ncoo
+
+          read(unit,*) itmp,ftmp
+
+          hess(j,i1:i2)=ftmp
+
+       enddo
+       
+    enddo
+
+    ! Close the ORCA Hessian file
+    close(unit)
+
+!----------------------------------------------------------------------
+! Symmetrise the Hessian
+!----------------------------------------------------------------------
+    do i=1,ncoo-1
+       do j=i+1,ncoo
+          hij=(hess(i,j)+hess(j,i))/2.0d0
+          hess(i,j)=hij
+          hess(j,i)=hij
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Calculate the normal mode vectors from the Hessian
+!----------------------------------------------------------------------
+    call hess2nm(hess)
+
+!----------------------------------------------------------------------
+! Assign the symmetry labels: only C1 symmetry is supported for now
+!----------------------------------------------------------------------
+    nmlab(1:nmodes)='A'
+    
+    return
+
+100 continue
+    errmsg='The Hessian could not be found in: '//trim(freqfile)
+    call error_control
+    
+  end subroutine getmodes_orcahess
+  
+!######################################################################
+  
   subroutine hess2nm(hess)
 
     use constants
@@ -1691,7 +1943,7 @@ contains
     implicit none
 
     integer          :: unit,i,j,k
-    character(len=2) :: amode
+    character(len=4) :: amode
 
 !----------------------------------------------------------------------
 ! Open the output file
@@ -1703,13 +1955,13 @@ contains
 ! Write the normal modes and frequencies to file
 !----------------------------------------------------------------------
     do i=1,nmodes
-       write(amode,'(i2)') i
-       write(unit,'(i2)') natm
+       write(amode,'(i0)') i
+       write(unit,'(i0)') natm
        write(unit,'(a,x,F10.4,x,a)') 'Q'//trim(adjustl(amode))&
             //', '//trim(adjustl(nmlab(i)))//',',freq(i)/invcm2ev,&
             'cm-1'
        do j=1,natm
-          write(unit,'(a2,6(2x,F10.7))') atlbl(j),&
+          write(unit,'(a2,6(2x,F12.7))') atlbl(j),&
                (xcoo0(k)/ang2bohr,k=j*3-2,j*3),&
                (nmcoo(k,i)/sqrt(mass(k)),k=j*3-2,j*3)
        enddo

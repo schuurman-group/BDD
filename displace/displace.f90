@@ -492,7 +492,7 @@ contains
        write(unit,'(a)') trim(adjustl(an))
        write(unit,*)
        do j=1,natm
-          write(unit,'(a2,3(2x,F10.7))') atlbl(j),(x(k),k=j*3-2,j*3)
+          write(unit,'(a2,3(2x,F12.7))') atlbl(j),(x(k),k=j*3-2,j*3)
        enddo
        
     enddo
@@ -524,7 +524,7 @@ contains
        write(unit,'(a)') trim(adjustl(an))
        write(unit,*)
        do j=1,natm
-          write(unit,'(a2,3(2x,F10.7))') atlbl(j),(x(k),k=j*3-2,j*3)
+          write(unit,'(a2,3(2x,F12.7))') atlbl(j),(x(k),k=j*3-2,j*3)
        enddo
        
     enddo
@@ -690,7 +690,7 @@ contains
        write(unit,'(a)') trim(adjustl(an))
        write(unit,*)
        do j=1,natm
-          write(unit,'(a2,3(2x,F10.7))') atlbl(j),(x(k),k=j*3-2,j*3)
+          write(unit,'(a2,3(2x,F12.7))') atlbl(j),(x(k),k=j*3-2,j*3)
        enddo
        
     enddo
@@ -724,7 +724,7 @@ contains
        write(unit,'(a)') trim(adjustl(an))
        write(unit,*)
        do j=1,natm
-          write(unit,'(a2,3(2x,F10.7))') atlbl(j),(x(k),k=j*3-2,j*3)
+          write(unit,'(a2,3(2x,F12.7))') atlbl(j),(x(k),k=j*3-2,j*3)
        enddo
        
     enddo
@@ -765,7 +765,7 @@ contains
     write(unit,'(a)') trim(adjustl(an))
     write(unit,*)
     do i=1,natm
-       write(unit,'(a2,3(2x,F10.7))') atlbl(i),(x(j),j=i*3-2,i*3)
+       write(unit,'(a2,3(2x,F12.7))') atlbl(i),(x(j),j=i*3-2,i*3)
     enddo
     
 !----------------------------------------------------------------------
