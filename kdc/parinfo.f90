@@ -142,7 +142,7 @@ contains
     ! Table of effective frequencies
     do s=1,nsta
        do m=1,nmodes
-          write(string,'(i2,4x,a,2x,i2,5x,a,2x,F6.4)') m,'|',s,'|',&
+          write(string,'(i3,3x,a,2x,i2,5x,a,2x,F6.4)') m,'|',s,'|',&
                efreq(m,s)
           if (imaginary(m,s)) string=trim(string)//' (Imaginary)'
           write(ilog,'(x,a)') trim(string)
@@ -210,7 +210,7 @@ contains
     do s=1,nsta
        do m=1,nmodes
           if (kappa_mask(m,s).eq.0) cycle
-          write(ilog,'(x,i2,4x,a,2x,i2,5x,a,2x,F7.4)') m,'|',s,'|',&
+          write(ilog,'(x,i3,3x,a,2x,i2,5x,a,2x,F7.4)') m,'|',s,'|',&
                wkappa(m,s)
        enddo
        write(ilog,'(44a)') ('-',k=1,40)
@@ -224,7 +224,7 @@ contains
        do s2=s1+1,nsta
           do m=1,nmodes
              if (lambda_mask(m,s1,s2).eq.0) cycle
-             write(ilog,'(x,i2,4x,a,2x,i2,7x,a,2x,i2,7x,a,2x,F7.4)') &
+             write(ilog,'(x,i3,3x,a,2x,i2,7x,a,2x,i2,7x,a,2x,F7.4)') &
                   m,'|',s1,'|',s2,'|',wlambda(m,s1,s2,1)
           enddo
           write(ilog,'(44a)') ('-',k=1,44)
@@ -239,7 +239,7 @@ contains
        do s2=s1+1,nsta
           do m=1,nmodes
              if (lambda_mask(m,s1,s2).eq.0) cycle
-             write(ilog,'(x,i2,4x,a,2x,i2,7x,a,2x,i2,7x,a,2x,F7.4)') &
+             write(ilog,'(x,i3,3x,a,2x,i2,7x,a,2x,i2,7x,a,2x,F7.4)') &
                   m,'|',s1,'|',s2,'|',wlambda(m,s1,s2,2)
           enddo
           write(ilog,'(44a)') ('-',k=1,44)
@@ -317,7 +317,7 @@ contains
        call dsortindxa1('D',nmodes,maxpar(:,s),indx)
        do m=1,nmodes
           if (maxpar(indx(m),s).lt.thrsh) cycle
-          write(ilog,'(x,i2,5x,a,2x,i2,4x,a,3x,F7.4)') &
+          write(ilog,'(x,i2,5x,a,2x,i3,3x,a,3x,F7.4)') &
                s,'|',indx(m),'|',maxpar(indx(m),s)
        enddo
        write(ilog,'(30a)') ('-', k=1,30)
