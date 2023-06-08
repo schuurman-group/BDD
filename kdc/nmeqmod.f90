@@ -140,7 +140,7 @@ contains
              ! Subtract off the zeroth-order potential value
              ! Note that WIJ(Q0)=0 for I!=J
              if (s1.eq.s2) w(1:ndat)=w(1:ndat)-q0pot(s1)
-                
+
              ! Perform the fitting for the current mode and
              ! diabatic potential matrix element
              if (s1.eq.s2) then

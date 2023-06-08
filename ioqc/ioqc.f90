@@ -916,6 +916,8 @@ contains
        lbl='N'
     else if (num.eq.8) then
        lbl='O'
+    else if (num.eq.12) then
+       lbl='Mg'
     else if (num.eq.16) then
        lbl='S'
     else
@@ -948,6 +950,8 @@ contains
        mass=14.0067d0
     else if (num.eq.8) then
        mass=15.9994d0
+    else if (num.eq.12) then
+       mass=24.305d0
     else if (num.eq.16) then
        mass=32.065d0
     else
@@ -982,6 +986,8 @@ contains
        mass=14.0067d0
     else if (lbl.eq.'O') then
        mass=15.9994d0
+    else if (lbl.eq.'Mg') then
+       mass=24.305d0
     else if (lbl.eq.'S') then
        mass=32.065d0
     else
