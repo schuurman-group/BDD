@@ -134,7 +134,7 @@ contains
     do s=1,nsta
        w(s,s)=w(s,s)+e0(s)
     enddo
-
+    
     ! Harmonic potentials
     do s=1,nsta
        do m=1,nmodes

@@ -135,7 +135,7 @@ contains
     
     ! Maximum number of determinants
     maxdet=max(maxval(ndet_ref),maxval(ndet_disp))
-    
+
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
@@ -163,7 +163,6 @@ contains
     ! Reference geometry
     do i=1,nsta_ref
        open(idet,file=adetref(i),form='formatted',status='old')
-
 
        !do k=1,ndet_ref(i)
        !   call rdinp(idet)
@@ -193,7 +192,7 @@ contains
        !enddo
 
        do k=1,ndet_disp(i)
-          read(idet,*) c_disp(k,i),(det_disp(n,k,i),n=1,nmo_ref)
+          read(idet,*) c_disp(k,i),(det_disp(n,k,i),n=1,nmo_disp)
        enddo
        
        close(idet)

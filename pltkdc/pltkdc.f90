@@ -657,15 +657,15 @@ contains
     implicit none
 
     integer             :: unit,s,i,k
-    character(len=2)    :: am,am2
+    character(len=4)    :: am,am2
     character(len=220)  :: filename
     character(len=1200) :: string
 
 !----------------------------------------------------------------------
 ! Filename
 !----------------------------------------------------------------------
-    write(am,'(i2)') mplt
-    write(am2,'(i2)') mplt2
+    write(am,'(i0)') mplt
+    write(am2,'(i0)') mplt2
     
     ! gnuplot file
     if (ldiagcut) then
@@ -701,8 +701,8 @@ contains
 
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''Energy (eV)'''
-    write(am,'(i2)') mplt
-    write(am2,'(i2)') mplt2
+    write(am,'(i0)') mplt
+    write(am2,'(i0)') mplt2
     string='set xlabel ''Q_{'//trim(adjustl(am))//'}'''
     if (ldiagcut) then
        k=len_trim(string)-1
@@ -781,17 +781,17 @@ contains
     implicit none
 
     integer             :: unit,s,i,k
-    character(len=2)    :: am,am2,as1,as2
+    character(len=4)    :: am,am2,as1,as2
     character(len=220)  :: filename
     character(len=1200) :: string
 
 !----------------------------------------------------------------------
 ! Filename
 !----------------------------------------------------------------------
-    write(am,'(i2)') mplt
-    write(am2,'(i2)') mplt2
-    write(as1,'(i2)') dcpsta1
-    write(as2,'(i2)') dcpsta2
+    write(am,'(i0)') mplt
+    write(am2,'(i0)') mplt2
+    write(as1,'(i0)') dcpsta1
+    write(as2,'(i0)') dcpsta2
     
     ! gnuplot file
     if (ldiagcut) then
@@ -832,8 +832,8 @@ contains
 
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''Energy (eV)'''
-    write(am,'(i2)') mplt
-    write(am2,'(i2)') mplt2
+    write(am,'(i0)') mplt
+    write(am2,'(i0)') mplt2
     string='set xlabel ''Q_{'//trim(adjustl(am))//'}'''
     if (ldiagcut) then
        k=len_trim(string)-1
@@ -907,7 +907,7 @@ contains
     implicit none
 
     integer                        :: unit,i,c,k
-    character(len=2)               :: am,am2,as1,as2
+    character(len=4)               :: am,am2,as1,as2
     character(len=220)             :: filename
     character(len=1200)            :: string
     character(len=1), dimension(3) :: acomp
@@ -917,10 +917,10 @@ contains
 !----------------------------------------------------------------------
 ! Filename
 !----------------------------------------------------------------------
-    write(am,'(i2)') mplt
-    write(am2,'(i2)') mplt2
-    write(as1,'(i2)') dipsta1
-    write(as2,'(i2)') dipsta2
+    write(am,'(i0)') mplt
+    write(am2,'(i0)') mplt2
+    write(as1,'(i0)') dipsta1
+    write(as2,'(i0)') dipsta2
     
     ! gnuplot file
     if (ldiagcut) then
@@ -956,8 +956,8 @@ contains
 
     ! Axis labels
     write(unit,'(a)') 'set ylabel ''D (a.u.)'''
-    write(am,'(i2)') mplt
-    write(am2,'(i2)') mplt2
+    write(am,'(i0)') mplt
+    write(am2,'(i0)') mplt2
     string='set xlabel ''Q_{'//trim(adjustl(am))//'}'''
     if (ldiagcut) then
        k=len_trim(string)-1

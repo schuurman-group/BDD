@@ -39,7 +39,7 @@ contains
     integer                        :: nzdip4
     real(dp), parameter            :: thrsh=5e-4_dp
     real(dp), dimension(nsta,nsta) :: scalefac
-    character(len=2)               :: am,am1,am2,as,as1,as2,afel,aft
+    character(len=3)               :: am,am1,am2,as,as1,as2,afel,aft
     character(len=5)               :: aunit
     character(len=90)              :: string
     character(len=3)               :: amode
@@ -67,12 +67,12 @@ contains
 ! Index of the electronic DOF
 !----------------------------------------------------------------------
     fel=nmodes+1
-    write(afel,'(i2)') fel
+    write(afel,'(i3)') fel
 
 !----------------------------------------------------------------------
 ! Index of the Time DOF
 !----------------------------------------------------------------------
-    write(aft,'(i2)') fel+1
+    write(aft,'(i3)') fel+1
     
 !----------------------------------------------------------------------
 ! Cartesian axis labels
@@ -97,7 +97,7 @@ contains
     ! Frequencies
     write(iop,'(/,a)') '# Frequencies'
     do m=1,nmodes
-       write(am,'(i2)') m
+       write(am,'(i3)') m
        write(iop,'(a,F9.6,a)') &
             'omega_'//adjustl(am)//' =',freq(m),aunit
     enddo
@@ -105,7 +105,7 @@ contains
     ! Energies
     write(iop,'(/,a)') '# Energies'
     do s=1,nsta
-       write(as,'(i2)') s
+       write(as,'(i3)') s
        write(iop,'(a,F9.6,a)') &
             'E'//adjustl(as)//' = ',e0(s)+shift0(s),aunit
     enddo
@@ -115,11 +115,11 @@ contains
        write(iop,'(/,a)') '# 1st-order intrastate coupling &
             constants (kappa)'
        do s=1,nsta
-          write(as,'(i2)') s
+          write(as,'(i3)') s
           do m=1,nmodes
              if (kappa_mask(m,s).eq.0) cycle
              if (abs(kappa(m,s)).lt.thrsh) cycle
-             write(am,'(i2)') m
+             write(am,'(i3)') m
              write(iop,'(a,F9.6,a)') 'kappa'//trim(adjustl(as))&
                   //'_'//adjustl(am)//' = ',kappa(m,s),aunit
           enddo
@@ -131,13 +131,13 @@ contains
        write(iop,'(/,a)') '# 1st-order interstate coupling &
             constants (lambda)'
        do s1=1,nsta-1
-          write(as1,'(i2)') s1
+          write(as1,'(i3)') s1
           do s2=s1+1,nsta
-             write(as2,'(i2)') s2
+             write(as2,'(i3)') s2
              do m=1,nmodes
                 if (lambda_mask(m,s1,s2).eq.0) cycle
                 if (abs(lambda(m,s1,s2)).lt.thrsh) cycle
-                write(am,'(i2)') m
+                write(am,'(i3)') m
                 write(iop,'(a,F9.6,a)') 'lambda'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))//'_'//adjustl(am)//&
                      ' = ',lambda(m,s1,s2)*scalefac(s1,s2),aunit
@@ -151,11 +151,11 @@ contains
        write(iop,'(/,a)') '# Quadratic 2nd-order intrastate &
             coupling constants (gamma)'
        do s=1,nsta
-          write(as,'(i2)') s
+          write(as,'(i3)') s
           do m=1,nmodes
              if (gamma_mask(m,m,s).eq.0) cycle
              if (abs(gamma(m,m,s)).lt.thrsh) cycle
-             write(am,'(i2)') m
+             write(am,'(i3)') m
              write(iop,'(a,F9.6,a)') 'gamma'//trim(adjustl(as))&
                   //'_'//trim(adjustl(am))//'_'//adjustl(am)&
                   //' = ',gamma(m,m,s),aunit
@@ -168,13 +168,13 @@ contains
        write(iop,'(/,a)') '# Bi-linear 2nd-order intrastate &
             coupling constants (gamma)'
        do s=1,nsta
-          write(as,'(i2)') s
+          write(as,'(i3)') s
           do m1=1,nmodes-1
              do m2=m1+1,nmodes
                 if (gamma_mask(m1,m2,s).eq.0) cycle
                 if (abs(gamma(m1,m2,s)).lt.thrsh) cycle
-                write(am1,'(i2)') m1
-                write(am2,'(i2)') m2
+                write(am1,'(i3)') m1
+                write(am2,'(i3)') m2
                 write(iop,'(a,F9.6,a)') 'gamma'//trim(adjustl(as))&
                      //'_'//trim(adjustl(am1))//'_'//adjustl(am2)&
                      //' = ',gamma(m1,m2,s),aunit
@@ -188,13 +188,13 @@ contains
        write(iop,'(/,a)') '# Quadratic 2nd-order interstate &
             coupling constants (mu)'
        do s1=1,nsta-1
-          write(as1,'(i2)') s1
+          write(as1,'(i3)') s1
           do s2=s1+1,nsta
-             write(as2,'(i2)') s2          
+             write(as2,'(i3)') s2          
              do m=1,nmodes
                 if (mu_mask(m,m,s1,s2).eq.0) cycle
                 if (abs(mu(m,m,s1,s2)).lt.thrsh) cycle
-                write(am,'(i2)') m
+                write(am,'(i3)') m
                 write(iop,'(a,F9.6,a)') 'mu'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))//'_'//&
                      trim(adjustl(am))//'_'//adjustl(am)//' = ',&
@@ -209,15 +209,15 @@ contains
        write(iop,'(/,a)') '# Bi-linear 2nd-order interstate &
             coupling constants (mu)'
        do s1=1,nsta-1
-          write(as1,'(i2)') s1
+          write(as1,'(i3)') s1
           do s2=s1+1,nsta
-             write(as2,'(i2)') s2          
+             write(as2,'(i3)') s2          
              do m1=1,nmodes-1
                 do m2=m1+1,nmodes
                    if (mu_mask(m1,m2,s1,s2).eq.0) cycle
                    if (abs(mu(m1,m2,s1,s2)).lt.thrsh) cycle
-                   write(am1,'(i2)') m1
-                   write(am2,'(i2)') m2
+                   write(am1,'(i3)') m1
+                   write(am2,'(i3)') m2
                    write(iop,'(a,F9.6,a)') 'mu'//trim(adjustl(as1))&
                         //'_'//trim(adjustl(as2))//'_'//&
                         trim(adjustl(am1))//'_'//adjustl(am2)//&
@@ -233,11 +233,11 @@ contains
        write(iop,'(/,a)') '# Cubic 3rd-order intrastate coupling &
             constants (iota)'
        do s=1,nsta
-          write(as,'(i2)') s
+          write(as,'(i3)') s
           do m=1,nmodes
              if (iota_mask(m,s).eq.0) cycle
              if (abs(iota(m,s)).lt.thrsh) cycle
-             write(am,'(i2)') m
+             write(am,'(i3)') m
              write(iop,'(a,F9.6,a)') 'iota'//trim(adjustl(as))&
                   //'_'//trim(adjustl(am))//' = ',iota(m,s),aunit
           enddo
@@ -249,13 +249,13 @@ contains
        write(iop,'(/,a)') '# Cubic 3rd-order interstate coupling &
             constants (tau)'
        do s1=1,nsta-1
-          write(as1,'(i2)') s1
+          write(as1,'(i3)') s1
           do s2=s1+1,nsta
-             write(as2,'(i2)') s2          
+             write(as2,'(i3)') s2          
              do m=1,nmodes
                 if (tau_mask(m,s1,s2).eq.0) cycle
                 if (abs(tau(m,s1,s2)).lt.thrsh) cycle
-                write(am,'(i2)') m
+                write(am,'(i3)') m
                 write(iop,'(a,F9.6,a)') 'tau'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))//'_'//&
                      trim(adjustl(am))//' = ',&
@@ -270,11 +270,11 @@ contains
        write(iop,'(/,a)') '# Cubic 4rd-order intrastate coupling &
             constants (epsilon)'
        do s=1,nsta
-          write(as,'(i2)') s
+          write(as,'(i3)') s
           do m=1,nmodes
              if (epsilon_mask(m,s).eq.0) cycle
              if (abs(epsilon(m,s)).lt.thrsh) cycle
-             write(am,'(i2)') m
+             write(am,'(i3)') m
              write(iop,'(a,F9.6,a)') 'epsilon'//trim(adjustl(as))&
                   //'_'//trim(adjustl(am))//' = ',epsilon(m,s),aunit
           enddo
@@ -286,13 +286,13 @@ contains
        write(iop,'(/,a)') '# Cubic 3rd-order interstate coupling &
             constants (xi)'
        do s1=1,nsta-1
-          write(as1,'(i2)') s1
+          write(as1,'(i3)') s1
           do s2=s1+1,nsta
-             write(as2,'(i2)') s2          
+             write(as2,'(i3)') s2          
              do m=1,nmodes
                 if (xi_mask(m,s1,s2).eq.0) cycle
                 if (abs(xi(m,s1,s2)).lt.thrsh) cycle
-                write(am,'(i2)') m
+                write(am,'(i3)') m
                 write(iop,'(a,F9.6,a)') 'xi'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))//'_'//&
                      trim(adjustl(am))//' = ',&
@@ -311,9 +311,9 @@ contains
                terms'
           do c=1,3
              do s1=1,nsta
-                write(as1,'(i2)') s1
+                write(as1,'(i3)') s1
                 do s2=s1,nsta
-                   write(as2,'(i2)') s2
+                   write(as2,'(i3)') s2
                    if (abs(dip0(s1,s2,c)).lt.thrsh) cycle
                    write(iop,'(a,F10.7)') 'dip0'//acomp(c)&
                         //trim(adjustl(as1))//'_'//trim(adjustl(as2))&
@@ -329,13 +329,13 @@ contains
                terms'
           do c=1,3
              do s1=1,nsta
-                write(as1,'(i2)') s1
+                write(as1,'(i3)') s1
                 do s2=s1,nsta
-                   write(as2,'(i2)') s2
+                   write(as2,'(i3)') s2
                    do m=1,nmodes
                       if (abs(dip1(m,s1,s2,c)).lt.thrsh) cycle
                       if (dip1_mask(m,s1,s2,c).eq.0) cycle
-                      write(am,'(i2)') m
+                      write(am,'(i3)') m
                       write(iop,'(a,F10.7)') 'dip1'//acomp(c)&
                            //trim(adjustl(as1))//'_'&
                            //trim(adjustl(as2))//'_'&
@@ -352,15 +352,15 @@ contains
                terms'
           do c=1,3
              do s1=1,nsta
-                write(as1,'(i2)') s1
+                write(as1,'(i3)') s1
                 do s2=s1,nsta
-                   write(as2,'(i2)') s2
+                   write(as2,'(i3)') s2
                    do m1=1,nmodes
                       do m2=m1,nmodes
                          if (abs(dip2(m1,m2,s1,s2,c)).lt.thrsh) cycle
                          if (dip2_mask(m1,m2,s1,s2,c).eq.0) cycle
-                         write(am1,'(i2)') m1
-                         write(am2,'(i2)') m2
+                         write(am1,'(i3)') m1
+                         write(am2,'(i3)') m2
                          write(iop,'(a,F10.7)') 'dip2'//acomp(c)&
                               //trim(adjustl(as1))//'_'&
                               //trim(adjustl(as2))//'_'&
@@ -380,13 +380,13 @@ contains
                terms'
           do c=1,3
              do s1=1,nsta
-                write(as1,'(i2)') s1
+                write(as1,'(i3)') s1
                 do s2=s1,nsta
-                   write(as2,'(i2)') s2
+                   write(as2,'(i3)') s2
                    do m=1,nmodes
                       if (abs(dip3(m,s1,s2,c)).lt.thrsh) cycle
                       if (dip3_mask(m,s1,s2,c).eq.0) cycle
-                      write(am,'(i2)') m
+                      write(am,'(i3)') m
                       write(iop,'(a,F10.7)') 'dip3'//acomp(c)&
                            //trim(adjustl(as1))//'_'&
                            //trim(adjustl(as2))//'_'&
@@ -403,13 +403,13 @@ contains
                terms'
           do c=1,3
              do s1=1,nsta
-                write(as1,'(i2)') s1
+                write(as1,'(i3)') s1
                 do s2=s1,nsta
-                   write(as2,'(i2)') s2
+                   write(as2,'(i3)') s2
                    do m=1,nmodes
                       if (abs(dip4(m,s1,s2,c)).lt.thrsh) cycle
                       if (dip4_mask(m,s1,s2,c).eq.0) cycle
-                      write(am,'(i2)') m
+                      write(am,'(i3)') m
                       write(iop,'(a,F10.7)') 'dip4'//acomp(c)&
                            //trim(adjustl(as1))//'_'&
                            //trim(adjustl(as2))//'_'&
@@ -495,7 +495,7 @@ contains
     ! Kinetic energy operator
     write(iop,'(/,a)') '# Kinetic energy'
     do m=1,nmodes
-       write(am,'(i2)') m
+       write(am,'(i3)') m
        write(iop,'(a)') &
             'omega_'//adjustl(am)//'  |'//adjustl(am)//'  KE'
     enddo
@@ -503,7 +503,7 @@ contains
     ! Zeroth-order potential: VEEs
     write(iop,'(/,a)') '# Zeroth-order potential: VEEs'
     do s=1,nsta
-       write(as,'(i2)') s
+       write(as,'(i3)') s
        write(iop,'(a)') &
             'E'//adjustl(as)//'  |'//adjustl(afel)&
             //'  S'//trim(adjustl(as))//'&'//trim(adjustl(as))
@@ -513,7 +513,7 @@ contains
     write(iop,'(/,a)') '# Zeroth-order potential: &
          Harmonic oscillators'
     do m=1,nmodes
-       write(am,'(i2)') m
+       write(am,'(i3)') m
        write(iop,'(a)') &
             '0.5*omega_'//adjustl(am)//'  |'//adjustl(am)//'  q^2'
     enddo
@@ -523,11 +523,11 @@ contains
        write(iop,'(/,a)') '# 1st-order intrastate coupling &
             constants (kappa)'
        do m=1,nmodes
-          write(am,'(i2)') m
+          write(am,'(i3)') m
           do s=1,nsta
              if (kappa_mask(m,s).eq.0) cycle
              if (abs(kappa(m,s)).lt.thrsh) cycle
-             write(as,'(i2)') s
+             write(as,'(i3)') s
              write(iop,'(a)') 'kappa'//trim(adjustl(as))&
                   //'_'//adjustl(am)&
                   //'  |'//adjustl(am)//'  q'//'  |'//adjustl(afel)&
@@ -541,13 +541,13 @@ contains
        write(iop,'(/,a)') '# 1st-order interstate coupling &
             constants (lambda)'
        do m=1,nmodes
-          write(am,'(i2)') m
+          write(am,'(i3)') m
           do s1=1,nsta-1
-             write(as1,'(i2)') s1
+             write(as1,'(i3)') s1
              do s2=s1+1,nsta
                 if (lambda_mask(m,s1,s2).eq.0) cycle
                 if (abs(lambda(m,s1,s2)).lt.thrsh) cycle
-                write(as2,'(i2)') s2
+                write(as2,'(i3)') s2
                 write(iop,'(a)') 'lambda'//trim(adjustl(as1)) &
                      //'_'//trim(adjustl(as2))//'_'//adjustl(am) &
                      //'  |'//adjustl(am)//'  q'//'  |'//adjustl(afel)&
@@ -563,11 +563,11 @@ contains
        write(iop,'(/,a)') '# Quadratic 2nd-order intrastate &
             coupling constants (gamma)'
        do m=1,nmodes
-          write(am,'(i2)') m
+          write(am,'(i3)') m
           do s=1,nsta
              if (gamma_mask(m,m,s).eq.0) cycle
              if (abs(gamma(m,m,s)).lt.thrsh) cycle
-             write(as,'(i2)') s
+             write(as,'(i3)') s
              write(iop,'(a)') '0.5*gamma'//trim(adjustl(as))&
                   //'_'//trim(adjustl(am))//'_'//adjustl(am)&
                   //'  |'//adjustl(am)//'  q^2'//'  |'//adjustl(afel)&
@@ -585,9 +585,9 @@ contains
              do s=1,nsta
                 if (gamma_mask(m1,m2,s).eq.0) cycle
                 if (abs(gamma(m1,m2,s)).lt.thrsh) cycle
-                write(am1,'(i2)') m1
-                write(am2,'(i2)') m2
-                write(as,'(i2)') s
+                write(am1,'(i3)') m1
+                write(am2,'(i3)') m2
+                write(as,'(i3)') s
                 write(iop,'(a)') 'gamma'//trim(adjustl(as))&
                      //'_'//trim(adjustl(am1))//'_'//adjustl(am2)&
                      //'  |'//adjustl(am1)//'  q'&
@@ -605,13 +605,13 @@ contains
        write(iop,'(/,a)') '# Quadratic 2nd-order interstate &
             coupling constants (mu)'
        do m=1,nmodes
-          write(am,'(i2)') m
+          write(am,'(i3)') m
           do s1=1,nsta-1
              do s2=s1+1,nsta
                 if (mu_mask(m,m,s1,s2).eq.0) cycle
                 if (abs(mu(m,m,s1,s2)).lt.thrsh) cycle
-                write(as1,'(i2)') s1
-                write(as2,'(i2)') s2
+                write(as1,'(i3)') s1
+                write(as2,'(i3)') s2
                 write(iop,'(a)') '0.5*mu'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))&
                      //'_'//trim(adjustl(am))//'_'//adjustl(am)&
@@ -628,13 +628,13 @@ contains
        write(iop,'(/,a)') '# Bi-linear 2nd-order interstate &
             coupling constants (mu)'
        do m1=1,nmodes-1
-          write(am1,'(i2)') m1
+          write(am1,'(i3)') m1
           do m2=m1+1,nmodes
-             write(am2,'(i2)') m2
+             write(am2,'(i3)') m2
              do s1=1,nsta-1
-                write(as1,'(i2)') s1
+                write(as1,'(i3)') s1
                 do s2=s1+1,nsta
-                   write(as2,'(i2)') s2
+                   write(as2,'(i3)') s2
                    if (mu_mask(m1,m2,s1,s2).eq.0) cycle
                    if (abs(mu(m1,m2,s1,s2)).lt.thrsh) cycle
                    write(iop,'(a)') 'mu'//trim(adjustl(as1))&
@@ -656,11 +656,11 @@ contains
        write(iop,'(/,a)') '# Cubic 3rd-order intrastate coupling &
             constants (iota)'
        do m=1,nmodes
-          write(am,'(i2)') m
+          write(am,'(i3)') m
           do s=1,nsta
              if (iota_mask(m,s).eq.0) cycle
              if (abs(iota(m,s)).lt.thrsh) cycle
-             write(as,'(i2)') s
+             write(as,'(i3)') s
              write(iop,'(a)') '0.166667*iota'//trim(adjustl(as))&
                   //'_'//trim(adjustl(am))&
                   //'  |'//adjustl(am)//'  q^3'//'  |'//adjustl(afel)&
@@ -674,13 +674,13 @@ contains
        write(iop,'(/,a)') '# Cubic 3rd-order interstate coupling &
             constants (tau)'
        do m=1,nmodes
-          write(am,'(i2)') m
+          write(am,'(i3)') m
           do s1=1,nsta-1
              do s2=s1+1,nsta
                 if (tau_mask(m,s1,s2).eq.0) cycle
                 if (abs(tau(m,s1,s2)).lt.thrsh) cycle
-                write(as1,'(i2)') s1
-                write(as2,'(i2)') s2
+                write(as1,'(i3)') s1
+                write(as2,'(i3)') s2
                 write(iop,'(a)') '0.166667*tau'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))&
                      //'_'//trim(adjustl(am))&
@@ -697,11 +697,11 @@ contains
        write(iop,'(/,a)') '# Cubic 4rd-order intrastate coupling &
             constants (epsilon)'
        do m=1,nmodes
-          write(am,'(i2)') m
+          write(am,'(i3)') m
           do s=1,nsta
              if (epsilon_mask(m,s).eq.0) cycle
              if (abs(epsilon(m,s)).lt.thrsh) cycle
-             write(as,'(i2)') s
+             write(as,'(i3)') s
              write(iop,'(a)') '0.041666*epsilon'//trim(adjustl(as))&
                   //'_'//trim(adjustl(am))&
                   //'  |'//adjustl(am)//'  q^4'//'  |'//adjustl(afel)&
@@ -715,13 +715,13 @@ contains
        write(iop,'(/,a)') '# Cubic 3rd-order interstate coupling &
             constants (xi)'
        do m=1,nmodes
-          write(am,'(i2)') m
+          write(am,'(i3)') m
           do s1=1,nsta-1
              do s2=s1+1,nsta
                 if (xi_mask(m,s1,s2).eq.0) cycle
                 if (abs(xi(m,s1,s2)).lt.thrsh) cycle
-                write(as1,'(i2)') s1
-                write(as2,'(i2)') s2
+                write(as1,'(i3)') s1
+                write(as2,'(i3)') s2
                 write(iop,'(a)') '0.041666*xi'//trim(adjustl(as1))&
                      //'_'//trim(adjustl(as2))&
                      //'_'//trim(adjustl(am))&
@@ -742,9 +742,9 @@ contains
                0th-order terms'
           do c=1,3
              do s1=1,nsta
-                write(as1,'(i2)') s1
+                write(as1,'(i3)') s1
                 do s2=s1,nsta
-                   write(as2,'(i2)') s2
+                   write(as2,'(i3)') s2
                    if (abs(dip0(s1,s2,c)).lt.thrsh) cycle
                    write(iop,'(a)') '-dip0'//acomp(c)&
                         //trim(adjustl(as1))//'_'//trim(adjustl(as2))&
@@ -763,11 +763,11 @@ contains
                1st-order terms'
           do c=1,3
              do m=1,nmodes
-                write(am,'(i2)') m
+                write(am,'(i3)') m
                 do s1=1,nsta
-                   write(as1,'(i2)') s1
+                   write(as1,'(i3)') s1
                    do s2=s1,nsta
-                      write(as2,'(i2)') s2
+                      write(as2,'(i3)') s2
                       if (abs(dip1(m,s1,s2,c)).lt.thrsh) cycle
                       if (dip1_mask(m,s1,s2,c).eq.0) cycle
                       write(iop,'(a,F10.7)') '-dip1'//acomp(c)&
@@ -792,11 +792,11 @@ contains
           ! Quadratic terms
           do c=1,3
              do m=1,nmodes
-                write(am,'(i2)') m
+                write(am,'(i3)') m
                 do s1=1,nsta
-                   write(as1,'(i2)') s1
+                   write(as1,'(i3)') s1
                    do s2=s1,nsta
-                      write(as2,'(i2)') s2
+                      write(as2,'(i3)') s2
                       if (abs(dip2(m,m,s1,s2,c)).lt.thrsh) cycle
                       if (dip2_mask(m,m,s1,s2,c).eq.0) cycle
                       write(iop,'(a,F10.7)') '-0.5*dip2'//acomp(c)&
@@ -816,13 +816,13 @@ contains
           ! Bi-linear terms
           do c=1,3
              do m1=1,nmodes
-                write(am1,'(i2)') m1
+                write(am1,'(i3)') m1
                 do m2=m1+1,nmodes
-                   write(am1,'(i2)') m1
+                   write(am1,'(i3)') m1
                    do s1=1,nsta
-                      write(as1,'(i2)') s1
+                      write(as1,'(i3)') s1
                       do s2=s1,nsta
-                         write(as2,'(i2)') s2
+                         write(as2,'(i3)') s2
                          if (abs(dip2(m1,m2,s1,s2,c)).lt.thrsh) cycle
                          if (dip2_mask(m1,m2,s1,s2,c).eq.0) cycle
                          write(iop,'(a,F10.7)') '-dip2'//acomp(c)&
@@ -849,11 +849,11 @@ contains
                3rd-order terms'
           do c=1,3
              do m=1,nmodes
-                write(am,'(i2)') m
+                write(am,'(i3)') m
                 do s1=1,nsta
-                   write(as1,'(i2)') s1
+                   write(as1,'(i3)') s1
                    do s2=s1,nsta
-                      write(as2,'(i2)') s2
+                      write(as2,'(i3)') s2
                       if (abs(dip3(m,s1,s2,c)).lt.thrsh) cycle
                       if (dip3_mask(m,s1,s2,c).eq.0) cycle
                       write(iop,'(a,F10.7)') '-0.166667*dip3'//acomp(c)&
@@ -877,11 +877,11 @@ contains
                4th-order terms'
           do c=1,3
              do m=1,nmodes
-                write(am,'(i2)') m
+                write(am,'(i3)') m
                 do s1=1,nsta
-                   write(as1,'(i2)') s1
+                   write(as1,'(i3)') s1
                    do s2=s1,nsta
-                      write(as2,'(i2)') s2
+                      write(as2,'(i3)') s2
                       if (abs(dip4(m,s1,s2,c)).lt.thrsh) cycle
                       if (dip4_mask(m,s1,s2,c).eq.0) cycle
                       write(iop,'(a,F10.7)') '-0.041666*dip4'//acomp(c)&
@@ -910,7 +910,7 @@ contains
     if (nsta.gt.1) then
        do s=2,nsta
 
-          write(as,'(i2)') s
+          write(as,'(i3)') s
 
           ! Starting line
           write(iop,'(/,a)') 'hamiltonian-section_excite'&

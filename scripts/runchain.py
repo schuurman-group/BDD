@@ -415,7 +415,7 @@ def wrbdinp(filename,i,dispdets,refcurr,lastlbl,dthresh,
     
     # Ref. determinants
     f.write('\n$dets_ref')
-    if dettype=='ascii':
+    if dettype=='ascii':        
         for k in range(len(refcurr)):
             f.write('\n ref/det.1.'+str(refcurr[k])+' '+str(k+1))
     elif dettype=='binary':
