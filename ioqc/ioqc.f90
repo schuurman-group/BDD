@@ -1674,7 +1674,7 @@ contains
           nmcoo(j,i)=x*nmcoo(j,i)
        enddo
 
-           enddo
+    enddo
 
     return
 
