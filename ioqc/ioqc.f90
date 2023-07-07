@@ -783,7 +783,7 @@ contains
 
     implicit none
   
-    integer                   :: unit,i,j
+    integer                   :: unit,i,j,iso
     real(dp), dimension(ncoo) :: xcoo
     real(dp)                  :: ftmp
     character(len=*)          :: filename
@@ -804,10 +804,10 @@ contains
 
     ! Read the coordinates (in Bohr)
     do i=1,natm
-       read(unit,'(x,3(2x,F12.8),4x,a2,9x,F6.4)') &
-            (xcoo(j), j=i*3-2,i*3),atlbl(i),ftmp
+       read(unit,'(x,3(2x,F12.8),4x,a2,9x,F6.4,10x,i1)') &
+            (xcoo(j), j=i*3-2,i*3),atlbl(i),ftmp,iso
        atnum(i)=int(ftmp)
-       mass(i*3-2:i*3)=num2mass(atnum(i))
+       mass(i*3-2:i*3)=num2mass(atnum(i),iso)
        call uppercase(atlbl(i)(1:1))
     enddo
 
@@ -932,18 +932,36 @@ contains
 
 !######################################################################
 
-  function num2mass(num) result(mass)
-
+  function num2mass(num,iso1) result(mass)
+    
     use constants
     use iomod
 
     implicit none
 
-    integer  :: num
+    optional iso1
+    
+    integer  :: num,iso1,iso
     real(dp) :: mass
 
+    !
+    ! Optional isotope flag
+    !
+    if (present(iso1)) then
+       iso=iso1
+    else
+       iso=0
+    endif
+    
+    !
+    ! Assign the atomic mass
+    !
     if (num.eq.1) then
-       mass=1.00794d0
+       if (iso.eq.0) then
+          mass=1.00794d0
+       else if (iso.eq.1) then
+          mass=2.01410d0
+       endif
     else if (num.eq.6) then
        mass=12.0107d0
     else if (num.eq.7) then

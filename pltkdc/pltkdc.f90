@@ -458,7 +458,7 @@ contains
     use sysinfo
     use potfuncs
     use pltglobal
-
+    
     implicit none
 
     integer                        :: s
@@ -466,7 +466,7 @@ contains
     real(dp), dimension(nsta)      :: func
     real(dp), dimension(nsta,nsta) :: wmat
     real(dp), dimension(3)         :: dip
-    
+
     select case(surftyp)
 
     case(1) ! adiabatic potentials

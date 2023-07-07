@@ -46,6 +46,29 @@ contains
     character(len=8)               :: atmp
     character(len=1), dimension(3) :: acomp
 
+    
+    !! TEST
+    !real(dp) :: Fij(ncoo)
+    !real(dp) :: DeltaE
+    !
+    !! (1) Transform to the Cartesian coordinate basis
+    !Fij = matmul(transpose(coonm), lambda(:,1,2))
+    !
+    !! (2) Convert to a.u.
+    !Fij = Fij / eh2ev / ang2bohr
+    !
+    !! (3) Divide through by the energy difference
+    !DeltaE = (e0(2)-e0(1)) / eh2ev
+    !Fij = Fij / DeltaE
+    !
+    !do i=1,natm
+    !   write(6,'(i0,3(2x,F12.7))') i,(Fij(j),j=i*3-2,i*3)
+    !enddo
+    !
+    !stop
+    !! TEST
+    
+    
 !----------------------------------------------------------------------
 ! Determine the no. non-zero coupling coefficients in each class
 !----------------------------------------------------------------------
