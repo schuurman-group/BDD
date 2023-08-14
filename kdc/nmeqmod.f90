@@ -98,22 +98,6 @@ contains
     real(dp)              :: wfac1
     logical               :: lpseudo
 
-    !! TEST
-    !real(dp) :: shift(nsta,nsta)
-    !shift=0.0d0
-    !shift(1,3)=-0.004d0
-    !shift(1,4)=0.026d0
-    !shift(1,5)=0.004d0
-    !shift(1,6)=0.009d0
-    !shift(2,4)=0.012d0
-    !shift(2,5)=0.007d0
-    !shift(2,6)=0.034d0
-    !shift(3,4)=-0.034d0
-    !shift(4,5)=0.003d0
-    !shift(4,6)=0.014d0
-    !shift=shift/eh2ev
-    !! TEST
-    
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
@@ -150,13 +134,7 @@ contains
              w=0.0d0
              do n=1,ndat
                 q(n)=qvec(m,findx1m(m,n))
-
                 w(n)=diabpot(s1,s2,findx1m(m,n))
-                
-                !! TEST
-                !w(n)=diabpot(s1,s2,findx1m(m,n))-shift(s1,s2)
-                !! TEST
-                
              enddo
 
              ! Subtract off the zeroth-order potential value

@@ -8,6 +8,7 @@ program kdc
   use ioqc
   use symmetry
   use parinfo
+  use transform
   use opermod
   use kdcglobal
   
@@ -90,6 +91,17 @@ program kdc
 !----------------------------------------------------------------------
   call get_cutmask
 
+!----------------------------------------------------------------------
+! Optional shifts of the diabatic potential matrix elements
+!----------------------------------------------------------------------
+  if (lshift) call shift
+  
+!----------------------------------------------------------------------
+! Optional block diagonalising transformation of the diabatic
+! potential
+!----------------------------------------------------------------------
+  if (lblockdiag) call blockdiag
+  
 !----------------------------------------------------------------------
 ! Determine the coupling coefficients
 !----------------------------------------------------------------------
@@ -247,7 +259,7 @@ contains
 
     implicit none
 
-    integer :: i,k,k1,k2
+    integer :: i,ii,j,k,k1,k2
     
 !----------------------------------------------------------------------
 ! Set defaults
@@ -265,7 +277,7 @@ contains
 
     ! Zeroth-order parameter shifts
     lshift=.false.
-    allocate(shift0(nsta))
+    allocate(shift0(nsta,nsta))
     shift0=0.0d0
     
     ! Point group
@@ -289,6 +301,12 @@ contains
     ! Normal equation fitting weights
     iweight=0
     wfac=0.0d0
+
+    ! GRaCI label stem to use
+    lblstem=''
+
+    ! Block diagonalisation
+    lblockdiag=.false.
     
 !----------------------------------------------------------------------
 ! Read the input file
@@ -348,8 +366,10 @@ contains
                      $shifts section'
                 call error_control
              endif
-             read(keyword(2),*) k
-             read(keyword(1),*) shift0(k)
+             read(keyword(2),*) k1
+             read(keyword(3),*) k2
+             read(keyword(1),*) shift0(k1,k2)
+             shift0(k2,k1)=shift0(k1,k2)
           enddo
           
        else if (keyword(i).eq.'$point_group') then
@@ -438,6 +458,64 @@ contains
           if (keyword(i+1).eq.'=') then
              i=i+2
              read(keyword(i),*) wfac
+          endif
+
+       else if (keyword(i).eq.'$label') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             read(keyword(i),'(a)') lblstem
+          else
+             goto 100
+          endif
+
+       else if (keyword(i).eq.'$blockdiag') then
+          if (keyword(i+1).eq.'=') then
+             lblockdiag=.true.
+             i=i+2
+             ii=i
+             if (keyword(i).eq.'{') then
+                ! (1) Determine the no. states in each block
+                nbd=0
+                k=1
+                do
+                   i=i+1
+                   if (keyword(i).eq.'}' .and. k.eq.2) exit
+                   if (keyword(i).eq.'{') k=2
+                   if (keyword(i).ne.',' &
+                        .and. keyword(i).ne.'}' &
+                        .and. keyword(i).ne.'{') then
+                      nbd(k)=nbd(k)+1
+                   endif
+                enddo
+                ! (2) Allocate arrays
+                maxbd=maxval(nbd)
+                allocate(ibd(maxbd,2))
+                ibd=0
+                ! (3) Read the indices of the states in each block
+                k=1
+                i=ii
+                j=1
+                do
+                   i=i+1
+                   if (keyword(i).eq.'}' .and. k.eq.2) exit
+                   if (keyword(i).eq.'{') then
+                      k=2
+                      j=1
+                   endif
+                   if (keyword(i).ne.',' &
+                        .and. keyword(i).ne.'}' &
+                        .and. keyword(i).ne.'{') then
+                      read(keyword(i),*) ibd(j,k)
+                      j=j+1
+                   endif
+                enddo
+             else
+                errmsg='Error parsing the $blockdiag argument: '&
+                     //'expected {i1,...,im} {j1,...,jn}'
+                call error_control
+             endif
+          else
+             goto 100
           endif
           
        else
@@ -867,7 +945,7 @@ contains
     
     implicit none
 
-    integer            :: n,unit
+    integer            :: n,unit,il,i1,i
     character(len=120) :: string
 
 !----------------------------------------------------------------------
@@ -876,28 +954,86 @@ contains
     ngeom=0
     
 !----------------------------------------------------------------------
-! Parse the output files, counting the total no. displaced geometries
+! No label stem given: count the number of diabatic potential matrix
+! sections
 !----------------------------------------------------------------------
-    call freeunit(unit)
+    if (lblstem == '') then
+    
+       call freeunit(unit)
 
-    ! Loop over files
-    do n=1,nfiles
+       ! Loop over files
+       do n=1,nfiles
+          
+          ! Open the output file
+          open(unit,file=bdfiles(n),form='formatted',status='old')
 
-       ! Open the output file
-       open(unit,file=bdfiles(n),form='formatted',status='old')
-
-       ! Search for diabatic potential sections
-10     read(unit,'(a)',end=20) string
-       if (index(string,'Diabatic potential matrix elements') /= 0) &
+          ! Search for diabatic potential sections
+10        read(unit,'(a)',end=20) string
+          if (index(string,'Diabatic potential matrix elements') /= 0) &
             ngeom=ngeom+1
-       goto 10
+          goto 10
 
-20     continue
+20        continue
        
-       ! Close the output file
-       close(unit)
+          ! Close the output file
+          close(unit)
        
-    enddo
+       enddo
+
+    endif
+
+!----------------------------------------------------------------------
+! Label stem given: count the number of diabatic potential matrix
+! sections for DFT/MRCI(2) calculations with the correct label stem
+!----------------------------------------------------------------------
+    if (lblstem /= '') then
+
+       ! Length of the label stem
+       il=len_trim(lblstem)
+
+       call freeunit(unit)
+       
+       ! Loop over files
+       do n=1,nfiles
+       
+       ! Open the ouput file
+          open(unit,file=bdfiles(1),form='formatted',status='old')
+       
+          ! Search for the DFT/MRCI(2) sections with the correct labels
+30        read(unit,'(a)',end=40) string
+          if (index(string,'DFT/MRCI(2) computation') /= 0) then
+             i1=index(string,'=')
+             if (string(i1+2:i1+1+il) == trim(lblstem)) then
+                
+                ! If we are here, then we are in a DFT/MRCI(2) section
+                ! with the correct label stem. Now look for a diabatic
+                ! potential matrix section
+                
+                do i=1,3
+                   read(unit,*)
+                enddo
+             
+50              read(unit,'(a)') string
+                
+                if (index(string,'Diabatic potential matrix elements') &
+                     /= 0) ngeom=ngeom+1
+                
+                if (index(string,'**********') == 0) goto 50
+
+             
+             endif
+          endif
+       
+          goto 30
+          
+40        continue
+    
+          ! Close the output file
+          close(unit)
+
+       enddo
+       
+    endif
        
     return
     
@@ -916,12 +1052,13 @@ contains
 
     integer, intent(in)         :: unit
     integer, intent(inout)      :: igeom
-    integer                     :: i,j,itmp,jtmp
+    integer                     :: i,j,itmp,jtmp,i1,il
     real(dp), dimension(ncoo)   :: xcoo
     real(dp), dimension(nmodes) :: qcoo
     real(dp), parameter         :: q0thrsh=1e-4_dp
     character(len=120)          :: string
     character(len=2)            :: atmp
+    logical                     :: lstem
     
 !----------------------------------------------------------------------
 ! Read in the points in normal mode coordinates and the corresponding
@@ -934,48 +1071,62 @@ contains
     ! Are we at a new DFT/MRCI(2) section?
     if (index(string,'DFT/MRCI(2) computation') /= 0) then
 
-       ! Read to the Cartesian coordinates
-15     read(unit,'(a)',end=100) string
-       if (index(string,'Cartesian Coordinates') /= 0) then
-
-          ! Parse the Cartesian coordinates
-          read(unit,*)
-          do i=1,natm
-             read(unit,*) atmp,(xcoo(j),j=i*3-2,i*3)
-          enddo
-
-          ! Normal mode coordinates
-          qcoo=matmul(coonm,(xcoo-xcoo0/ang2bohr))
-
-          ! Skip if we are at Q0...
-          if (sqrt(dot_product(qcoo,qcoo)) < q0thrsh) then
-             goto 10
-          endif
-          
-          ! ...otherwise save the normal mode coordinates and carry on
-          igeom=igeom+1
-          qvec(:,igeom)=qcoo
-
-          ! Read to the diabatic potential section for this geometry
-20        read(unit,'(a)',end=100) string
-          if (index(string,'Diabatic potential matrix elements') == 0) &
-               goto 20
-          
-          ! Parse the diabatic potential (C1 symmetry assumed)
-          do i=1,3
-             read(unit,*)
-          enddo
-          do i=1,nsta
-             do j=i,nsta
-                read(unit,*) itmp,jtmp,diabpot(i,j,igeom)
-                diabpot(j,i,igeom)=diabpot(i,j,igeom)
-             enddo
-          enddo
-
+       ! Does this DFT/MRCI(2) section have the correct label stem?
+       lstem=.false.
+       if (lblstem == '') then
+          lstem=.true.
        else
-          goto 15
+          il=len_trim(lblstem)
+          i1=index(string,'=')
+          if (string(i1+2:i1+1+il) == trim(lblstem)) lstem=.true.
        endif
-       
+
+       if (lstem) then
+
+          ! Read to the Cartesian coordinates
+15        read(unit,'(a)',end=100) string
+          if (index(string,'Cartesian Coordinates') /= 0) then
+             
+             ! Parse the Cartesian coordinates
+             read(unit,*)
+             do i=1,natm
+                read(unit,*) atmp,(xcoo(j),j=i*3-2,i*3)
+             enddo
+             
+             ! Normal mode coordinates
+             qcoo=matmul(coonm,(xcoo-xcoo0/ang2bohr))
+
+             ! Skip if we are at Q0...
+             if (sqrt(dot_product(qcoo,qcoo)) < q0thrsh) then
+                goto 10
+             endif
+          
+             ! ...otherwise save the normal mode coordinates and carry on
+             igeom=igeom+1
+             qvec(:,igeom)=qcoo
+             
+             ! Read to the diabatic potential section for this geometry
+20           read(unit,'(a)',end=100) string
+             if (index(string,'Diabatic potential matrix elements') == 0) &
+                  goto 20
+             
+             ! Parse the diabatic potential (C1 symmetry assumed)
+             do i=1,3
+                read(unit,*)
+             enddo
+             do i=1,nsta
+                do j=i,nsta
+                   read(unit,*) itmp,jtmp,diabpot(i,j,igeom)
+                   diabpot(j,i,igeom)=diabpot(i,j,igeom)
+                enddo
+             enddo
+             
+          else
+             goto 15
+          endif
+
+       endif
+          
     endif
     
     goto 10

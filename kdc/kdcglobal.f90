@@ -33,7 +33,7 @@ module kdcglobal
   real(dp), allocatable           :: q0pot(:)
   
   ! Zeroth-order parameter shifts
-  real(dp), allocatable           :: shift0(:)
+  real(dp), allocatable           :: shift0(:,:)
   logical                         :: lshift
   
   ! Diabatic potential matrices at the displaced geometries
@@ -55,5 +55,14 @@ module kdcglobal
   real(dp)                        :: rmsd
   real(dp), allocatable           :: rmsd1m(:)
   real(dp), allocatable           :: rmsd2m(:,:)
+
+  ! Label stem to use when parsing GRaCI output
+  character(len=60)               :: lblstem
+
+  ! Block diagonalisation variables
+  integer                         :: nbd(2)
+  integer                         :: maxbd
+  integer, allocatable            :: ibd(:,:)
+  logical                         :: lblockdiag
   
 end module kdcglobal

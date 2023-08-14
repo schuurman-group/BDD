@@ -72,6 +72,7 @@ KDC = kdc/kdcglobal.o \
 	kdc/parinfo.o \
 	kdc/fdmod.o \
 	kdc/nmeqmod.o \
+	kdc/transform.o \
 	kdc/kdc.o
 
 PLTKDC = pltkdc/pltglobal.o \
@@ -157,6 +158,7 @@ OBJ_KDC = constants.o \
 	parinfo.o \
 	fdmod.o \
 	nmeqmod.o \
+	transform.o \
 	kdc.o
 
 OBJECTS_PLTKDC = $(INCLUDE) \

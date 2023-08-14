@@ -476,7 +476,7 @@ contains
     filename='q'//trim(adjustl(aq))//'r.xyz'
     open(unit,file='geoms/'//trim(filename),form='formatted',&
          status='unknown')
-
+    
     ! Loop over displacements
     do i=0,npnts
 
