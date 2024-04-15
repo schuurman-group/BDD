@@ -12,6 +12,9 @@ module symmetry
   !----------------------------------------------------------------------
   ! Symmetry information
   !----------------------------------------------------------------------
+  integer, allocatable           :: coeff1_mask(:,:,:,:)
+  integer, allocatable           :: coeff2_mask(:,:,:,:)
+  
   integer, allocatable           :: kappa_mask(:,:)
   integer, allocatable           :: lambda_mask(:,:,:)
   integer, allocatable           :: gamma_mask(:,:,:)
@@ -59,14 +62,15 @@ contains
 
 !######################################################################
 
-  subroutine create_mask(dipolein)
+  subroutine create_mask(order1,dipolein)
 
     use constants
     use sysinfo
     
     implicit none
 
-    integer                    :: s1,s2,m1,m2,c
+    integer, intent(in)        :: order1
+    integer                    :: s1,s2,m1,m2,c,n
     integer, dimension(3)      :: dipchk
     integer, dimension(nmodes) :: nmchk
     integer, dimension(nsta)   :: stachk
@@ -84,6 +88,14 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
+    ! One-mode terms
+    allocate(coeff1_mask(nmodes,nsta,nsta,order1))
+    coeff1_mask=0
+
+    ! Two-mode terms (2nd-order only)
+    allocate(coeff2_mask(nmodes,nmodes,nsta,nsta))
+    coeff2_mask=0
+    
     ! First-order, intrastate
     allocate(kappa_mask(nmodes,nsta))
     kappa_mask=0
@@ -161,7 +173,40 @@ contains
 !----------------------------------------------------------------------
     ! Set dipchk to zero until we reach the dipole expansion terms
     dipchk=0
-    
+
+    ! One-mode terms
+    do n=1,order1
+       do s2=1,nsta
+          do s1=1,nsta
+             do m1=1,nmodes
+                nmchk=0
+                stachk=0
+                nmchk(m1)=n
+                stachk(s1)=stachk(s1)+1
+                stachk(s2)=stachk(s2)+1
+                coeff1_mask(m1,s1,s2,n)=integralsym(nmchk,stachk,dipchk)
+             enddo
+          enddo
+       enddo
+    enddo
+
+    ! Two-mode terms (2nd-order only)
+    do s2=1,nsta
+       do s1=1,nsta
+          do m2=1,nmodes
+             do m1=1,nmodes
+                nmchk=0
+                stachk=0
+                nmchk(m1)=nmchk(m1)+1
+                nmchk(m2)=nmchk(m2)+1
+                stachk(s1)=stachk(s1)+1
+                stachk(s2)=stachk(s2)+1
+                coeff2_mask(m1,m2,s1,s2)=integralsym(nmchk,stachk,dipchk)
+             enddo
+          enddo
+       enddo
+    enddo
+       
     ! kappa
     do s1=1,nsta
        do m1=1,nmodes
@@ -169,7 +214,7 @@ contains
           stachk=0
           nmchk(m1)=1
           stachk(s1)=2
-          kappa_mask(m1,s1)=integralsym(nmchk,stachk,dipchk)                
+          kappa_mask(m1,s1)=integralsym(nmchk,stachk,dipchk)
        enddo
     enddo
 
@@ -187,7 +232,7 @@ contains
           enddo
        enddo
     enddo
-
+    
     ! gamma
     do s1=1,nsta
        do m1=1,nmodes

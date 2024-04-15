@@ -23,5 +23,10 @@ module parameters
   real(dp), allocatable :: dip2(:,:,:,:,:)
   real(dp), allocatable :: dip3(:,:,:,:)
   real(dp), allocatable :: dip4(:,:,:,:)
+
+  ! New coupling coefficients
+  integer               :: order1
+  real(dp), allocatable :: coeff1(:,:,:,:)
+  real(dp), allocatable :: coeff2(:,:,:,:)
   
 end module parameters

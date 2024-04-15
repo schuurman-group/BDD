@@ -17,6 +17,8 @@ contains
     
     implicit none
 
+    integer :: s1,s2,m
+    
 !----------------------------------------------------------------------
 ! Perform the fitting for the 1-mode terms
 !----------------------------------------------------------------------
@@ -32,6 +34,9 @@ contains
 !----------------------------------------------------------------------
 ! Convert all coupling coefficients to units of eV
 !----------------------------------------------------------------------
+    coeff1=coeff1*eh2ev
+    coeff2=coeff2*eh2ev
+
     kappa=kappa*eh2ev
     lambda=lambda*eh2ev
     gamma=gamma*eh2ev
@@ -42,8 +47,25 @@ contains
     xi=xi*eh2ev
 
 !----------------------------------------------------------------------
+! Subtract off the harmonic oscillator zeroth-order contribution from
+! the 2nd-order 1-mode coefficient
+!----------------------------------------------------------------------
+    do s2=1,nsta
+       do s1=1,nsta
+          do m=1,nmodes
+             coeff1(m,s1,s2,2)=coeff1(m,s1,s2,2)-freq(m)/eh2ev
+          enddo
+       enddo
+    enddo
+       
+!----------------------------------------------------------------------
 ! Calculate the RMSD of the fit
 !----------------------------------------------------------------------
+    print*,''
+    print*,'The calc_rmsd routine needs to be changed'
+    print*,''
+    stop
+
     call calc_rmsd
 
     return
@@ -93,7 +115,6 @@ contains
     implicit none
 
     integer               :: m,n,s1,s2,ndat
-    integer               :: order
     real(dp), allocatable :: coeff(:),q(:),w(:)
     real(dp)              :: wfac1
     logical               :: lpseudo
@@ -101,11 +122,8 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
-    ! Order of the polynomial to be fit (hard-wired for now)
-    order=4
-
     ! Coefficient vector
-    allocate(coeff(order))
+    allocate(coeff(order1))
     coeff=0.0d0
 
     ! Input coordinates and diabatic potential values
@@ -148,7 +166,7 @@ contains
              else
                 wfac1=0.0d0
              endif
-             call nmeq1d(order,coeff,ndat,q(1:ndat),w(1:ndat),&
+             call nmeq1d(order1,coeff,ndat,q(1:ndat),w(1:ndat),&
                   lpseudo,wfac1)
              
              ! Output a warning if the psedo-inverse was used in
@@ -158,7 +176,7 @@ contains
                   coefficients for mode ',m,' and states ',s1,s2
              
              ! Fill in the global coefficient arrays
-             call fill_coeffs1d_potential(coeff,order,m,s1,s2)
+             call fill_coeffs1d_potential(coeff,order1,m,s1,s2)
              
           enddo
        enddo
@@ -419,7 +437,17 @@ contains
 
     integer, intent(in)                    :: order,m,s1,s2
     real(dp), intent(in), dimension(order) :: coeff
-
+    integer                                :: n,fac
+    
+!----------------------------------------------------------------------
+! Taylor expansion coefficients
+!----------------------------------------------------------------------
+    fac=1
+    do n=1,order
+       fac=fac*n
+       coeff1(m,s1,s2,n)=coeff(n)*fac
+    enddo
+    
 !----------------------------------------------------------------------
 ! Intrastate coupling coefficients
 !----------------------------------------------------------------------
@@ -644,12 +672,12 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
-
+    
     implicit none
 
     integer                  :: n,m1,m2,s1,s2,ndat,mask
-    integer                  :: order
     real(dp), allocatable    :: coeff(:),q(:),w(:)
     real(dp)                 :: wfac1
     real(dp), dimension(2)   :: qi,qf
@@ -659,11 +687,8 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
-    ! Order of the polynomial to be fit (hard-wired for now)
-    order=4
-
     ! Coefficient vector
-    allocate(coeff(order))
+    allocate(coeff(order1))
     coeff=0.0d0
 
     ! Input coordinates and diabatic potential values
@@ -723,14 +748,14 @@ contains
                 
                 ! Perform the fitting for the current mode and
                 ! diabatic potential matrix element
-                call nmeq1d(order,coeff,ndat,q(1:ndat),w(1:ndat),&
+                call nmeq1d(order1,coeff,ndat,q(1:ndat),w(1:ndat),&
                      lpseudo,wfac1)
 
                 ! Check on the 1st-order coupling coefficient
-                call check_coeffs(order,coeff,m1,m2,s1,s2)
+                call check_coeffs(order1,coeff,m1,m2,s1,s2)
 
                 ! Fill in the global coefficient arrays
-                call fill_coeffs2d_potential_new(coeff,order,m1,m2,&
+                call fill_coeffs2d_potential_new(coeff,order1,m1,m2,&
                      s1,s2)
                 
              enddo
@@ -1228,7 +1253,11 @@ contains
     integer, intent(in)                    :: order,m1,m2,s1,s2
     real(dp), intent(in), dimension(order) :: coeff
     real(dp)                               :: c1,c2,c12
-
+    
+    c1=coeff1(m1,s1,s2,2)
+    c2=coeff1(m2,s1,s2,2)
+    coeff2(m1,m2,s1,s2)=2.0d0*coeff(2)-0.5d0*(c1+c2)
+    
 !----------------------------------------------------------------------
 ! Intrastate coupling coefficients
 !----------------------------------------------------------------------

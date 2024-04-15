@@ -10,6 +10,7 @@ program kdc
   use parinfo
   use transform
   use opermod
+  use parameters
   use kdcglobal
   
   implicit none
@@ -83,7 +84,7 @@ program kdc
 !----------------------------------------------------------------------
 ! Determine which coupling coefficients are zero by symmetry
 !----------------------------------------------------------------------
-  call create_mask(ldipfit)
+  call create_mask(order1,ldipfit)
 
 !----------------------------------------------------------------------
 ! Determine which pairs of modes give rise to non-zero coupling
@@ -317,6 +318,9 @@ contains
 
     ! Block diagonalisation
     lblockdiag=.false.
+
+    ! Order of the 1-mode expansions
+    order1=4
     
 !----------------------------------------------------------------------
 ! Read the input file
@@ -527,7 +531,15 @@ contains
           else
              goto 100
           endif
-          
+
+       else if (keyword(i).eq.'$order') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             read(keyword(i),*) order1
+          else
+             goto 100
+          endif
+             
        else
           ! Exit if the keyword is not recognised
           errmsg='Unknown keyword: '//trim(keyword(i))
@@ -1288,6 +1300,14 @@ contains
 !----------------------------------------------------------------------
 ! Allocate and initialise arrays
 !----------------------------------------------------------------------
+    ! One-mode terms
+    allocate(coeff1(nmodes,nsta,nsta,order1))
+    coeff1=0.0d0
+
+    ! Two-mode terms (2nd-order only)
+    allocate(coeff2(nmodes,nmodes,nsta,nsta))
+    coeff2=0.0d0
+    
     ! First-order, intrastate
     allocate(kappa(nmodes,nsta))
     kappa=0.0d0

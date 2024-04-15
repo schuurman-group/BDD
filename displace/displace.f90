@@ -334,7 +334,7 @@ contains
     if (icut.eq.2) then
 
        ! Determine which coupling coefficients are zero by symmetry
-       call create_mask
+       call create_mask(2)
 
        ! Determine which 2D cuts to make
        call get_cutmask
@@ -355,7 +355,7 @@ contains
     if (icut.eq.3) then
 
        ! Determine which coupling coefficients are zero by symmetry
-       call create_mask
+       call create_mask(2)
 
        ! Make the cuts
        do n1=1,nmodes-1
@@ -373,7 +373,7 @@ contains
     if (icut.eq.4) then
 
        ! Determine which coupling coefficients are zero by symmetry
-       call create_mask
+       call create_mask(2)
 
        ! Make the cuts
        do n1=1,nmodes-1
@@ -390,7 +390,7 @@ contains
     if (icut.eq.5) then
 
        ! Determine which coupling coefficients are zero by symmetry
-       call create_mask
+       call create_mask(2)
 
        ! Make the cuts
        do n1=1,nmodes-1
