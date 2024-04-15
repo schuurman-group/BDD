@@ -646,14 +646,12 @@ contains
     use sysinfo
     use kdcglobal
 
-    use parameters
-    
     implicit none
 
     integer                  :: n,m1,m2,s1,s2,ndat,mask
     integer                  :: order
     real(dp), allocatable    :: coeff(:),q(:),w(:)
-    real(dp)                 :: wfac1,val
+    real(dp)                 :: wfac1
     real(dp), dimension(2)   :: qi,qf
     real(dp), dimension(2,2) :: U
     logical                  :: present,lpseudo
@@ -681,7 +679,7 @@ contains
     U(2,1)=1.0d0/sqrt(2.0d0)
     U(1,2)=-1.0d0/sqrt(2.0d0)
     U(2,2)=1.0d0/sqrt(2.0d0)
-    
+
 !----------------------------------------------------------------------
 ! Perform the fits of the 2-mode terms
 !----------------------------------------------------------------------
@@ -711,35 +709,29 @@ contains
                    q(n)=qf(2)
                    w(n)=diabpot(s1,s2,findx2m(m1,m2,n))
                 enddo
-
+                
                 ! Subtract off the zeroth-order potential value
                 ! Note that WIJ(Q0)=0 for I!=J
                 if (s1.eq.s2) w(1:ndat)=w(1:ndat)-q0pot(s1)
 
-                ! Perform the fitting for the current mode and
-                ! diabatic potential matrix element
+                ! Set the weights
                 if (s1.eq.s2) then
                    wfac1=wfac
                 else
                    wfac1=0.0d0
                 endif
-
+                
+                ! Perform the fitting for the current mode and
+                ! diabatic potential matrix element
                 call nmeq1d(order,coeff,ndat,q(1:ndat),w(1:ndat),&
                      lpseudo,wfac1)
 
                 ! Check on the 1st-order coupling coefficient
-                if (s1 == s2) then
-                   val=(kappa(m1,s1)+kappa(m2,s2))/sqrt(2.0d0)
-                else
-                   val=(lambda(m1,s1,s2)+lambda(m2,s1,s2))/sqrt(2.0d0)
-                endif
-                if (abs(val-coeff(1)) > 0.01d0) then
-                   write(6,'(/,x,a)') &
-                        'Warning: inconsistency in the 2-mode fits'
-                endif
+                call check_coeffs(order,coeff,m1,m2,s1,s2)
 
                 ! Fill in the global coefficient arrays
-                call fill_coeffs2d_potential_new(coeff,order,m1,m2,s1,s2)
+                call fill_coeffs2d_potential_new(coeff,order,m1,m2,&
+                     s1,s2)
                 
              enddo
           enddo
@@ -757,7 +749,44 @@ contains
     return
     
   end subroutine fit_2mode_terms_potential_new
+
+!######################################################################
+
+  subroutine check_coeffs(order,coeff,m1,m2,s1,s2)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use parameters
+
+    integer, intent(in)        :: order,m1,m2,s1,s2
+    real(dp), dimension(order) :: coeff
+    real(dp)                   :: expected,diff
     
+!----------------------------------------------------------------------
+! Expected 1st-order coupling coefficient value
+!----------------------------------------------------------------------
+    if (s1 == s2) then
+       expected=(kappa(m1,s1)+kappa(m2,s1))/sqrt(2.0d0)
+    else
+       expected=(lambda(m1,s1,s2)+lambda(m2,s1,s2))/sqrt(2.0d0)
+    endif
+
+!----------------------------------------------------------------------
+! Check if the fitted and expected coefficient values match
+!----------------------------------------------------------------------
+    diff=(expected-coeff(1))*eh2ev
+
+    if (abs(diff) > 1e-2_dp) then
+       write(6,'(/,4(x,i0),2(x,F10.7))') m1,m2,s1,s2,&
+            (coeff(1)-expected)*eh2ev
+    endif
+    
+    return
+    
+  end subroutine check_coeffs
+  
 !######################################################################
 
   subroutine fit_2mode_terms_dipole
@@ -1206,27 +1235,33 @@ contains
     if (s1.eq.s2) then
 
        c1=gamma(m1,m1,s1)+freq(m1)/eh2ev
+
        c2=gamma(m2,m2,s1)+freq(m2)/eh2ev
 
        c12=2.0d0*coeff(2)
 
-       print*,'here'
-       stop
-       
-       gamma(m1,m2,s1)=0.5d0*(2.0d0*c12-c1-c2)
+       gamma(m1,m2,s1)=c12-0.5*(c1+c2)
 
        gamma(m2,m1,s1)=gamma(m1,m2,s1)
+
     endif
 
 !----------------------------------------------------------------------
 ! Interstate coupling coefficients
 !----------------------------------------------------------------------
-    !if (s1.ne.s2) then
-    !   mu(m1,m2,s1,s2)=2.0d0*coeff(2)-mu(m1,m1,s1,s2)-mu(m2,m2,s1,s2)
-    !   mu(m1,m2,s1,s2)=0.5d0*mu(m1,m2,s1,s2)
-    !   mu(m2,m1,s1,s2)=mu(m1,m2,s1,s2)
-    !   mu(m2,m1,s2,s1)=mu(m1,m2,s1,s2)
-    !endif
+    if (s1.ne.s2) then
+
+       c1=mu(m1,m1,s1,s2)
+
+       c2=mu(m2,m2,s1,s2)
+
+       c12=2.0d0*coeff(2)
+
+       mu(m1,m2,s1,s2)=c12-0.5*(c1+c2)
+       
+       mu(m2,m1,s1,s2)=mu(m1,m2,s1,s2)
+       mu(m2,m1,s2,s1)=mu(m1,m2,s1,s2)
+    endif
     
     return
     

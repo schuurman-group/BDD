@@ -1075,7 +1075,7 @@ contains
     real(dp), dimension(3,3) :: itold
     real(dp), dimension(9)   :: work
     real(dp), parameter      :: thrsh=1e-10_dp
-    
+
 !-----------------------------------------------------------------------
 ! Calculate the moment of inertia tensor
 !-----------------------------------------------------------------------
