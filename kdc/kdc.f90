@@ -134,6 +134,16 @@ program kdc
 ! code
 !----------------------------------------------------------------------
   call wrbinfile
+
+!----------------------------------------------------------------------
+! If a block diagonalisation of the diabatic potential was performed,
+! then write the transformation matrices to disk for inspection
+!----------------------------------------------------------------------
+! IMPORTANT: write_Tmat must be called *after* the calculation of the
+!            coupling coefficients due to the need for the findx1m
+!            findx2m arrays to be filled
+!----------------------------------------------------------------------
+!  if (lblockdiag) call write_Tmat
   
 contains
 

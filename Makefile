@@ -14,8 +14,8 @@
 #
 # ifort
 #
-F90	 = ifort
-F77	 = ifort
+F90	 = ifx
+F77	 = ifx
 CC	 = icc
 F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291
 CCOPTS  = -g -O0

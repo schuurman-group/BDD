@@ -51,13 +51,13 @@ contains
     !real(dp) :: DeltaE
     !
     !! (1) Transform to the Cartesian coordinate basis
-    !Fij = matmul(transpose(coonm), lambda(:,2,6))
+    !Fij = matmul(transpose(coonm), lambda(:,1,2))
     !
     !! (2) Convert to a.u.
     !Fij = Fij / eh2ev / ang2bohr
     !
     !! (3) Divide through by the energy difference
-    !DeltaE = (e0(6)-e0(2)) / eh2ev
+    !DeltaE = (e0(2)-e0(1)) / eh2ev
     !Fij = Fij / DeltaE
     !
     !do i=1,natm

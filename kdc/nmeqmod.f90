@@ -531,13 +531,22 @@ contains
 !----------------------------------------------------------------------
 ! Fit the 2-mode terms entering into the vibronic coupling Hamiltonian
 !----------------------------------------------------------------------
-    call fit_2mode_terms_potential
+    !call fit_2mode_terms_potential
 
+    call fit_2mode_terms_potential_new
+    
 !----------------------------------------------------------------------
 ! Fit the 2-mode terms entering into the expansion of the dipole
 ! matrix
 !----------------------------------------------------------------------
-    if (ldipfit) call fit_2mode_terms_dipole
+    if (ldipfit) then
+
+       print*,'2-mode dipole matrix fitting needs updating'
+       stop
+       
+       call fit_2mode_terms_dipole
+
+    endif
     
     return
     
@@ -627,6 +636,128 @@ contains
     
   end subroutine fit_2mode_terms_potential
 
+!######################################################################
+
+  subroutine fit_2mode_terms_potential_new
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use kdcglobal
+
+    use parameters
+    
+    implicit none
+
+    integer                  :: n,m1,m2,s1,s2,ndat,mask
+    integer                  :: order
+    real(dp), allocatable    :: coeff(:),q(:),w(:)
+    real(dp)                 :: wfac1,val
+    real(dp), dimension(2)   :: qi,qf
+    real(dp), dimension(2,2) :: U
+    logical                  :: present,lpseudo
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    ! Order of the polynomial to be fit (hard-wired for now)
+    order=4
+
+    ! Coefficient vector
+    allocate(coeff(order))
+    coeff=0.0d0
+
+    ! Input coordinates and diabatic potential values
+    allocate(q(maxfiles2m))
+    allocate(w(maxfiles2m))
+    q=0.0d0
+    w=0.0d0
+
+!----------------------------------------------------------------------
+! Transformation matrix
+!----------------------------------------------------------------------
+    U(1,1)=1.0d0/sqrt(2.0d0)
+    U(2,1)=1.0d0/sqrt(2.0d0)
+    U(1,2)=-1.0d0/sqrt(2.0d0)
+    U(2,2)=1.0d0/sqrt(2.0d0)
+    
+!----------------------------------------------------------------------
+! Perform the fits of the 2-mode terms
+!----------------------------------------------------------------------
+    ! Loop over pairs of modes
+    do m1=1,nmodes-1
+       do m2=m1+1,nmodes
+
+          ! Cycle if there are no points for the current pair of modes
+          ndat=ngeom2m(m1,m2)
+          if (ndat.eq.0) cycle
+
+          ! Loop over elements of the diabatic potential matrix
+          do s1=1,nsta
+             do s2=s1,nsta
+
+                ! Fill in the coordinate and potential vectors to be
+                ! sent to the fitting routine
+                q=0.0d0
+                w=0.0d0
+                do n=1,ndat
+                   ! Normal mode coordinates in the original basis
+                   qi(1)=qvec(m1,findx2m(m1,m2,n))
+                   qi(2)=qvec(m2,findx2m(m1,m2,n))
+                   ! Normal mode coordinates in the rotated basis
+                   qf=matmul(U,qi)
+                   ! Fill in the coordinate and potential vectors
+                   q(n)=qf(2)
+                   w(n)=diabpot(s1,s2,findx2m(m1,m2,n))
+                enddo
+
+                ! Subtract off the zeroth-order potential value
+                ! Note that WIJ(Q0)=0 for I!=J
+                if (s1.eq.s2) w(1:ndat)=w(1:ndat)-q0pot(s1)
+
+                ! Perform the fitting for the current mode and
+                ! diabatic potential matrix element
+                if (s1.eq.s2) then
+                   wfac1=wfac
+                else
+                   wfac1=0.0d0
+                endif
+
+                call nmeq1d(order,coeff,ndat,q(1:ndat),w(1:ndat),&
+                     lpseudo,wfac1)
+
+                ! Check on the 1st-order coupling coefficient
+                if (s1 == s2) then
+                   val=(kappa(m1,s1)+kappa(m2,s2))/sqrt(2.0d0)
+                else
+                   val=(lambda(m1,s1,s2)+lambda(m2,s1,s2))/sqrt(2.0d0)
+                endif
+                if (abs(val-coeff(1)) > 0.01d0) then
+                   write(6,'(/,x,a)') &
+                        'Warning: inconsistency in the 2-mode fits'
+                endif
+
+                ! Fill in the global coefficient arrays
+                call fill_coeffs2d_potential_new(coeff,order,m1,m2,s1,s2)
+                
+             enddo
+          enddo
+                
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(coeff)
+    deallocate(q)
+    deallocate(w)
+    
+    return
+    
+  end subroutine fit_2mode_terms_potential_new
+    
 !######################################################################
 
   subroutine fit_2mode_terms_dipole
@@ -723,9 +854,11 @@ contains
     
     implicit none
 
-    integer             :: m,n,mindx1,mindx2,ndisp
-    real(dp), parameter :: thrsh=1e-4_dp
-    logical :: present
+    integer                     :: m,n,mindx1,mindx2,ndisp
+    real(dp), parameter         :: thrsh=1e-4_dp
+    real(dp), dimension(nmodes) :: qunit
+    real(dp)                    :: theta,inner,norm,diff
+    logical                     :: present
 
 !----------------------------------------------------------------------
 ! Determine the no. files/geometries corresponding to two-mode
@@ -751,11 +884,31 @@ contains
           endif
        enddo
 
-       ! If only two modes are displaced, then update the
+       ! If only two modes are displaced diagonally, then update the
        ! corresponding element of ngeom2m
        if (ndisp.eq.2) then
-          ngeom2m(mindx1,mindx2)=ngeom2m(mindx1,mindx2)+1
-          ngeom2m(mindx2,mindx1)=ngeom2m(mindx1,mindx2)
+
+          ! Unit vector pointing along the diagonal of the two modes
+          qunit=0.0d0
+          qunit(mindx1)=1.0d0/sqrt(2.0d0)
+          qunit(mindx2)=qunit(mindx1)
+
+          ! Angle between the above unit vector and the current
+          ! normal mode coordinate vector
+          inner=dot_product(qvec(:,n),qunit)
+          norm=sqrt(dot_product(qvec(:,n),qvec(:,n)))
+          theta=acos(inner/norm)
+
+          ! Are we at a diagonal point?
+          diff=min(abs(theta),abs(theta-pi))
+          if (diff < thrsh) then
+             ngeom2m(mindx1,mindx2)=ngeom2m(mindx1,mindx2)+1
+             ngeom2m(mindx2,mindx1)=ngeom2m(mindx1,mindx2)
+          endif
+
+          !ngeom2m(mindx1,mindx2)=ngeom2m(mindx1,mindx2)+1
+          !ngeom2m(mindx2,mindx1)=ngeom2m(mindx1,mindx2)
+          
        endif
           
     enddo
@@ -800,10 +953,31 @@ contains
        
        ! Fill in the findx2m array
        if (ndisp.eq.2) then
-          ngeom2m(mindx1,mindx2)=ngeom2m(mindx1,mindx2)+1
-          ngeom2m(mindx2,mindx1)=ngeom2m(mindx1,mindx2)
-          findx2m(mindx1,mindx2,ngeom2m(mindx1,mindx2))=n
-          findx2m(mindx2,mindx1,ngeom2m(mindx1,mindx2))=n
+
+          ! Unit vector pointing along the diagonal of the two modes
+          qunit=0.0d0
+          qunit(mindx1)=1.0d0/sqrt(2.0d0)
+          qunit(mindx2)=qunit(mindx1)
+
+          ! Angle between the above unit vector and the current
+          ! normal mode coordinate vector
+          inner=dot_product(qvec(:,n),qunit)
+          norm=sqrt(dot_product(qvec(:,n),qvec(:,n)))
+          theta=acos(inner/norm)
+
+          ! Are we at a diagonal point?
+          diff=min(abs(theta),abs(theta-pi))
+          if (diff < thrsh) then
+             ngeom2m(mindx1,mindx2)=ngeom2m(mindx1,mindx2)+1
+             ngeom2m(mindx2,mindx1)=ngeom2m(mindx1,mindx2)
+             findx2m(mindx1,mindx2,ngeom2m(mindx1,mindx2))=n
+             findx2m(mindx2,mindx1,ngeom2m(mindx1,mindx2))=n
+          endif
+          
+          !ngeom2m(mindx1,mindx2)=ngeom2m(mindx1,mindx2)+1
+          !ngeom2m(mindx2,mindx1)=ngeom2m(mindx1,mindx2)
+          !findx2m(mindx1,mindx2,ngeom2m(mindx1,mindx2))=n
+          !findx2m(mindx2,mindx1,ngeom2m(mindx1,mindx2))=n
        endif
        
     enddo
@@ -1009,6 +1183,55 @@ contains
     
   end subroutine fill_coeffs2d_potential
 
+!######################################################################
+
+  subroutine fill_coeffs2d_potential_new(coeff,order,m1,m2,s1,s2)
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use parameters
+    use kdcglobal
+    
+    implicit none
+
+    integer, intent(in)                    :: order,m1,m2,s1,s2
+    real(dp), intent(in), dimension(order) :: coeff
+    real(dp)                               :: c1,c2,c12
+
+!----------------------------------------------------------------------
+! Intrastate coupling coefficients
+!----------------------------------------------------------------------
+    if (s1.eq.s2) then
+
+       c1=gamma(m1,m1,s1)+freq(m1)/eh2ev
+       c2=gamma(m2,m2,s1)+freq(m2)/eh2ev
+
+       c12=2.0d0*coeff(2)
+
+       print*,'here'
+       stop
+       
+       gamma(m1,m2,s1)=0.5d0*(2.0d0*c12-c1-c2)
+
+       gamma(m2,m1,s1)=gamma(m1,m2,s1)
+    endif
+
+!----------------------------------------------------------------------
+! Interstate coupling coefficients
+!----------------------------------------------------------------------
+    !if (s1.ne.s2) then
+    !   mu(m1,m2,s1,s2)=2.0d0*coeff(2)-mu(m1,m1,s1,s2)-mu(m2,m2,s1,s2)
+    !   mu(m1,m2,s1,s2)=0.5d0*mu(m1,m2,s1,s2)
+    !   mu(m2,m1,s1,s2)=mu(m1,m2,s1,s2)
+    !   mu(m2,m1,s2,s1)=mu(m1,m2,s1,s2)
+    !endif
+    
+    return
+    
+  end subroutine fill_coeffs2d_potential_new
+    
 !######################################################################
 
    subroutine fill_coeffs2d_dipole(coeff,m1,m2,s1,s2,c)

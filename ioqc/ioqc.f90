@@ -1070,7 +1070,7 @@ contains
 
     implicit none
 
-    integer                  :: i,error,nzero
+    integer                  :: i,error,nzero,dim,workdim
     real(dp), dimension(3)   :: iteig
     real(dp), dimension(3,3) :: itold
     real(dp), dimension(9)   :: work
@@ -1095,51 +1095,56 @@ contains
 !-----------------------------------------------------------------------
 ! Diagonalise the moment of inertia tensor
 !-----------------------------------------------------------------------
-    call dsyev('V','U',3,itold,3,iteig,work,9,error)
+    work=0.0d0
+    iteig=0.0d0
+    error=0
+    dim=3
+    workdim=9
+    call dsyev('V','U',dim,itold,dim,iteig,work,workdim,error)
 
-   if (error.ne.0) then
-      errmsg='Diagonalisation of the moment of inertia tensor in &
-           getnmodes failed'
-      call error_control
-   endif
+    if (error.ne.0) then
+       errmsg='Diagonalisation of the moment of inertia tensor in &
+            getnmodes failed'
+       call error_control
+    endif
 
 !-----------------------------------------------------------------------
 ! Determine the number of normal modes
 !-----------------------------------------------------------------------
-   nzero=0
-   do i=1,3
-      if (abs(iteig(i)).lt.thrsh) nzero=nzero+1
-   enddo
+    nzero=0
+    do i=1,3
+       if (abs(iteig(i)).lt.thrsh) nzero=nzero+1
+    enddo
 
-   if (nzero.eq.0) then
-      ! Non-linear molecule
-      nmodes=ncoo-6
-   else if (nzero.eq.1) then
-      ! Linear molecule
-      nmodes=ncoo-5      
-   else
-      errmsg='Something has gone terribly wrong in getnmodes...'
-      call error_control
-   endif
+    if (nzero.eq.0) then
+       ! Non-linear molecule
+       nmodes=ncoo-6
+    else if (nzero.eq.1) then
+       ! Linear molecule
+       nmodes=ncoo-5      
+    else
+       errmsg='Something has gone terribly wrong in getnmodes...'
+       call error_control
+    endif
 
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
-   ! Transformation matrices
+    ! Transformation matrices
     allocate(nmcoo(ncoo,nmodes))
     allocate(coonm(nmodes,ncoo))
     nmcoo=0.0d0
     coonm=0.0d0
 
-   ! Normal mode labels
-   allocate(nmlab(nmodes))
-   nmlab=''
-   
-   ! Normal mode frequencies
-   allocate(freq(nmodes))
-   freq=0.0d0
-   
-   return
+    ! Normal mode labels
+    allocate(nmlab(nmodes))
+    nmlab=''
+    
+    ! Normal mode frequencies
+    allocate(freq(nmodes))
+    freq=0.0d0
+    
+    return
     
   end subroutine getnmodes
 

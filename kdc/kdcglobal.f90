@@ -63,6 +63,7 @@ module kdcglobal
   integer                         :: nbd(2)
   integer                         :: maxbd
   integer, allocatable            :: ibd(:,:)
+  real(dp), allocatable           :: Tmat(:,:,:)
   logical                         :: lblockdiag
   
 end module kdcglobal
