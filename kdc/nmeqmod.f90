@@ -17,7 +17,7 @@ contains
     
     implicit none
 
-    integer :: s1,s2,m
+    integer :: s,m
     
 !----------------------------------------------------------------------
 ! Perform the fitting for the 1-mode terms
@@ -48,24 +48,17 @@ contains
 
 !----------------------------------------------------------------------
 ! Subtract off the harmonic oscillator zeroth-order contribution from
-! the 2nd-order 1-mode coefficient
+! the on-diagonal 2nd-order 1-mode coefficient
 !----------------------------------------------------------------------
-    do s2=1,nsta
-       do s1=1,nsta
-          do m=1,nmodes
-             coeff1(m,s1,s2,2)=coeff1(m,s1,s2,2)-freq(m)/eh2ev
-          enddo
+    do s=1,nsta
+       do m=1,nmodes
+          coeff1(m,s,s,2)=coeff1(m,s,s,2)-freq(m)
        enddo
     enddo
        
 !----------------------------------------------------------------------
 ! Calculate the RMSD of the fit
 !----------------------------------------------------------------------
-    print*,''
-    print*,'The calc_rmsd routine needs to be changed'
-    print*,''
-    stop
-
     call calc_rmsd
 
     return
@@ -202,23 +195,20 @@ contains
     use channels
     use iomod
     use sysinfo
+    use parameters
     use kdcglobal
     
     implicit none
 
     integer               :: m,n,s1,s2,c,ndat
-    integer               :: order
     real(dp), allocatable :: coeff(:),q(:),d(:)
     logical               :: lpseudo
 
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
-    ! Order of the polynomial to be fit (hard-wired for now)
-    order=4
-
     ! Coefficient vector
-    allocate(coeff(order))
+    allocate(coeff(order1))
     coeff=0.0d0
 
     ! Input coordinates and diabatic dipole matrix element values
@@ -255,7 +245,7 @@ contains
 
                 ! Perform the fitting for the current mode and
                 ! diabatic dipole matrix element
-                call nmeq1d(order,coeff,ndat,q(1:ndat),d(1:ndat),&
+                call nmeq1d(order1,coeff,ndat,q(1:ndat),d(1:ndat),&
                      lpseudo,0.0d0)
 
                 ! Output a warning if the psedo-inverse was used in
@@ -266,7 +256,7 @@ contains
                      ' and dipole component ',c
 
                 ! Fill in the global coefficient arrays
-                call fill_coeffs1d_dipole(coeff,order,m,s1,s2,c)
+                call fill_coeffs1d_dipole(coeff,order1,m,s1,s2,c)
                 
              enddo
           enddo
@@ -1269,7 +1259,7 @@ contains
 
        c12=2.0d0*coeff(2)
 
-       gamma(m1,m2,s1)=c12-0.5*(c1+c2)
+       gamma(m1,m2,s1)=c12-0.5d0*(c1+c2)
 
        gamma(m2,m1,s1)=gamma(m1,m2,s1)
 
@@ -1286,10 +1276,12 @@ contains
 
        c12=2.0d0*coeff(2)
 
-       mu(m1,m2,s1,s2)=c12-0.5*(c1+c2)
+       mu(m1,m2,s1,s2)=c12-0.5d0*(c1+c2)
        
        mu(m2,m1,s1,s2)=mu(m1,m2,s1,s2)
+
        mu(m2,m1,s2,s1)=mu(m1,m2,s1,s2)
+       
     endif
     
     return

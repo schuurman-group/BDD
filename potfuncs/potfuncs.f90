@@ -118,10 +118,11 @@ contains
 
     implicit none
 
-    integer                        :: m,m1,m2,s,s1,s2
+    integer                        :: m,m1,m2,s,s1,s2,n
     real(dp), dimension(nmodes)    :: q
     real(dp), dimension(nsta,nsta) :: w
-
+    real(dp)                       :: fac,pre
+    
 !----------------------------------------------------------------------
 ! Initialisation of the model potential
 !----------------------------------------------------------------------
@@ -143,96 +144,129 @@ contains
     enddo
 
 !----------------------------------------------------------------------
-! First-order contributions
+! One-mode contributions
 !----------------------------------------------------------------------
-    ! kappa
-    do s=1,nsta
-       do m=1,nmodes
-          if (kappa_mask(m,s).eq.0) cycle
-          w(s,s)=w(s,s)+kappa(m,s)*q(m)
-       enddo
-    enddo
+    fac=1.0d0
 
-    ! lambda
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (lambda_mask(m,s1,s2).eq.0) cycle
-             w(s1,s2)=w(s1,s2)+lambda(m,s1,s2)*q(m)
-             w(s2,s1)=w(s2,s1)+lambda(m,s1,s2)*q(m)
+    do n=1,order1
+
+       fac=fac*n
+       pre=1.0d0/fac
+       
+       do s2=1,nsta
+          do s1=1,nsta
+             do m=1,nmodes
+                w(s1,s2)=w(s1,s2)+pre*coeff1(m,s1,s2,n)*q(m)**n
+             enddo
           enddo
        enddo
+       
     enddo
 
 !----------------------------------------------------------------------
-! Second-order contributions
+! Two-mode contributions (2nd-order only)
 !----------------------------------------------------------------------
-    ! gamma
-    do s=1,nsta
-       do m1=1,nmodes
+    do s2=1,nsta
+       do s1=1,nsta
           do m2=1,nmodes
-             if (gamma_mask(m1,m2,s).eq.0) cycle
-             w(s,s)=w(s,s)+0.5d0*gamma(m1,m2,s)*q(m1)*q(m2)
-          enddo
-       enddo
-    enddo
-
-    ! mu
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             do m2=1,nmodes
-                if (mu_mask(m1,m2,s1,s2).eq.0) cycle
-                w(s1,s2)=w(s1,s2)+0.5d0*mu(m1,m2,s1,s2)*q(m1)*q(m2)
-                w(s2,s1)=w(s2,s1)+0.5d0*mu(m1,m2,s1,s2)*q(m1)*q(m2)
+             do m1=1,nmodes
+                w(s1,s2)=w(s1,s2)+0.5d0*coeff2(m1,m2,s1,s2)*q(m1)*q(m2)
              enddo
           enddo
        enddo
     enddo
 
-!----------------------------------------------------------------------
-! Third-order contributions
-!----------------------------------------------------------------------
-    ! iota
-    do s=1,nsta
-       do m=1,nmodes
-          if (iota_mask(m,s).eq.0) cycle
-          w(s,s)=w(s,s)+(1.0d0/6.0d0)*iota(m,s)*q(m)**3
-       enddo
-    enddo
-
-    ! tau
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (tau_mask(m,s1,s2).eq.0) cycle
-             w(s1,s2)=w(s1,s2)+(1.0d0/6.0d0)*tau(m,s1,s2)*q(m)**3
-             w(s2,s1)=w(s2,s1)+(1.0d0/6.0d0)*tau(m,s1,s2)*q(m)**3
-          enddo
-       enddo
-    enddo
-
-!----------------------------------------------------------------------
-! Fourth-order contributions
-!----------------------------------------------------------------------
-    ! epsilon
-    do s=1,nsta
-       do m=1,nmodes
-          if (epsilon_mask(m,s).eq.0) cycle
-          w(s,s)=w(s,s)+(1.0d0/24.0d0)*epsilon(m,s)*q(m)**4
-       enddo
-    enddo
-
-    ! xi
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (xi_mask(m,s1,s2).eq.0) cycle
-             w(s1,s2)=w(s1,s2)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
-             w(s2,s1)=w(s2,s1)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
-          enddo
-       enddo
-    enddo
+!!----------------------------------------------------------------------
+!! First-order contributions
+!!----------------------------------------------------------------------
+!    ! kappa
+!    do s=1,nsta
+!       do m=1,nmodes
+!          if (kappa_mask(m,s).eq.0) cycle
+!          w(s,s)=w(s,s)+kappa(m,s)*q(m)
+!       enddo
+!    enddo
+!
+!    ! lambda
+!    do s1=1,nsta-1
+!       do s2=s1+1,nsta
+!          do m=1,nmodes
+!             if (lambda_mask(m,s1,s2).eq.0) cycle
+!             w(s1,s2)=w(s1,s2)+lambda(m,s1,s2)*q(m)
+!             w(s2,s1)=w(s2,s1)+lambda(m,s1,s2)*q(m)
+!          enddo
+!       enddo
+!    enddo
+!
+!!----------------------------------------------------------------------
+!! Second-order contributions
+!!----------------------------------------------------------------------
+!    ! gamma
+!    do s=1,nsta
+!       do m1=1,nmodes
+!          do m2=1,nmodes
+!             if (gamma_mask(m1,m2,s).eq.0) cycle
+!             w(s,s)=w(s,s)+0.5d0*gamma(m1,m2,s)*q(m1)*q(m2)
+!          enddo
+!       enddo
+!    enddo
+!
+!    ! mu
+!    do s1=1,nsta-1
+!       do s2=s1+1,nsta
+!          do m1=1,nmodes
+!             do m2=1,nmodes
+!                if (mu_mask(m1,m2,s1,s2).eq.0) cycle
+!                w(s1,s2)=w(s1,s2)+0.5d0*mu(m1,m2,s1,s2)*q(m1)*q(m2)
+!                w(s2,s1)=w(s2,s1)+0.5d0*mu(m1,m2,s1,s2)*q(m1)*q(m2)
+!             enddo
+!          enddo
+!       enddo
+!    enddo
+!
+!!----------------------------------------------------------------------
+!! Third-order contributions
+!!----------------------------------------------------------------------
+!    ! iota
+!    do s=1,nsta
+!       do m=1,nmodes
+!          if (iota_mask(m,s).eq.0) cycle
+!          w(s,s)=w(s,s)+(1.0d0/6.0d0)*iota(m,s)*q(m)**3
+!       enddo
+!    enddo
+!
+!    ! tau
+!    do s1=1,nsta-1
+!       do s2=s1+1,nsta
+!          do m=1,nmodes
+!             if (tau_mask(m,s1,s2).eq.0) cycle
+!             w(s1,s2)=w(s1,s2)+(1.0d0/6.0d0)*tau(m,s1,s2)*q(m)**3
+!             w(s2,s1)=w(s2,s1)+(1.0d0/6.0d0)*tau(m,s1,s2)*q(m)**3
+!          enddo
+!       enddo
+!    enddo
+!
+!!----------------------------------------------------------------------
+!! Fourth-order contributions
+!!----------------------------------------------------------------------
+!    ! epsilon
+!    do s=1,nsta
+!       do m=1,nmodes
+!          if (epsilon_mask(m,s).eq.0) cycle
+!          w(s,s)=w(s,s)+(1.0d0/24.0d0)*epsilon(m,s)*q(m)**4
+!       enddo
+!    enddo
+!
+!    ! xi
+!    do s1=1,nsta-1
+!       do s2=s1+1,nsta
+!          do m=1,nmodes
+!             if (xi_mask(m,s1,s2).eq.0) cycle
+!             w(s1,s2)=w(s1,s2)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
+!             w(s2,s1)=w(s2,s1)+(1.0d0/24.0d0)*xi(m,s1,s2)*q(m)**4
+!          enddo
+!       enddo
+!    enddo
     
     return
 

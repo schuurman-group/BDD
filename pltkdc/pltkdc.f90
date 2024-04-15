@@ -281,6 +281,11 @@ contains
     read(ibin) ndat
 
 !----------------------------------------------------------------------
+! Order of the one-mode expansions
+!----------------------------------------------------------------------
+    read(ibin) order1
+
+!----------------------------------------------------------------------
 ! Diabatic dipole flag
 !----------------------------------------------------------------------
     read(ibin) ldip
@@ -289,6 +294,11 @@ contains
 ! Allocate arrays
 !----------------------------------------------------------------------
     ! Model diabatic potential arrays
+    allocate(coeff1(nmodes,nsta,nsta,order1))
+    allocate(coeff2(nmodes,nmodes,nsta,nsta))
+    allocate(coeff1_mask(nmodes,nsta,nsta,order1))
+    allocate(coeff2_mask(nmodes,nmodes,nsta,nsta))
+    
     allocate(e0(nsta))
     allocate(freq(nmodes))
     allocate(kappa(nmodes,nsta))
@@ -343,6 +353,9 @@ contains
 !----------------------------------------------------------------------
 ! Coupling coefficients
 !----------------------------------------------------------------------
+    read(ibin) coeff1
+    read(ibin) coeff2
+
     read(ibin) kappa
     read(ibin) lambda
     read(ibin) gamma
@@ -355,6 +368,10 @@ contains
 !----------------------------------------------------------------------
 ! Masks
 !----------------------------------------------------------------------
+    read(ibin) coeff1_mask
+    read(ibin) coeff2_mask
+
+    
     read(ibin) kappa_mask
     read(ibin) lambda_mask
     read(ibin) gamma_mask
