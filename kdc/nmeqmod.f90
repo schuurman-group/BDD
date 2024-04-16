@@ -37,15 +37,6 @@ contains
     coeff1=coeff1*eh2ev
     coeff2=coeff2*eh2ev
 
-    kappa=kappa*eh2ev
-    lambda=lambda*eh2ev
-    gamma=gamma*eh2ev
-    mu=mu*eh2ev
-    iota=iota*eh2ev
-    tau=tau*eh2ev
-    epsilon=epsilon*eh2ev
-    xi=xi*eh2ev
-
 !----------------------------------------------------------------------
 ! Subtract off the harmonic oscillator zeroth-order contribution from
 ! the on-diagonal 2nd-order 1-mode coefficient
@@ -436,39 +427,8 @@ contains
     do n=1,order
        fac=fac*n
        coeff1(m,s1,s2,n)=coeff(n)*fac
+       coeff1(m,s2,s1,n)=coeff1(m,s1,s2,n)
     enddo
-    
-!----------------------------------------------------------------------
-! Intrastate coupling coefficients
-!----------------------------------------------------------------------
-    if (s1.eq.s2) then
-       if (order.gt.0) kappa(m,s1)=coeff(1)
-       if (order.gt.1) gamma(m,m,s1)=2.0d0*coeff(2)-freq(m)/eh2ev
-       if (order.gt.2) iota(m,s1)=6.0d0*coeff(3)
-       if (order.gt.3) epsilon(m,s1)=24.0d0*coeff(4)
-    endif
-
-!----------------------------------------------------------------------
-! Intrastate coupling coefficients
-!----------------------------------------------------------------------
-    if (s1.ne.s2) then
-       if (order.gt.0) then
-          lambda(m,s1,s2)=coeff(1)
-          lambda(m,s2,s1)=lambda(m,s1,s2)
-       endif
-       if (order.gt.1) then
-          mu(m,m,s1,s2)=2.0d0*coeff(2)
-          mu(m,m,s2,s1)=mu(m,m,s1,s2)
-       endif
-       if (order.gt.2) then
-          tau(m,s1,s2)=6.0d0*coeff(3)
-          tau(m,s2,s1)=tau(m,s1,s2)
-       endif
-       if (order.gt.3) then
-          xi(m,s1,s2)=24.0d0*coeff(4)
-          xi(m,s2,s1)=xi(m,s1,s2)
-       endif
-    endif
     
     return
     
@@ -549,10 +509,12 @@ contains
 !----------------------------------------------------------------------
 ! Fit the 2-mode terms entering into the vibronic coupling Hamiltonian
 !----------------------------------------------------------------------
-    !call fit_2mode_terms_potential
-
-    call fit_2mode_terms_potential_new
-    
+    if (ibilinear == 1) then
+       call fit_2mode_terms_potential
+    else if (ibilinear == 2) then
+       call fit_2mode_terms_potential_new
+    endif
+       
 !----------------------------------------------------------------------
 ! Fit the 2-mode terms entering into the expansion of the dipole
 ! matrix
@@ -578,6 +540,7 @@ contains
     use channels
     use iomod
     use sysinfo
+    use symmetry
     use kdcglobal
     
     implicit none
@@ -628,8 +591,7 @@ contains
 
                 ! Skip the fitting if the current bi-linear parameter is
                 ! zero by symmetry
-                mask=mask_pot_2mode(m1,m2,s1,s2)
-                if (mask.eq.0) cycle
+                if (coeff2_mask(m1,m2,s1,s2) == 0) cycle
                 
                 ! Perform the fitting for the current pair of modes and
                 ! diabatic potential matrix element
@@ -783,9 +745,9 @@ contains
 ! Expected 1st-order coupling coefficient value
 !----------------------------------------------------------------------
     if (s1 == s2) then
-       expected=(kappa(m1,s1)+kappa(m2,s1))/sqrt(2.0d0)
+       expected=(coeff1(m1,s1,s1,1)+coeff1(m2,s1,s1,1))/sqrt(2.0d0)
     else
-       expected=(lambda(m1,s1,s2)+lambda(m2,s1,s2))/sqrt(2.0d0)
+       expected=(coeff1(m1,s1,s2,1)+coeff1(m2,s1,s2,1))/sqrt(2.0d0)
     endif
 
 !----------------------------------------------------------------------
@@ -1044,68 +1006,29 @@ contains
     implicit none
 
     integer, intent(in)                     :: ndat,m1,m2,s1,s2
-    integer                                 :: n
+    integer                                 :: n,i,fac
+    real(dp)                                :: pre
     real(dp), dimension(ndat)               :: w
     real(dp), dimension(2,ndat), intent(in) :: q
 
-!----------------------------------------------------------------------
-! On-diagonal diabatic potential matrix element
-!----------------------------------------------------------------------
-    if (s1.eq.s2) then
-
-       ! Loop over points
-       do n=1,ndat
-
-          ! Zeroth-order contributions
-          w(n)=w(n)-q0pot(s1)
-          w(n)=w(n)-0.5d0*(freq(m1)*q(1,n)**2+freq(m2)*q(2,n)**2)/eh2ev
-          
-          ! First-order contributions
-          w(n)=w(n)-kappa(m1,s1)*q(1,n)-kappa(m2,s1)*q(2,n)
-
-          ! Second-order contributions
-          w(n)=w(n)-0.5d0*(gamma(m1,m1,s1)*q(1,n)**2 &
-               +gamma(m2,m2,s1)*q(2,n)**2)
-
-          ! Third-order contributions
-          w(n)=w(n)-(1.0d0/6.0d0)*(iota(m1,s1)*q(1,n)**3 &
-              +iota(m2,s1)*q(2,n)**3)
-
-          ! Fourth-order contributions
-          w(n)=w(n)-(1.0d0/24.0d0)*(epsilon(m1,s1)*q(1,n)**4 &
-              +epsilon(m2,s1)*q(2,n)**4)
-          
+    ! Loop over points
+    do i=1,ndat
+       
+       ! Zeroth-order contributions
+       w(i)=w(i)-q0pot(s1)
+       w(i)=w(i)-0.5d0*(freq(m1)*q(1,i)**2+freq(m2)*q(2,i)**2)/eh2ev
+       
+       ! One-mode contributions
+       fac=1
+       do n=1,order1
+          fac=fac*n
+          pre=1.0d0/fac
+          w(i)=w(i)-pre*coeff1(m1,s1,s2,n)*q(1,i)**n &
+               -pre*coeff1(m2,s1,s2,n)*q(2,i)**n
        enddo
        
-    endif
-
-!----------------------------------------------------------------------
-! Off-diagonal diabatic potential matrix element
-!----------------------------------------------------------------------
-    if (s1.ne.s2) then
-
-       ! Loop over points
-       do n=1,ndat
-          
-          ! First-order contributions
-          w(n)=w(n)-lambda(m1,s1,s2)*q(1,n)-lambda(m2,s1,s2)*q(2,n)
-
-          ! Second-order contributions
-          w(n)=w(n)-0.5d0*(mu(m1,m1,s1,s2)*q(1,n)**2 &
-               +mu(m2,m2,s1,s2)*q(2,n)**2)
-          
-          ! Third-order contributions
-          w(n)=w(n)-(1.0d0/6.0d0)*(tau(m1,s1,s2)*q(1,n)**3 &
-               +tau(m2,s1,s2)*q(2,n)**3)
-          
-          ! Fourth-order contributions
-          w(n)=w(n)-(1.0d0/24.0d0)*(xi(m1,s1,s2)*q(1,n)**4 &
-               +xi(m2,s1,s2)*q(2,n)**4)
-
-       enddo
-          
-    endif
-       
+    enddo
+    
     return
     
   end subroutine get_2mode_contrib_potential
@@ -1206,22 +1129,10 @@ contains
     integer, intent(in)  :: m1,m2,s1,s2
     real(dp), intent(in) :: coeff
     
-!----------------------------------------------------------------------
-! Intrastate coupling coefficients
-!----------------------------------------------------------------------
-    if (s1.eq.s2) then
-       gamma(m1,m2,s1)=coeff
-       gamma(m2,m1,s1)=gamma(m1,m2,s1)
-    endif 
-
-!----------------------------------------------------------------------
-! Interstate coupling coefficients
-!----------------------------------------------------------------------
-    if (s1.ne.s2) then
-       mu(m1,m2,s1,s2)=coeff
-       mu(m2,m1,s1,s2)=mu(m1,m2,s1,s2)
-       mu(m2,m1,s2,s1)=mu(m1,m2,s1,s2)
-    endif
+    coeff2(m1,m2,s1,s2)=coeff
+    coeff2(m2,m1,s1,s2)=coeff2(m1,m2,s1,s2)
+    coeff2(m1,m2,s2,s1)=coeff2(m1,m2,s1,s2)
+    coeff2(m2,m1,s2,s1)=coeff2(m1,m2,s1,s2)
     
     return
     
@@ -1247,42 +1158,9 @@ contains
     c1=coeff1(m1,s1,s2,2)
     c2=coeff1(m2,s1,s2,2)
     coeff2(m1,m2,s1,s2)=2.0d0*coeff(2)-0.5d0*(c1+c2)
-    
-!----------------------------------------------------------------------
-! Intrastate coupling coefficients
-!----------------------------------------------------------------------
-    if (s1.eq.s2) then
-
-       c1=gamma(m1,m1,s1)+freq(m1)/eh2ev
-
-       c2=gamma(m2,m2,s1)+freq(m2)/eh2ev
-
-       c12=2.0d0*coeff(2)
-
-       gamma(m1,m2,s1)=c12-0.5d0*(c1+c2)
-
-       gamma(m2,m1,s1)=gamma(m1,m2,s1)
-
-    endif
-
-!----------------------------------------------------------------------
-! Interstate coupling coefficients
-!----------------------------------------------------------------------
-    if (s1.ne.s2) then
-
-       c1=mu(m1,m1,s1,s2)
-
-       c2=mu(m2,m2,s1,s2)
-
-       c12=2.0d0*coeff(2)
-
-       mu(m1,m2,s1,s2)=c12-0.5d0*(c1+c2)
-       
-       mu(m2,m1,s1,s2)=mu(m1,m2,s1,s2)
-
-       mu(m2,m1,s2,s1)=mu(m1,m2,s1,s2)
-       
-    endif
+    coeff2(m2,m1,s1,s2)=coeff2(m1,m2,s1,s2)
+    coeff2(m1,m2,s2,s1)=coeff2(m1,m2,s1,s2)
+    coeff2(m2,m1,s2,s1)=coeff2(m1,m2,s1,s2)
     
     return
     
@@ -1312,30 +1190,6 @@ contains
     
   end subroutine fill_coeffs2d_dipole
 
-!######################################################################
-
-  function mask_pot_2mode(m1,m2,s1,s2) result(mask)
-    
-    use symmetry
-    
-    implicit none
-
-    integer, intent(in) :: m1,m2,s1,s2
-    integer             :: mask
-
-!----------------------------------------------------------------------
-! Determine the mask value for the given mode and state indices
-!----------------------------------------------------------------------
-    ! Intrastate coupling coefficient
-    if (s1.eq.s2) mask=gamma_mask(m1,m2,s1)
-
-    ! Interstate coupling coefficient
-    if (s1.ne.s2) mask=mu_mask(m1,m2,s1,s2)
-        
-    return
-    
-  end function mask_pot_2mode
-  
 !######################################################################
 
   subroutine calc_rmsd

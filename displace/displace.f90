@@ -360,7 +360,7 @@ contains
        ! Make the cuts
        do n1=1,nmodes-1
           do n2=n1+1,nmodes
-             if (gamma_mask(n1,n2,1).ne.0) call makecut_2d(n1,n2)
+             if (coeff1_mask(n1,n2,1,1).ne.0) call makecut_2d(n1,n2)
           enddo
        enddo
        
@@ -378,7 +378,7 @@ contains
        ! Make the cuts
        do n1=1,nmodes-1
           do n2=n1+1,nmodes
-             if (gamma_mask(n1,n2,1).ne.0) call makecut_2d_diag(n1,n2)
+             if (coeff2_mask(n1,n2,1,1).ne.0) call makecut_2d_diag(n1,n2)
           enddo
        enddo
        
@@ -396,10 +396,10 @@ contains
        do n1=1,nmodes-1
           do n2=n1+1,nmodes
              lnz=.false.
-             if (gamma_mask(n1,n2,1).ne.0) lnz=.true.
+             if (coeff2_mask(n1,n2,1,1).ne.0) lnz=.true.
              do s1=1,nsta-1
                 do s2=s1+1,nsta
-                   if (mu_mask(n1,n2,s1,s2).ne.0) lnz=.true.
+                   if (coeff2_mask(n1,n2,s1,s2).ne.0) lnz=.true.
                 enddo
              enddo
              if (lnz) call makecut_2d_diag(n1,n2)

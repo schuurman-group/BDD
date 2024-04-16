@@ -77,12 +77,6 @@ KDC = kdc/kdcglobal.o \
 PLTKDC = pltkdc/pltglobal.o \
 	pltkdc/pltkdc.o
 
-GRIDFUNC = gridfunc/gridglobal.o \
-	gridfunc/extfunc.o \
-        gridfunc/func.o \
-        gridfunc/dvr.o \
-	gridfunc/gridfunc.o
-
 OBJECTS_BLOCKDIAG = $(MULTI) \
 	$(INCLUDE) \
 	$(IOMODULES) \
@@ -176,31 +170,6 @@ OBJ_PLTKDC = constants.o \
 	pltglobal.o \
 	pltkdc.o
 
-OBJECTS_GRIDFUNC = $(INCLUDE) \
-	$(IOMODULES) \
-	$(UTILITIES) \
-	$(IOQC) \
-	$(SYMMETRY) \
-	$(POTFUNCS) \
-	$(GRIDFUNC)
-
-OBJ_GRIDFUNC = constants.o \
-	channels.o \
-	parameters.o \
-	sysinfo.o \
-	parsemod.o \
-	iomod.o \
-	timingmod.o \
-	utils.o \
-	ioqc.o \
-	symmetry.o \
-	potfuncs.o \
-	gridglobal.o \
-        extfunc.o \
-        func.o \
-	dvr.o \
-	gridfunc.o
-
 #-----------------------------------------------------------------------
 # Rules to create the program
 #-----------------------------------------------------------------------
@@ -218,10 +187,6 @@ kdc: $(OBJECTS_KDC)
 
 pltkdc: $(OBJECTS_PLTKDC)
 	$(F90) $(F90OPTS) $(OBJ_PLTKDC) $(LIBS) -o bin/pltkdc.x
-	rm -f *.o *~ *.mod 2>/dev/null
-
-gridfunc: $(OBJECTS_GRIDFUNC)
-	$(F90) $(F90OPTS) $(OBJ_GRIDFUNC) $(LIBS) -o bin/gridfunc.x
 	rm -f *.o *~ *.mod 2>/dev/null
 
 %.o: %.f90

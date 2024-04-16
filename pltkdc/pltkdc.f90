@@ -294,30 +294,13 @@ contains
 ! Allocate arrays
 !----------------------------------------------------------------------
     ! Model diabatic potential arrays
+    allocate(e0(nsta))
+    allocate(freq(nmodes))
     allocate(coeff1(nmodes,nsta,nsta,order1))
     allocate(coeff2(nmodes,nmodes,nsta,nsta))
     allocate(coeff1_mask(nmodes,nsta,nsta,order1))
     allocate(coeff2_mask(nmodes,nmodes,nsta,nsta))
     
-    allocate(e0(nsta))
-    allocate(freq(nmodes))
-    allocate(kappa(nmodes,nsta))
-    allocate(lambda(nmodes,nsta,nsta))
-    allocate(gamma(nmodes,nmodes,nsta))
-    allocate(mu(nmodes,nmodes,nsta,nsta))
-    allocate(iota(nmodes,nsta))
-    allocate(tau(nmodes,nsta,nsta))
-    allocate(epsilon(nmodes,nsta))
-    allocate(xi(nmodes,nsta,nsta))
-    allocate(kappa_mask(nmodes,nsta))
-    allocate(lambda_mask(nmodes,nsta,nsta))
-    allocate(gamma_mask(nmodes,nmodes,nsta))
-    allocate(mu_mask(nmodes,nmodes,nsta,nsta))
-    allocate(iota_mask(nmodes,nsta))
-    allocate(tau_mask(nmodes,nsta,nsta))
-    allocate(epsilon_mask(nmodes,nsta))
-    allocate(xi_mask(nmodes,nsta,nsta))
-
     ! Ab initio diabatic potential arrays
     allocate(wq0(nsta))
     allocate(wdisp(nsta,nsta,ndat))
@@ -356,30 +339,11 @@ contains
     read(ibin) coeff1
     read(ibin) coeff2
 
-    read(ibin) kappa
-    read(ibin) lambda
-    read(ibin) gamma
-    read(ibin) mu
-    read(ibin) iota
-    read(ibin) tau
-    read(ibin) epsilon
-    read(ibin) xi
-    
 !----------------------------------------------------------------------
 ! Masks
 !----------------------------------------------------------------------
     read(ibin) coeff1_mask
     read(ibin) coeff2_mask
-
-    
-    read(ibin) kappa_mask
-    read(ibin) lambda_mask
-    read(ibin) gamma_mask
-    read(ibin) mu_mask
-    read(ibin) iota_mask
-    read(ibin) tau_mask
-    read(ibin) epsilon_mask
-    read(ibin) xi_mask
 
 !----------------------------------------------------------------------
 ! Ab inito diabatic potential values

@@ -317,6 +317,14 @@ contains
 
     ! Order of the 1-mode expansions
     order1=4
+
+    ! Bi-linear coefficient fitting algorithm:
+    !
+    ! ibilinear = 1 <-> minimize the two-mode residuals
+    !
+    !             2 <-> minimize the one-mode residuals in a rotated
+    !                   normal mode basis (default)
+    ibilinear=2
     
 !----------------------------------------------------------------------
 ! Read the input file
@@ -514,6 +522,22 @@ contains
           if (keyword(i+1).eq.'=') then
              i=i+2
              read(keyword(i),*) order1
+          else
+             goto 100
+          endif
+
+       else if (keyword(i) == '$bilinear') then
+          if (keyword(i+1) == '=') then
+             i=i+2
+             if (keyword(i) == 'unrotated') then
+                ibilinear=1
+             else if (keyword(i) == 'rotated') then
+                ibilinear=2
+             else
+                errmsg='Unknown argument given with the' &
+                     //' $bilinear keyword'
+                call error_control
+             endif
           else
              goto 100
           endif
@@ -1285,38 +1309,6 @@ contains
     allocate(coeff2(nmodes,nmodes,nsta,nsta))
     coeff2=0.0d0
     
-    ! First-order, intrastate
-    allocate(kappa(nmodes,nsta))
-    kappa=0.0d0
-
-    ! First-order, interstate
-    allocate(lambda(nmodes,nsta,nsta))
-    lambda=0.0d0
-
-    ! Second-order, intrastate
-    allocate(gamma(nmodes,nmodes,nsta))
-    gamma=0.0d0
-
-    ! Second-order, interstate
-    allocate(mu(nmodes,nmodes,nsta,nsta))
-    mu=0.0d0
-
-    ! Third-order, cubic, intrastate
-    allocate(iota(nmodes,nsta))
-    iota=0.0d0
-
-    ! Third-order, cubic, interstate
-    allocate(tau(nmodes,nsta,nsta))
-    tau=0.0d0
-
-    ! Fourth-order, quartic, intrastate
-    allocate(epsilon(nmodes,nsta))
-    epsilon=0.0d0
-
-    ! Fourth-order, quartic, interstate
-    allocate(xi(nmodes,nsta,nsta))
-    xi=0.0d0
-
     ! Diabatic dipole matrix expansion coefficients
     if (ldipfit) then
        allocate(dip1(nmodes,nsta,nsta,3))
@@ -1625,42 +1617,16 @@ contains
     write(ibin) freq
 
 !----------------------------------------------------------------------
-! One-mode coefficients
-!----------------------------------------------------------------------
-    write(ibin) coeff1
-
-!----------------------------------------------------------------------
-! Two-mode coefficients
-!----------------------------------------------------------------------
-    write(ibin) coeff2
-    
-!----------------------------------------------------------------------
 ! Coupling coefficients
 !----------------------------------------------------------------------
-    write(ibin) kappa
-    write(ibin) lambda
-    write(ibin) gamma
-    write(ibin) mu
-    write(ibin) iota
-    write(ibin) tau
-    write(ibin) epsilon
-    write(ibin) xi
+    write(ibin) coeff1
+    write(ibin) coeff2
     
 !----------------------------------------------------------------------
 ! Masks
 !----------------------------------------------------------------------
-
     write(ibin) coeff1_mask
     write(ibin) coeff2_mask
-
-    write(ibin) kappa_mask
-    write(ibin) lambda_mask
-    write(ibin) gamma_mask
-    write(ibin) mu_mask
-    write(ibin) iota_mask
-    write(ibin) tau_mask
-    write(ibin) epsilon_mask
-    write(ibin) xi_mask
 
 !----------------------------------------------------------------------
 ! Ab initio diabatic potential values
