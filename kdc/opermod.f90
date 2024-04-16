@@ -414,7 +414,7 @@ contains
           do m=1,nmodes
              if (coeff1_mask(m,s,s,n) == 0) cycle
              if (abs(coeff1(m,s,s,n)) < thrsh) cycle
-             write(iop,'(9(a,i0))') '1/',fac,&
+             write(iop,'(a,i0,a,8(a,i0))') '1.0/',fac,'.0',&
                   '*tau',n,'_',m,'_',s,'_',s,&
                   '  |',m,'  q^',n,&
                   '  |'//adjustl(afel)//'  S',s,&
@@ -434,7 +434,7 @@ contains
              do m=1,nmodes
                 if (coeff1_mask(m,s1,s2,n) == 0) cycle
                 if (abs(coeff1(m,s1,s2,n)) < thrsh) cycle
-                write(iop,'(9(a,i0))') '1/',fac,&
+                write(iop,'(a,i0,a,8(a,i0))') '1.0/',fac,'.0',&
                      '*tau',n,'_',m,'_',s2,'_',s1,&
                      '  |',m,'  q^',n,&
                      '  |'//adjustl(afel)//'  S',s2,&
