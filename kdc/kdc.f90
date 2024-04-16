@@ -117,7 +117,7 @@ program kdc
 ! If the coupling coefficients were determined by fitting, then
 ! output the RMSDs to the log file
 !----------------------------------------------------------------------
-  if (ialgor.eq.2) call wrrmsd
+  call wrrmsd
   
 !----------------------------------------------------------------------
 ! Output some useful information about the coupling coefficients to
@@ -305,10 +305,6 @@ contains
     allocate(dip0(nsta,nsta,3))
     dip0=0.0d0
 
-    ! Parameterisation algorithm: 1 <-> finite differences
-    !                             2 <-> normal equations-based fitting
-    ialgor=2
-
     ! Normal equation fitting weights
     iweight=0
     wfac=0.0d0
@@ -406,24 +402,6 @@ contains
              read(keyword(2),*) k
              stalab(k)=keyword(1)
           enddo
-
-       else if (keyword(i).eq.'$algorithm') then
-          if (keyword(i+1).eq.'=') then
-             i=i+2
-             if (keyword(i).eq.'fd') then
-                ! Finite differences
-                ialgor=1
-             else if (keyword(i).eq.'normal') then
-                ! Normal equations approach
-                ialgor=2
-             else
-                errmsg='Unkown parameterisation algorithm: '&
-                     //trim(keyword(i))
-                call error_control
-             endif                
-          else
-             goto 100
-          endif
 
        else if (keyword(i).eq.'$dip_sym') then
           ldipfit=.true.
@@ -1292,7 +1270,6 @@ contains
     use sysinfo
     use parameters
     use kdcglobal
-    use fdmod
     use nmeqmod
     
     implicit none
@@ -1361,13 +1338,8 @@ contains
 !----------------------------------------------------------------------
 ! Calculate the coupling coefficients
 !----------------------------------------------------------------------
-    if (ialgor.eq.1) then
-       ! Finite differences
-       call get_coefficients_fd
-    else if (ialgor.eq.2) then
-       ! Normal equations fitting
-       call get_coefficients_nmeq
-    endif
+    ! Normal equations fitting
+    call get_coefficients_nmeq
     
     return
     
@@ -1387,9 +1359,10 @@ contains
     
     implicit none
 
-    integer                        :: m,m1,m2,s,s1,s2,c,i
+    integer                        :: m,m1,m2,s,s1,s2,c,i,n
     real(dp), parameter            :: thrsh=1e-4_dp
     character(len=1), dimension(3) :: acomp
+    character(len=5)               :: atau
 
 !----------------------------------------------------------------------
 ! Cartesian axis labels
@@ -1407,7 +1380,7 @@ contains
 
     ! Get the total and symmetry-allowed number of coupling
     ! coefficients
-    call getnpar(ldipfit)
+    call getnpar(order1,ldipfit)
 
     ! Output the total and symmetry-allowed number of coupling
     ! coefficients to the log file
@@ -1415,30 +1388,16 @@ contains
     write(ilog,'(a)') ' Type   | Total number | Symmetry allowed'
     write(ilog,'(42a)') ('-',i=1,42)
 
-    write(ilog,'(a,3x,a,4x,i5,6x,a1,4x,i5)') &
-         'kappa','|',nkappa(1),'|',nkappa(2)
+    do n=1,order1
+       atau=''
+       write(atau,'(a,i0)') 'tau',n
+       write(ilog,'(x,a,2x,a,4x,i5,5x,a1,4x,i5)') &
+            atau,'|',ncoeff1(1,n),'|',ncoeff1(2,n)
+    enddo
 
-    write(ilog,'(a,2x,a,4x,i5,6x,a1,4x,i5)') &
-         'lambda','|',nlambda(1),'|',nlambda(2)
-
-    write(ilog,'(a,3x,a,4x,i5,6x,a1,4x,i5)') &
-         'gamma','|',ngamma(1),'|',ngamma(2)
-
-    write(ilog,'(a,6x,a,4x,i5,6x,a1,4x,i5)') &
-         'mu','|',nmu(1),'|',nmu(2)
-
-    write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
-         'iota','|',niota(1),'|',niota(2)
-
-    write(ilog,'(a,5x,a,4x,i5,6x,a1,4x,i5)') &
-         'tau','|',ntau(1),'|',ntau(2)
-
-    write(ilog,'(a,1x,a,4x,i5,6x,a1,4x,i5)') &
-         'epsilon','|',nepsilon(1),'|',nepsilon(2)
-
-    write(ilog,'(a,6x,a,4x,i5,6x,a1,4x,i5)') &
-         'xi','|',nxi(1),'|',nxi(2)
-
+    write(ilog,'(x,a,4x,a,4x,i5,5x,a1,4x,i5)') &
+         'eta','|',ncoeff2(1),'|',ncoeff2(2)
+    
     if (ldipfit) then
        write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
          'dip1','|',ndip1(1),'|',ndip1(2)
@@ -1453,7 +1412,7 @@ contains
          'dip4','|',ndip4(1),'|',ndip4(2)
     endif
     
-    write(ilog,'(a,5x,a,4x,i5,6x,a1,4x,i5)') &
+    write(ilog,'(x,a,4x,a,4x,i5,5x,a1,4x,i5)') &
          'all','|',ntot(1),'|',ntot(2)
 
     write(ilog,'(42a,/)') ('-',i=1,42)
@@ -1462,114 +1421,37 @@ contains
 ! Check for any non-zero coupling coefficients that should be zero
 ! by symmetry
 !----------------------------------------------------------------------
-    ! kappa
-    do s=1,nsta
-       do m=1,nmodes
-          if (abs(kappa(m,s)).gt.thrsh.and.kappa_mask(m,s).eq.0) then
-             write(ilog,'(a,2x,a,2(x,i2),2x,F10.7)') &
-                  'WARNING non-zero parameter that should be zero &
-                  by symmetry:','kappa',m,s,kappa(m,s)
-          endif
-       enddo
-    enddo
-
-    ! lambda
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (abs(lambda(m,s1,s2)).gt.thrsh&
-                  .and.lambda_mask(m,s1,s2).eq.0) then
-                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
-                     'WARNING non-zero parameter that should be zero &
-                     by symmetry:','lambda',m,s1,s2,lambda(m,s1,s2)
-             endif
-          enddo
-       enddo
-    enddo
-
-    ! gamma
-    do s=1,nsta
-       do m1=1,nmodes
-          do m2=m1,nmodes
-             if (abs(gamma(m1,m2,s)).gt.thrsh&
-                  .and.gamma_mask(m1,m2,s).eq.0) then
-                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
-                     'WARNING non-zero parameter that should be zero &
-                     by symmetry:','gamma',m1,m2,s,gamma(m1,m2,s)
-             endif
-          enddo
-       enddo
-    enddo
-
-    ! mu
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             do m2=m1,nmodes
-                if (abs(mu(m1,m2,s1,s2)).gt.thrsh&
-                     .and.mu_mask(m1,m2,s1,s2).eq.0) then
-                   write(ilog,'(a,2x,a,4(x,i2),2x,F10.7)') &
-                        'WARNING non-zero parameter that should be &
-                        zero by symmetry:','mu',m1,m2,s1,s2,&
-                        mu(m1,m2,s1,s2)
+    ! One-mode terms
+    do n=1,order1
+       atau=''
+       write(atau,'(a,i0)') 'tau',n
+       do s2=1,nsta
+          do s1=s2,nsta
+             do m=1,nmodes
+                if (abs(coeff1(m,s1,s2,n)) > thrsh &
+                     .and. coeff1_mask(m,s1,s2,n) == 0) then
+                   write(ilog,'(a,2x,a,3(x,i0),2x,F10.7)') &
+                        'WARNING non-zero parameter that should be zero &
+                        by symmetry:',atau,m,s1,s2,coeff1(m,s1,s2,n)
                 endif
              enddo
           enddo
        enddo
     enddo
-
-    ! iota
-    do s=1,nsta
-       do m=1,nmodes
-          if (abs(iota(m,s)).gt.thrsh&
-               .and.iota_mask(m,s).eq.0) then
-             write(ilog,'(a,2x,a,2(x,i2),2x,F10.7)') &
-                  'WARNING non-zero parameter that should be &
-                  zero by symmetry:','iota',m,s,&
-                  iota(m,s)
-          endif
-       enddo
-    enddo
-
-    ! tau
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (abs(tau(m,s1,s2)).gt.thrsh&
-                  .and.tau_mask(m,s1,s2).eq.0) then
-                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
-                     'WARNING non-zero parameter that should be &
-                     zero by symmetry:','tau',m,s1,s2,&
-                     tau(m,s1,s2)
-             endif
-          enddo
-       enddo
-    enddo
-
-    ! espilon
-    do s=1,nsta
-       do m=1,nmodes
-          if (abs(epsilon(m,s)).gt.thrsh&
-               .and.epsilon_mask(m,s).eq.0) then
-             write(ilog,'(a,2x,a,2(x,i2),2x,F10.7)') &
-                  'WARNING non-zero parameter that should be &
-                  zero by symmetry:','epsilon',m,s,&
-                  epsilon(m,s)
-          endif
-       enddo
-    enddo
-
-    ! xi
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             if (abs(xi(m,s1,s2)).gt.thrsh&
-                  .and.xi_mask(m,s1,s2).eq.0) then
-                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
-                     'WARNING non-zero parameter that should be &
-                     zero by symmetry:','xi',m,s1,s2,&
-                     xi(m,s1,s2)
-             endif
+             
+    ! Two-mode terms
+    do s2=1,nsta
+       do s1=s2,nsta
+          do m1=1,nmodes-1
+             do m2=m1+1,nmodes
+                if (abs(coeff2(m1,m2,s1,s2)) > thrsh &
+                     .and. coeff2_mask(m1,m2,s1,s2) == 0) then
+                   write(ilog,'(a,2x,a,4(x,i0),2x,F10.7)') &
+                        'WARNING non-zero parameter that should be zero &
+                        by symmetry:','eta',m1,m2,s1,s2,&
+                        coeff2(m1,m2,s1,s2)
+                endif
+             enddo
           enddo
        enddo
     enddo

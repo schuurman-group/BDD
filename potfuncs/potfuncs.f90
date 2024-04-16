@@ -156,6 +156,7 @@ contains
        do s2=1,nsta
           do s1=1,nsta
              do m=1,nmodes
+                if (coeff1_mask(m,s1,s2,n) == 0) cycle
                 w(s1,s2)=w(s1,s2)+pre*coeff1(m,s1,s2,n)*q(m)**n
              enddo
           enddo
@@ -170,6 +171,7 @@ contains
        do s1=1,nsta
           do m2=1,nmodes
              do m1=1,nmodes
+                if (coeff2_mask(m1,m2,s1,s2) == 0) cycle
                 w(s1,s2)=w(s1,s2)+0.5d0*coeff2(m1,m2,s1,s2)*q(m1)*q(m2)
              enddo
           enddo

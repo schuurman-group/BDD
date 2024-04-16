@@ -47,7 +47,6 @@ module kdcglobal
   logical                         :: ldipfit
 
   ! Parameterisation algorithm
-  integer                         :: ialgor
   integer                         :: iweight
   real(dp)                        :: wfac
   

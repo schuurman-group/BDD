@@ -14,6 +14,9 @@ module symmetry
   !----------------------------------------------------------------------
   integer, allocatable           :: coeff1_mask(:,:,:,:)
   integer, allocatable           :: coeff2_mask(:,:,:,:)
+
+  integer, allocatable           :: ncoeff1(:,:)
+  integer, allocatable           :: ncoeff2(:)
   
   integer, allocatable           :: kappa_mask(:,:)
   integer, allocatable           :: lambda_mask(:,:,:)
@@ -192,9 +195,9 @@ contains
 
     ! Two-mode terms (2nd-order only)
     do s2=1,nsta
-       do s1=1,nsta
-          do m2=1,nmodes
-             do m1=1,nmodes
+       do s1=s2,nsta
+          do m2=1,nmodes-1
+             do m1=m2+1,nmodes
                 nmchk=0
                 stachk=0
                 nmchk(m1)=nmchk(m1)+1
@@ -202,11 +205,14 @@ contains
                 stachk(s1)=stachk(s1)+1
                 stachk(s2)=stachk(s2)+1
                 coeff2_mask(m1,m2,s1,s2)=integralsym(nmchk,stachk,dipchk)
+                coeff2_mask(m2,m1,s1,s2)=coeff2_mask(m1,m2,s1,s2)
+                coeff2_mask(m1,m2,s2,s2)=coeff2_mask(m1,m2,s1,s2)
+                coeff2_mask(m2,m1,s2,s1)=coeff2_mask(m1,m2,s1,s2)
              enddo
           enddo
        enddo
     enddo
-       
+
     ! kappa
     do s1=1,nsta
        do m1=1,nmodes
@@ -261,7 +267,7 @@ contains
                 stachk(s2)=stachk(s2)+1
                 mu_mask(m1,m2,s1,s2)=integralsym(nmchk,stachk,dipchk)
                 mu_mask(m2,m1,s1,s2)=mu_mask(m1,m2,s1,s2)
-                mu_mask(m1,m2,s1,s2)=mu_mask(m1,m2,s1,s2)
+                mu_mask(m1,m2,s2,s1)=mu_mask(m1,m2,s1,s2)
                 mu_mask(m2,m1,s2,s1)=mu_mask(m1,m2,s1,s2)
              enddo
           enddo
@@ -869,16 +875,23 @@ contains
 
 !######################################################################
 
-  subroutine getnpar(dipolein)
+  subroutine getnpar(order1,dipolein)
 
     use constants
     use sysinfo
     
     implicit none
 
-    integer           :: m,m1,m2,s,s1,s2,c
-    logical, optional :: dipolein
-    logical           :: dipole
+    integer, intent(in) :: order1
+    integer             :: m,m1,m2,s,s1,s2,c,n
+    logical, optional   :: dipolein
+    logical             :: dipole
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    allocate(ncoeff1(2,order1))
+    allocate(ncoeff2(2))
     
 !----------------------------------------------------------------------
 ! Optional fitting of diabatic dipole matrix elements
@@ -891,6 +904,9 @@ contains
 !----------------------------------------------------------------------
 ! Initialisation
 !----------------------------------------------------------------------
+    ncoeff1=0
+    ncoeff2=0
+    
     nkappa=0
     nlambda=0
     ngamma=0
@@ -907,6 +923,36 @@ contains
 !----------------------------------------------------------------------
 ! Coefficients of the vibronic coupling Hamiltonian
 !----------------------------------------------------------------------
+    ! One-mode terms
+    do n=1,order1
+       do s2=1,nsta
+          do s1=s2,nsta
+             do m=1,nmodes
+                ! Total number
+                ncoeff1(1,n)=ncoeff1(1,n)+1
+                ! Symmetry allowed
+                if (coeff1_mask(m,s1,s2,n) == 1) &
+                     ncoeff1(2,n)=ncoeff1(2,n)+1
+             enddo
+          enddo
+       enddo
+    enddo
+
+    ! Two-mode terms
+    do s2=1,nsta
+       do s1=s2,nsta
+          do m2=1,nmodes-1
+             do m1=m2+1,nmodes
+                ! Total number
+                ncoeff2(1)=ncoeff2(1)+1
+                ! Symmetry allowed
+                if (coeff2_mask(m1,m2,s1,s2) == 1) &
+                     ncoeff2(2)=ncoeff2(2)+1
+             enddo
+          enddo
+       enddo
+    enddo
+       
     ! kappa
     do s=1,nsta
        do m=1,nmodes
@@ -956,7 +1002,7 @@ contains
     enddo
 
     ! iota
-    do s1=1,nsta-1
+    do s1=1,nsta
        do m1=1,nmodes
           ! Total number
           niota(1)=niota(1)+1
@@ -966,7 +1012,7 @@ contains
     enddo
 
     ! tau
-    do s1=1,nsta
+    do s1=1,nsta-1
        do s2=s1+1,nsta
           do m1=1,nmodes
              ! Total number
@@ -978,7 +1024,7 @@ contains
     enddo
 
     ! epsilon
-    do s1=1,nsta-1
+    do s1=1,nsta
        do m1=1,nmodes
           ! Total number
           nepsilon(1)=nepsilon(1)+1
@@ -1070,6 +1116,12 @@ contains
 !----------------------------------------------------------------------
     ntot=nkappa+nlambda+ngamma+nmu+niota+ntau+nepsilon+nxi &
          +ndip1+ndip2+ndip3+ndip4
+
+    ntot=0
+    do n=1,order1
+       ntot=ntot+ncoeff1(:,n)
+    enddo
+    ntot=ntot+ncoeff2
     
     return
     
@@ -1096,24 +1148,11 @@ contains
 ! Determine which 2D cuts to make based on the symmetry-allowed
 ! coupling coefficients
 !----------------------------------------------------------------------
-    ! gamma
-    do s=1,nsta
-       do m1=1,nmodes-1
-          do m2=m1+1,nmodes
-             if (gamma_mask(m1,m2,s).eq.1) then
-                cut_mask(m1,m2)=1
-                cut_mask(m2,m1)=1
-             endif
-          enddo
-       enddo
-    enddo
-    
-    ! mu
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes-1
-             do m2=m1+1,nmodes
-                if (mu_mask(m1,m2,s1,s2).eq.1) then
+    do s2=1,nsta
+       do s1=s2,nsta
+          do m2=1,nmodes-1
+             do m1=m2+1,nmodes
+                if (coeff2_mask(m1,m2,s1,s2) == 1) then
                    cut_mask(m1,m2)=1
                    cut_mask(m2,m1)=1
                 endif
