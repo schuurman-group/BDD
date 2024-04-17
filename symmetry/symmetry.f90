@@ -156,7 +156,7 @@ contains
                 stachk(s2)=stachk(s2)+1
                 coeff2_mask(m1,m2,s1,s2)=integralsym(nmchk,stachk,dipchk)
                 coeff2_mask(m2,m1,s1,s2)=coeff2_mask(m1,m2,s1,s2)
-                coeff2_mask(m1,m2,s2,s2)=coeff2_mask(m1,m2,s1,s2)
+                coeff2_mask(m1,m2,s2,s1)=coeff2_mask(m1,m2,s1,s2)
                 coeff2_mask(m2,m1,s2,s1)=coeff2_mask(m1,m2,s1,s2)
              enddo
           enddo
