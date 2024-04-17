@@ -521,7 +521,7 @@ contains
     close(unit)
 
     !
-    ! Positive direction
+    ! Negative direction
     !
     ! Open the concatenated xyz file
     call freeunit(unit)
@@ -535,8 +535,8 @@ contains
 
        ! Point in normal modes
        q=0.0d0
-       q(n1)=i*dq
-       q(n2)=i*dq
+       q(n1)=i*dq/sqrt(2.0d0)
+       q(n2)=i*dq/sqrt(2.0d0)
 
        ! Cartesian coordinates
        x=xcoo0/ang2bohr+matmul(nmcoo,q)

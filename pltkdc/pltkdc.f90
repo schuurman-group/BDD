@@ -418,10 +418,13 @@ contains
     ! Loop over points
     do i=1,npnts
        
-       ! Current geometry
        q(mplt)=qi+(i-1)*dq
-       if (ldiagcut) q(mplt2)=qi+(i-1)*dq
-       
+
+       if (ldiagcut) then
+          q(mplt)=q(mplt)/sqrt(2.0d0)
+          q(mplt2)=(qi+(i-1)*dq)/sqrt(2.0d0)
+       endif
+          
        ! Current set of energies
        surf(i,:)=surface(q)
 
@@ -727,7 +730,11 @@ contains
     do s=si,sf
        write(unit,*) 0.0d0,e0(s)
        do i=1,nabinit
-          write(unit,*) qvec(mplt,iabinit(i)),abinit(s,s,i)
+          if (ldiagcut) then
+             write(unit,*) sqrt(2.0d0)*qvec(mplt,iabinit(i)),abinit(s,s,i)
+          else
+             write(unit,*) qvec(mplt,iabinit(i)),abinit(s,s,i)
+          endif
        enddo
        write(unit,'(2x,a)') 'e'
     enddo
