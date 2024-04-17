@@ -756,9 +756,13 @@ contains
     diff=(expected-coeff(1))*eh2ev
 
     if (abs(diff) > 1e-2_dp) then
-       write(6,'(/,4(x,i0),2(x,F10.7))') m1,m2,s1,s2,&
-            (coeff(1)-expected)*eh2ev
-    endif
+       write(ilog,'(/,a)') &
+            'WARNING inconsistent rotated 1st-order coefficient'
+       write(ilog,'(5(a,i0),a)') 'Parameter: eta_',m1,',',m2,&
+            '^(',s1,',',s2,')'
+       write(ilog,'(a,x,F7.4,x,a)') 'Deviation:',diff,'eV'
+       
+      endif
     
     return
     
