@@ -316,7 +316,7 @@ contains
     lblockdiag=.false.
 
     ! Order of the 1-mode expansions
-    order1=4
+    order1=6
 
     ! Bi-linear coefficient fitting algorithm:
     !
