@@ -65,7 +65,4 @@ module kdcglobal
   real(dp), allocatable           :: Tmat(:,:,:)
   logical                         :: lblockdiag
 
-  ! Bi-linear coefficient fitting algorithm
-  integer                         :: ibilinear
-  
 end module kdcglobal

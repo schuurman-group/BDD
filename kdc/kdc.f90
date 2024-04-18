@@ -318,14 +318,6 @@ contains
     ! Order of the 1-mode expansions
     order1=6
 
-    ! Bi-linear coefficient fitting algorithm:
-    !
-    ! ibilinear = 1 <-> minimize the two-mode residuals
-    !
-    !             2 <-> minimize the one-mode residuals in a rotated
-    !                   normal mode basis (default)
-    ibilinear=2
-    
 !----------------------------------------------------------------------
 ! Read the input file
 !----------------------------------------------------------------------
@@ -526,22 +518,6 @@ contains
              goto 100
           endif
 
-       else if (keyword(i) == '$bilinear') then
-          if (keyword(i+1) == '=') then
-             i=i+2
-             if (keyword(i) == 'unrotated') then
-                ibilinear=1
-             else if (keyword(i) == 'rotated') then
-                ibilinear=2
-             else
-                errmsg='Unknown argument given with the' &
-                     //' $bilinear keyword'
-                call error_control
-             endif
-          else
-             goto 100
-          endif
-             
        else
           ! Exit if the keyword is not recognised
           errmsg='Unknown keyword: '//trim(keyword(i))

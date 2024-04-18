@@ -55,6 +55,8 @@ SYMMETRY=symmetry/symmetry.o
 POTFUNCS=potfuncs/parameters.o \
 	potfuncs/potfuncs.o
 
+OPT=opt/opt.o
+
 BLOCKDIAG = blockdiag/bdglobal.o \
 	blockdiag/adt.o \
 	blockdiag/mooverlaps.o \
@@ -134,6 +136,7 @@ OBJECTS_KDC = $(INCLUDE) \
 	$(IOQC) \
 	$(SYMMETRY) \
 	$(POTFUNCS) \
+	$(OPT) \
 	$(KDC)
 OBJ_KDC = constants.o \
 	channels.o \
@@ -146,6 +149,7 @@ OBJ_KDC = constants.o \
 	ioqc.o \
 	symmetry.o \
 	potfuncs.o \
+	opt.o \
 	kdcglobal.o \
 	opermod.o \
 	parinfo.o \
