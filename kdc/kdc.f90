@@ -10,6 +10,7 @@ program kdc
   use parinfo
   use transform
   use opermod
+  use cartgrad
   use parameters
   use kdcglobal
   
@@ -130,6 +131,12 @@ program kdc
 !----------------------------------------------------------------------
   call wroper
 
+!----------------------------------------------------------------------
+! Optional writing of the gradients and non-adiabatic coupling vectors
+! to xyz files for visualisation
+!----------------------------------------------------------------------
+  if (lcartgrad) call write_cartgrad
+  
 !----------------------------------------------------------------------
 ! Write the parameters to a binary file for reading by the pltkdc
 ! code
@@ -315,6 +322,10 @@ contains
     ! Block diagonalisation
     lblockdiag=.false.
 
+    ! Writing of the gradient and non-adiabatic coupling vectors
+    ! to file
+    lcartgrad=.false.
+    
     ! Order of the 1-mode expansions
     order1=6
 
@@ -510,6 +521,9 @@ contains
              goto 100
           endif
 
+       else if (keyword(i).eq.'$cartgrad') then
+          lcartgrad=.true.
+          
        else if (keyword(i).eq.'$order') then
           if (keyword(i+1).eq.'=') then
              i=i+2

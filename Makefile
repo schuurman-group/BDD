@@ -70,6 +70,7 @@ DISPLACE = displace/dispglobal.o \
 	displace/displace.o
 
 KDC = kdc/kdcglobal.o \
+	kdc/cartgrad.o \
 	kdc/opermod.o \
 	kdc/parinfo.o \
 	kdc/nmeqmod.o \
@@ -151,6 +152,7 @@ OBJ_KDC = constants.o \
 	potfuncs.o \
 	opt.o \
 	kdcglobal.o \
+	cartgrad.o \
 	opermod.o \
 	parinfo.o \
 	nmeqmod.o \

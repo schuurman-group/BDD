@@ -65,4 +65,8 @@ module kdcglobal
   real(dp), allocatable           :: Tmat(:,:,:)
   logical                         :: lblockdiag
 
+  ! Writing of the gradient and non-adiabatic coupling
+  ! vectors to xyz files
+  logical                         :: lcartgrad
+  
 end module kdcglobal

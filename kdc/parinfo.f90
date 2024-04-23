@@ -1,6 +1,6 @@
 !######################################################################
-! parinfo: routines to output some useful information about the QVC
-!          Hamiltonian parameters to the log file
+! parinfo: routines to output some useful information about the
+!          vibronic coupling Hamiltonian parameters to the log file
 !######################################################################
 
 module parinfo
