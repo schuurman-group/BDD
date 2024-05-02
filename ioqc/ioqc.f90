@@ -1660,17 +1660,11 @@ contains
 
     implicit none
     
-    integer                        :: unit,i,j,itmp,nblocks,i1,i2
+    integer                        :: unit,i,j,itmp,nblocks,i1,i2,n
     real(dp), dimension(ncoo,ncoo) :: hess
     real(dp), dimension(5)         :: ftmp
     real(dp)                       :: hij
     character(len=120)             :: string
-
-
-    ! TEST
-    real(dp) :: eigvec(ncoo,ncoo),eigval(ncoo)
-    ! TEST
-    
     
 !----------------------------------------------------------------------
 ! Read in the Hessian
@@ -1686,19 +1680,22 @@ contains
     
     ! Read the Hessian
     nblocks=ceiling(dble(ncoo)/5.0d0)
+
     do i=1,nblocks
 
        ! Column indices for this block
        i1=(i-1)*5+1
        i2=min(i1+4,ncoo)
+
+       n=i2-i1+1
        
        read(unit,*)
 
        do j=1,ncoo
 
-          read(unit,*) itmp,ftmp
+          read(unit,*) itmp,ftmp(1:n)
 
-          hess(j,i1:i2)=ftmp
+          hess(j,i1:i2)=ftmp(1:n)
 
        enddo
        

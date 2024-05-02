@@ -86,7 +86,7 @@ program kdc
 ! Determine which coupling coefficients are zero by symmetry
 !----------------------------------------------------------------------
   call create_mask(order1,ldipfit)
-
+  
 !----------------------------------------------------------------------
 ! Determine which pairs of modes give rise to non-zero coupling
 ! coefficients by symmetry

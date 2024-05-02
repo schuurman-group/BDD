@@ -218,7 +218,7 @@ contains
 !----------------------------------------------------------------------
     ! Loop over modes
     do m=1,nmodes
-       
+
        ! Cycle if there are no points for the current mode
        ndat=ngeom1m(m)
        if (ndat.eq.0) cycle
