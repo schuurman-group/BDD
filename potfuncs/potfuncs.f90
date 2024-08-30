@@ -31,7 +31,7 @@ contains
 !----------------------------------------------------------------------
     e2=3*nsta
     call dsyev('V','U',nsta,w,nsta,v,work,e2,error)
-
+    
     if (error.ne.0) then
        write(6,'(/,2x,a,/)') 'Diagonalisation of the potential &
             matrix failed'

@@ -274,12 +274,14 @@ contains
 !----------------------------------------------------------------------
     read(ibin) nmodes
     read(ibin) nsta
+    read(ibin) ncoo
+    read(ibin) natm
 
 !----------------------------------------------------------------------
 ! No. ab initio diabatic potential values
 !----------------------------------------------------------------------
     read(ibin) ndat
-
+    
 !----------------------------------------------------------------------
 ! Order of the one-mode expansions
 !----------------------------------------------------------------------
@@ -293,6 +295,14 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
+    ! Reference geometry
+    allocate(xcoo0(ncoo))
+    allocate(atnum(natm))
+
+    ! Coordinate transformations
+    allocate(nmcoo(nmodes,ncoo))
+    allocate(coonm(ncoo,nmodes))
+    
     ! Model diabatic potential arrays
     allocate(e0(nsta))
     allocate(freq(nmodes))
@@ -322,6 +332,18 @@ contains
        ! Ab initio dipole values
        allocate(ddisp(nsta,nsta,3,ndat))
     endif
+
+!----------------------------------------------------------------------
+! Reference geometry
+!----------------------------------------------------------------------
+    read(ibin) xcoo0
+    read(ibin) atnum
+    
+!----------------------------------------------------------------------
+! Coordinate transformations
+!----------------------------------------------------------------------
+    read(ibin) nmcoo
+    read(ibin) coonm
     
 !----------------------------------------------------------------------
 ! Vertical excitation energies

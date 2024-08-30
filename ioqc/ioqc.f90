@@ -567,6 +567,7 @@ contains
 
     implicit none
 
+    integer                   :: i
     real(dp), dimension(ncoo) :: xcoo
     
 !----------------------------------------------------------------------
@@ -599,6 +600,13 @@ contains
 ! Fill in the xcoo0 array
 !----------------------------------------------------------------------
     xcoo0=xcoo
+
+!----------------------------------------------------------------------
+! Fill in the atnum array
+!----------------------------------------------------------------------
+    do i=1,natm
+       atnum(i)=lbl2num(atlbl(i))
+    enddo
     
     return
 
@@ -930,6 +938,40 @@ contains
 
   end function num2lbl
 
+!######################################################################
+
+  function lbl2num(lbl) result(num)
+
+    use constants
+    use iomod
+
+    implicit none
+
+    character(len=2) :: lbl
+    integer          :: num
+
+    if (lbl == 'H') then
+       num = 1
+    else if (lbl == 'C') then
+       num = 6
+    else if (lbl == 'N') then
+       num=7
+    else if (lbl == 'O') then
+       num=8
+    else if (lbl == 'Mg') then
+       num=12
+    else if (lbl == 'S') then
+       num=16
+    else
+       write(errmsg,'(a,x,a,x,a)') 'The atom label',lbl,&
+            'is not supported. See function lbl2num'
+       call error_control
+    endif
+
+    return
+
+  end function lbl2num
+  
 !######################################################################
 
   function num2mass(num,iso1) result(mass)

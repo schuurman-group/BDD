@@ -38,7 +38,7 @@ contains
     character(len=3)               :: amode
     character(len=8)               :: atmp
     character(len=1), dimension(3) :: acomp
-    
+
 !----------------------------------------------------------------------
 ! Determine the no. non-zero coupling coefficients in each class
 !----------------------------------------------------------------------
