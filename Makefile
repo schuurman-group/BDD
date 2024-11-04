@@ -14,10 +14,10 @@
 #
 # ifort
 #
-F90	 = ifx
-F77	 = ifx
+F90	 = ifort
+F77	 = ifort
 CC	 = icc
-F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291
+F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291 -diag-disable 10448
 CCOPTS  = -g -O0
 
 # External libraries
@@ -79,6 +79,11 @@ KDC = kdc/kdcglobal.o \
 
 PLTKDC = pltkdc/pltglobal.o \
 	pltkdc/pltkdc.o
+
+MERGEOP = mergeop/mergeglobal.o \
+	kdc/kdcglobal.o \
+	kdc/opermod.o \
+	mergeop/mergeop.o
 
 OBJECTS_BLOCKDIAG = $(MULTI) \
 	$(INCLUDE) \
@@ -176,6 +181,24 @@ OBJ_PLTKDC = constants.o \
 	pltglobal.o \
 	pltkdc.o
 
+OBJECTS_MERGEOP = $(INCLUDE) \
+	$(IOMODULES) \
+	$(SYMMETRY) \
+	$(POTFUNCS) \
+	$(MERGEOP)
+
+OBJ_MERGEOP = constants.o \
+	channels.o \
+	parameters.o \
+	symmetry.o \
+	sysinfo.o \
+	iomod.o \
+	parsemod.o \
+	mergeglobal.o \
+	kdcglobal.o \
+	opermod.o \
+	mergeop.o
+
 #-----------------------------------------------------------------------
 # Rules to create the program
 #-----------------------------------------------------------------------
@@ -193,6 +216,10 @@ kdc: $(OBJECTS_KDC)
 
 pltkdc: $(OBJECTS_PLTKDC)
 	$(F90) $(F90OPTS) $(OBJ_PLTKDC) $(LIBS) -o bin/pltkdc.x
+	rm -f *.o *~ *.mod 2>/dev/null
+
+mergeop: $(OBJECTS_MERGEOP)
+	$(F90) $(F90OPTS) $(OBJ_MERGEOP) $(LIBS) -o bin/mergeop.x
 	rm -f *.o *~ *.mod 2>/dev/null
 
 %.o: %.f90

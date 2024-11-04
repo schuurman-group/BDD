@@ -276,7 +276,7 @@ contains
     read(ibin) nsta
     read(ibin) ncoo
     read(ibin) natm
-
+    
 !----------------------------------------------------------------------
 ! No. ab initio diabatic potential values
 !----------------------------------------------------------------------
