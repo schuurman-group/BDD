@@ -276,7 +276,7 @@ contains
 ! Check that the frequencies match
 !----------------------------------------------------------------------
     do i=1,nmodesA
-       if (freqA(i) /= freqB(i)) then
+       if (abs(freqA(i)-freqB(i)) > 1e-6_dp) then
           errmsg='Error: different frequencies found'
           call error_control
        endif
