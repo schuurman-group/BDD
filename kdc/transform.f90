@@ -72,6 +72,7 @@ contains
     if (pntgrp /= 'c1') then
        errmsg='Error: block diagonalisation is only supported in C1'&
             //' symmetry'
+       call error_control
     endif
 
 !----------------------------------------------------------------------
@@ -98,7 +99,7 @@ contains
     Tmat=0.0d0
     
 !----------------------------------------------------------------------
-! Perform the block diagonalisation at all poins
+! Perform the block diagonalisation at all points
 !----------------------------------------------------------------------
     ! Loop over geometries
     do n=1,ngeom
