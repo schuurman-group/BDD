@@ -69,11 +69,11 @@ contains
 ! currently supported for C1 symmetry reference points This is due to
 ! the ability of the transformation to break state symmetries
 !----------------------------------------------------------------------
-    if (pntgrp /= 'c1') then
-       errmsg='Error: block diagonalisation is only supported in C1'&
-            //' symmetry'
-       call error_control
-    endif
+    !if (pntgrp /= 'c1') then
+    !   errmsg='Error: block diagonalisation is only supported in C1'&
+    !        //' symmetry'
+    !   call error_control
+    !endif
 
 !----------------------------------------------------------------------
 ! Sanity check 2: make sure that the two sets of state indices are
