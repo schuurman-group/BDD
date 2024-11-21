@@ -175,7 +175,7 @@ contains
 !----------------------------------------------------------------------
 ! Check that the dipole fitting flags are equal
 !----------------------------------------------------------------------
-    if (ldipA /= ldipB) then
+    if (ldipA .neqv. ldipB) then
        errmsg='Error: unequal dipole fitting flags'
        call error_control
     endif

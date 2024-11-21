@@ -29,10 +29,10 @@ contains
 ! Create the cartgrad directory
 !----------------------------------------------------------------------
     ! Works with intel
-    inquire(directory='cartgrad',exist=found)
+    !inquire(directory='cartgrad',exist=found)
 
     ! Works with gfortran
-    !inquire(file='cartgrad/.',exist=found)
+    inquire(file='cartgrad/.',exist=found)
 
     if (found) then
        call system('rm -rf cartgrad/*')

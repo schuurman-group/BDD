@@ -212,21 +212,28 @@ contains
     T=matmul(U,V)
 
 !----------------------------------------------------------------------
+! *** This does not work ***
+! 
+! Is it actually a necessary step?
+!
+!----------------------------------------------------------------------
 ! Rearrage T s.t. the i'th transformed state is in maximum coincidence
 ! with the i'th input state
 !----------------------------------------------------------------------
-    do i=1,dim
-       largest=0.0d0
-       do j=1,dim
-          if (abs(T(i,j)) > largest) then
-             largest = abs(T(i,j))
-             ii=j
-          endif
-       enddo
-       tmp(:,i)=T(:,ii)
-    enddo
-
-    T=tmp
+    !tmp=0.0d0
+    !
+    !do i=1,dim
+    !   largest=0.0d0
+    !   do j=1,dim
+    !      if (abs(T(i,j)) > largest) then
+    !         largest = abs(T(i,j))
+    !         ii=j
+    !      endif
+    !   enddo
+    !   tmp(:,i)=T(:,ii)
+    !enddo
+    !
+    !T=tmp
     
     return
     
