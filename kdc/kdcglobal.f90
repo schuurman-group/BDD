@@ -18,10 +18,6 @@ module kdcglobal
   ! Filenames
   character(len=120)              :: setfile
   character(len=120), allocatable :: bdfiles(:)
-  integer                         :: nrm_tot
-  integer, allocatable            :: nrm(:)
-  integer, allocatable            :: irm(:)
-  integer, allocatable            :: offsets_rm(:)
   logical                         :: lsetfile
   
   ! Model type and mode <-> file mappings
@@ -51,6 +47,7 @@ module kdcglobal
   logical                         :: ldipfit
 
   ! Parameterisation algorithm
+  integer                         :: ialgor
   integer                         :: iweight
   real(dp)                        :: wfac
   
@@ -66,11 +63,6 @@ module kdcglobal
   integer                         :: nbd(2)
   integer                         :: maxbd
   integer, allocatable            :: ibd(:,:)
-  real(dp), allocatable           :: Tmat(:,:,:)
   logical                         :: lblockdiag
-
-  ! Writing of the gradient and non-adiabatic coupling
-  ! vectors to xyz files
-  logical                         :: lcartgrad
   
 end module kdcglobal

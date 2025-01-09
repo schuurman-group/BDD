@@ -567,7 +567,6 @@ contains
 
     implicit none
 
-    integer                   :: i
     real(dp), dimension(ncoo) :: xcoo
     
 !----------------------------------------------------------------------
@@ -600,13 +599,6 @@ contains
 ! Fill in the xcoo0 array
 !----------------------------------------------------------------------
     xcoo0=xcoo
-
-!----------------------------------------------------------------------
-! Fill in the atnum array
-!----------------------------------------------------------------------
-    do i=1,natm
-       atnum(i)=lbl2num(atlbl(i))
-    enddo
     
     return
 
@@ -940,40 +932,6 @@ contains
 
 !######################################################################
 
-  function lbl2num(lbl) result(num)
-
-    use constants
-    use iomod
-
-    implicit none
-
-    character(len=2) :: lbl
-    integer          :: num
-
-    if (lbl == 'H') then
-       num = 1
-    else if (lbl == 'C') then
-       num = 6
-    else if (lbl == 'N') then
-       num=7
-    else if (lbl == 'O') then
-       num=8
-    else if (lbl == 'Mg') then
-       num=12
-    else if (lbl == 'S') then
-       num=16
-    else
-       write(errmsg,'(a,x,a,x,a)') 'The atom label',lbl,&
-            'is not supported. See function lbl2num'
-       call error_control
-    endif
-
-    return
-
-  end function lbl2num
-  
-!######################################################################
-
   function num2mass(num,iso1) result(mass)
     
     use constants
@@ -1112,12 +1070,12 @@ contains
 
     implicit none
 
-    integer                  :: i,error,nzero,dim,workdim
+    integer                  :: i,error,nzero
     real(dp), dimension(3)   :: iteig
     real(dp), dimension(3,3) :: itold
     real(dp), dimension(9)   :: work
     real(dp), parameter      :: thrsh=1e-10_dp
-
+    
 !-----------------------------------------------------------------------
 ! Calculate the moment of inertia tensor
 !-----------------------------------------------------------------------
@@ -1137,56 +1095,51 @@ contains
 !-----------------------------------------------------------------------
 ! Diagonalise the moment of inertia tensor
 !-----------------------------------------------------------------------
-    work=0.0d0
-    iteig=0.0d0
-    error=0
-    dim=3
-    workdim=9
-    call dsyev('V','U',dim,itold,dim,iteig,work,workdim,error)
+    call dsyev('V','U',3,itold,3,iteig,work,9,error)
 
-    if (error.ne.0) then
-       errmsg='Diagonalisation of the moment of inertia tensor in &
-            getnmodes failed'
-       call error_control
-    endif
+   if (error.ne.0) then
+      errmsg='Diagonalisation of the moment of inertia tensor in &
+           getnmodes failed'
+      call error_control
+   endif
 
 !-----------------------------------------------------------------------
 ! Determine the number of normal modes
 !-----------------------------------------------------------------------
-    nzero=0
-    do i=1,3
-       if (abs(iteig(i)).lt.thrsh) nzero=nzero+1
-    enddo
+   nzero=0
+   do i=1,3
+      if (abs(iteig(i)).lt.thrsh) nzero=nzero+1
+   enddo
 
-    if (nzero.eq.0) then
-       ! Non-linear molecule
-       nmodes=ncoo-6
-    else if (nzero.eq.1) then
-       ! Linear molecule
-       nmodes=ncoo-5      
-    else
-       errmsg='Something has gone terribly wrong in getnmodes...'
-       call error_control
-    endif
+   if (nzero.eq.0) then
+      ! Non-linear molecule
+      nmodes=ncoo-6
+   else if (nzero.eq.1) then
+      ! Linear molecule
+      nmodes=ncoo-5      
+   else
+      errmsg='Something has gone terribly wrong in getnmodes...'
+      call error_control
+   endif
 
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
-    ! Transformation matrices
+   ! Transformation matrices
     allocate(nmcoo(ncoo,nmodes))
     allocate(coonm(nmodes,ncoo))
     nmcoo=0.0d0
     coonm=0.0d0
 
-    ! Normal mode labels
-    allocate(nmlab(nmodes))
-    nmlab=''
-    
-    ! Normal mode frequencies
-    allocate(freq(nmodes))
-    freq=0.0d0
-    
-    return
+   ! Normal mode labels
+   allocate(nmlab(nmodes))
+   nmlab=''
+   
+   ! Normal mode frequencies
+   allocate(freq(nmodes))
+   freq=0.0d0
+   
+   return
     
   end subroutine getnmodes
 
@@ -1702,11 +1655,17 @@ contains
 
     implicit none
     
-    integer                        :: unit,i,j,itmp,nblocks,i1,i2,n
+    integer                        :: unit,i,j,itmp,nblocks,i1,i2
     real(dp), dimension(ncoo,ncoo) :: hess
     real(dp), dimension(5)         :: ftmp
     real(dp)                       :: hij
     character(len=120)             :: string
+
+
+    ! TEST
+    real(dp) :: eigvec(ncoo,ncoo),eigval(ncoo)
+    ! TEST
+    
     
 !----------------------------------------------------------------------
 ! Read in the Hessian
@@ -1722,22 +1681,19 @@ contains
     
     ! Read the Hessian
     nblocks=ceiling(dble(ncoo)/5.0d0)
-
     do i=1,nblocks
 
        ! Column indices for this block
        i1=(i-1)*5+1
        i2=min(i1+4,ncoo)
-
-       n=i2-i1+1
        
        read(unit,*)
 
        do j=1,ncoo
 
-          read(unit,*) itmp,ftmp(1:n)
+          read(unit,*) itmp,ftmp
 
-          hess(j,i1:i2)=ftmp(1:n)
+          hess(j,i1:i2)=ftmp
 
        enddo
        

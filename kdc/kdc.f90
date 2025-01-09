@@ -10,8 +10,6 @@ program kdc
   use parinfo
   use transform
   use opermod
-  use cartgrad
-  use parameters
   use kdcglobal
   
   implicit none
@@ -85,8 +83,8 @@ program kdc
 !----------------------------------------------------------------------
 ! Determine which coupling coefficients are zero by symmetry
 !----------------------------------------------------------------------
-  call create_mask(order1,ldipfit)
-  
+  call create_mask(ldipfit)
+
 !----------------------------------------------------------------------
 ! Determine which pairs of modes give rise to non-zero coupling
 ! coefficients by symmetry
@@ -118,7 +116,7 @@ program kdc
 ! If the coupling coefficients were determined by fitting, then
 ! output the RMSDs to the log file
 !----------------------------------------------------------------------
-  call wrrmsd
+  if (ialgor.eq.2) call wrrmsd
   
 !----------------------------------------------------------------------
 ! Output some useful information about the coupling coefficients to
@@ -132,26 +130,10 @@ program kdc
   call wroper
 
 !----------------------------------------------------------------------
-! Optional writing of the gradients and non-adiabatic coupling vectors
-! to xyz files for visualisation
-!----------------------------------------------------------------------
-  if (lcartgrad) call write_cartgrad
-  
-!----------------------------------------------------------------------
 ! Write the parameters to a binary file for reading by the pltkdc
 ! code
 !----------------------------------------------------------------------
   call wrbinfile
-
-!----------------------------------------------------------------------
-! If a block diagonalisation of the diabatic potential was performed,
-! then write the transformation matrices to disk for inspection
-!----------------------------------------------------------------------
-! IMPORTANT: write_Tmat must be called *after* the calculation of the
-!            coupling coefficients due to the need for the findx1m
-!            findx2m arrays to be filled
-!----------------------------------------------------------------------
-!  if (lblockdiag) call write_Tmat
   
 contains
 
@@ -312,6 +294,10 @@ contains
     allocate(dip0(nsta,nsta,3))
     dip0=0.0d0
 
+    ! Parameterisation algorithm: 1 <-> finite differences
+    !                             2 <-> normal equations-based fitting
+    ialgor=2
+
     ! Normal equation fitting weights
     iweight=0
     wfac=0.0d0
@@ -321,14 +307,7 @@ contains
 
     ! Block diagonalisation
     lblockdiag=.false.
-
-    ! Writing of the gradient and non-adiabatic coupling vectors
-    ! to file
-    lcartgrad=.false.
     
-    ! Order of the 1-mode expansions
-    order1=6
-
 !----------------------------------------------------------------------
 ! Read the input file
 !----------------------------------------------------------------------
@@ -413,6 +392,24 @@ contains
              read(keyword(2),*) k
              stalab(k)=keyword(1)
           enddo
+
+       else if (keyword(i).eq.'$algorithm') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             if (keyword(i).eq.'fd') then
+                ! Finite differences
+                ialgor=1
+             else if (keyword(i).eq.'normal') then
+                ! Normal equations approach
+                ialgor=2
+             else
+                errmsg='Unkown parameterisation algorithm: '&
+                     //trim(keyword(i))
+                call error_control
+             endif                
+          else
+             goto 100
+          endif
 
        else if (keyword(i).eq.'$dip_sym') then
           ldipfit=.true.
@@ -520,18 +517,7 @@ contains
           else
              goto 100
           endif
-
-       else if (keyword(i).eq.'$cartgrad') then
-          lcartgrad=.true.
           
-       else if (keyword(i).eq.'$order') then
-          if (keyword(i+1).eq.'=') then
-             i=i+2
-             read(keyword(i),*) order1
-          else
-             goto 100
-          endif
-
        else
           ! Exit if the keyword is not recognised
           errmsg='Unknown keyword: '//trim(keyword(i))
@@ -624,7 +610,7 @@ contains
     
     implicit none
 
-    integer :: unit,ierr,i,k,count
+    integer :: unit,ierr,i
 
 !----------------------------------------------------------------------
 ! Open the set file
@@ -651,74 +637,9 @@ contains
     ! Allocate arrays
     allocate(bdfiles(nfiles))
     bdfiles=''
-    allocate(nrm(nfiles))
-    nrm=0
     
 !----------------------------------------------------------------------
-! Second pass: determine the total number of deleted points
-!----------------------------------------------------------------------
-    rewind(unit)
-
-    ! Loop over files
-    do i=1,nfiles
-
-       ! Read in the next line
-       call rdinp(unit)
-
-       ! Is there more than a filename specified?
-       if (inkw > 1 .and. keyword(2) == 'rm') then
-
-          ! Number of points to delete for this file
-          nrm(i)=inkw-2
-          
-       endif
-       
-    enddo
-
-    ! Total number of deleted points
-    nrm_tot=sum(nrm)
-
-!----------------------------------------------------------------------
-! Third pass: determine the total number of deleted points
-!----------------------------------------------------------------------
-    rewind(unit)
-    
-    ! Allocate arrays
-    allocate(irm(nrm_tot))
-    irm=0
-    allocate(offsets_rm(nfiles+1))
-    offsets_rm=0
-
-    ! Deleted point counter
-    count=0
-    
-    ! Loop over files
-    do i=1,nfiles
-
-       ! Read in the next line
-       call rdinp(unit)
-
-       ! Is there more than a filename specified?
-       if (inkw > 1 .and. keyword(2) == 'rm') then
-
-          ! Save the delted point indices
-          do k=3,inkw
-             count=count+1
-             read(keyword(k),*) irm(count)
-          enddo
-          
-       endif
-          
-    enddo
-
-    ! Fill in the offsets array
-    offsets_rm(1)=1
-    do i=2,nfiles+1
-       offsets_rm(i)=offsets_rm(i-1)+nrm(i-1)
-    enddo
-
-!----------------------------------------------------------------------
-! Fourth pass: read in the filenames
+! Second pass: read in the filenames
 !----------------------------------------------------------------------
     rewind(unit)
 
@@ -1349,6 +1270,7 @@ contains
     use sysinfo
     use parameters
     use kdcglobal
+    use fdmod
     use nmeqmod
     
     implicit none
@@ -1356,14 +1278,38 @@ contains
 !----------------------------------------------------------------------
 ! Allocate and initialise arrays
 !----------------------------------------------------------------------
-    ! One-mode terms
-    allocate(coeff1(nmodes,nsta,nsta,order1))
-    coeff1=0.0d0
+    ! First-order, intrastate
+    allocate(kappa(nmodes,nsta))
+    kappa=0.0d0
 
-    ! Two-mode terms (2nd-order only)
-    allocate(coeff2(nmodes,nmodes,nsta,nsta))
-    coeff2=0.0d0
-    
+    ! First-order, interstate
+    allocate(lambda(nmodes,nsta,nsta))
+    lambda=0.0d0
+
+    ! Second-order, intrastate
+    allocate(gamma(nmodes,nmodes,nsta))
+    gamma=0.0d0
+
+    ! Second-order, interstate
+    allocate(mu(nmodes,nmodes,nsta,nsta))
+    mu=0.0d0
+
+    ! Third-order, cubic, intrastate
+    allocate(iota(nmodes,nsta))
+    iota=0.0d0
+
+    ! Third-order, cubic, interstate
+    allocate(tau(nmodes,nsta,nsta))
+    tau=0.0d0
+
+    ! Fourth-order, quartic, intrastate
+    allocate(epsilon(nmodes,nsta))
+    epsilon=0.0d0
+
+    ! Fourth-order, quartic, interstate
+    allocate(xi(nmodes,nsta,nsta))
+    xi=0.0d0
+
     ! Diabatic dipole matrix expansion coefficients
     if (ldipfit) then
        allocate(dip1(nmodes,nsta,nsta,3))
@@ -1385,8 +1331,13 @@ contains
 !----------------------------------------------------------------------
 ! Calculate the coupling coefficients
 !----------------------------------------------------------------------
-    ! Normal equations fitting
-    call get_coefficients_nmeq
+    if (ialgor.eq.1) then
+       ! Finite differences
+       call get_coefficients_fd
+    else if (ialgor.eq.2) then
+       ! Normal equations fitting
+       call get_coefficients_nmeq
+    endif
     
     return
     
@@ -1406,10 +1357,9 @@ contains
     
     implicit none
 
-    integer                        :: m,m1,m2,s,s1,s2,c,i,n
+    integer                        :: m,m1,m2,s,s1,s2,c,i
     real(dp), parameter            :: thrsh=1e-4_dp
     character(len=1), dimension(3) :: acomp
-    character(len=5)               :: atau
 
 !----------------------------------------------------------------------
 ! Cartesian axis labels
@@ -1427,7 +1377,7 @@ contains
 
     ! Get the total and symmetry-allowed number of coupling
     ! coefficients
-    call getnpar(order1,ldipfit)
+    call getnpar(ldipfit)
 
     ! Output the total and symmetry-allowed number of coupling
     ! coefficients to the log file
@@ -1435,16 +1385,30 @@ contains
     write(ilog,'(a)') ' Type   | Total number | Symmetry allowed'
     write(ilog,'(42a)') ('-',i=1,42)
 
-    do n=1,order1
-       atau=''
-       write(atau,'(a,i0)') 'tau',n
-       write(ilog,'(x,a,2x,a,4x,i5,5x,a1,4x,i5)') &
-            atau,'|',ncoeff1(1,n),'|',ncoeff1(2,n)
-    enddo
+    write(ilog,'(a,3x,a,4x,i5,6x,a1,4x,i5)') &
+         'kappa','|',nkappa(1),'|',nkappa(2)
 
-    write(ilog,'(x,a,4x,a,4x,i5,5x,a1,4x,i5)') &
-         'eta','|',ncoeff2(1),'|',ncoeff2(2)
-    
+    write(ilog,'(a,2x,a,4x,i5,6x,a1,4x,i5)') &
+         'lambda','|',nlambda(1),'|',nlambda(2)
+
+    write(ilog,'(a,3x,a,4x,i5,6x,a1,4x,i5)') &
+         'gamma','|',ngamma(1),'|',ngamma(2)
+
+    write(ilog,'(a,6x,a,4x,i5,6x,a1,4x,i5)') &
+         'mu','|',nmu(1),'|',nmu(2)
+
+    write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
+         'iota','|',niota(1),'|',niota(2)
+
+    write(ilog,'(a,5x,a,4x,i5,6x,a1,4x,i5)') &
+         'tau','|',ntau(1),'|',ntau(2)
+
+    write(ilog,'(a,1x,a,4x,i5,6x,a1,4x,i5)') &
+         'epsilon','|',nepsilon(1),'|',nepsilon(2)
+
+    write(ilog,'(a,6x,a,4x,i5,6x,a1,4x,i5)') &
+         'xi','|',nxi(1),'|',nxi(2)
+
     if (ldipfit) then
        write(ilog,'(a,4x,a,4x,i5,6x,a1,4x,i5)') &
          'dip1','|',ndip1(1),'|',ndip1(2)
@@ -1459,7 +1423,7 @@ contains
          'dip4','|',ndip4(1),'|',ndip4(2)
     endif
     
-    write(ilog,'(x,a,4x,a,4x,i5,5x,a1,4x,i5)') &
+    write(ilog,'(a,5x,a,4x,i5,6x,a1,4x,i5)') &
          'all','|',ntot(1),'|',ntot(2)
 
     write(ilog,'(42a,/)') ('-',i=1,42)
@@ -1468,37 +1432,114 @@ contains
 ! Check for any non-zero coupling coefficients that should be zero
 ! by symmetry
 !----------------------------------------------------------------------
-    ! One-mode terms
-    do n=1,order1
-       atau=''
-       write(atau,'(a,i0)') 'tau',n
-       do s2=1,nsta
-          do s1=s2,nsta
-             do m=1,nmodes
-                if (abs(coeff1(m,s1,s2,n)) > thrsh &
-                     .and. coeff1_mask(m,s1,s2,n) == 0) then
-                   write(ilog,'(a,2x,a,3(x,i0),2x,F10.7)') &
-                        'WARNING non-zero parameter that should be zero &
-                        by symmetry:',atau,m,s1,s2,coeff1(m,s1,s2,n)
+    ! kappa
+    do s=1,nsta
+       do m=1,nmodes
+          if (abs(kappa(m,s)).gt.thrsh.and.kappa_mask(m,s).eq.0) then
+             write(ilog,'(a,2x,a,2(x,i2),2x,F10.7)') &
+                  'WARNING non-zero parameter that should be zero &
+                  by symmetry:','kappa',m,s,kappa(m,s)
+          endif
+       enddo
+    enddo
+
+    ! lambda
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (abs(lambda(m,s1,s2)).gt.thrsh&
+                  .and.lambda_mask(m,s1,s2).eq.0) then
+                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
+                     'WARNING non-zero parameter that should be zero &
+                     by symmetry:','lambda',m,s1,s2,lambda(m,s1,s2)
+             endif
+          enddo
+       enddo
+    enddo
+
+    ! gamma
+    do s=1,nsta
+       do m1=1,nmodes
+          do m2=m1,nmodes
+             if (abs(gamma(m1,m2,s)).gt.thrsh&
+                  .and.gamma_mask(m1,m2,s).eq.0) then
+                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
+                     'WARNING non-zero parameter that should be zero &
+                     by symmetry:','gamma',m1,m2,s,gamma(m1,m2,s)
+             endif
+          enddo
+       enddo
+    enddo
+
+    ! mu
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m1=1,nmodes
+             do m2=m1,nmodes
+                if (abs(mu(m1,m2,s1,s2)).gt.thrsh&
+                     .and.mu_mask(m1,m2,s1,s2).eq.0) then
+                   write(ilog,'(a,2x,a,4(x,i2),2x,F10.7)') &
+                        'WARNING non-zero parameter that should be &
+                        zero by symmetry:','mu',m1,m2,s1,s2,&
+                        mu(m1,m2,s1,s2)
                 endif
              enddo
           enddo
        enddo
     enddo
-             
-    ! Two-mode terms
-    do s2=1,nsta
-       do s1=s2,nsta
-          do m1=1,nmodes-1
-             do m2=m1+1,nmodes
-                if (abs(coeff2(m1,m2,s1,s2)) > thrsh &
-                     .and. coeff2_mask(m1,m2,s1,s2) == 0) then
-                   write(ilog,'(a,2x,a,4(x,i0),2x,F10.7)') &
-                        'WARNING non-zero parameter that should be zero &
-                        by symmetry:','eta',m1,m2,s1,s2,&
-                        coeff2(m1,m2,s1,s2)
-                endif
-             enddo
+
+    ! iota
+    do s=1,nsta
+       do m=1,nmodes
+          if (abs(iota(m,s)).gt.thrsh&
+               .and.iota_mask(m,s).eq.0) then
+             write(ilog,'(a,2x,a,2(x,i2),2x,F10.7)') &
+                  'WARNING non-zero parameter that should be &
+                  zero by symmetry:','iota',m,s,&
+                  iota(m,s)
+          endif
+       enddo
+    enddo
+
+    ! tau
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (abs(tau(m,s1,s2)).gt.thrsh&
+                  .and.tau_mask(m,s1,s2).eq.0) then
+                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
+                     'WARNING non-zero parameter that should be &
+                     zero by symmetry:','tau',m,s1,s2,&
+                     tau(m,s1,s2)
+             endif
+          enddo
+       enddo
+    enddo
+
+    ! espilon
+    do s=1,nsta
+       do m=1,nmodes
+          if (abs(epsilon(m,s)).gt.thrsh&
+               .and.epsilon_mask(m,s).eq.0) then
+             write(ilog,'(a,2x,a,2(x,i2),2x,F10.7)') &
+                  'WARNING non-zero parameter that should be &
+                  zero by symmetry:','epsilon',m,s,&
+                  epsilon(m,s)
+          endif
+       enddo
+    enddo
+
+    ! xi
+    do s1=1,nsta-1
+       do s2=s1+1,nsta
+          do m=1,nmodes
+             if (abs(xi(m,s1,s2)).gt.thrsh&
+                  .and.xi_mask(m,s1,s2).eq.0) then
+                write(ilog,'(a,2x,a,3(x,i2),2x,F10.7)') &
+                     'WARNING non-zero parameter that should be &
+                     zero by symmetry:','xi',m,s1,s2,&
+                     xi(m,s1,s2)
+             endif
           enddo
        enddo
     enddo
@@ -1645,35 +1686,16 @@ contains
 !----------------------------------------------------------------------
     write(ibin) nmodes
     write(ibin) nsta
-    write(ibin) ncoo
-    write(ibin) natm
-    
+
 !----------------------------------------------------------------------
 ! No. ab initio diabatic potential values
 !----------------------------------------------------------------------
     write(ibin) ngeom
-    
-!----------------------------------------------------------------------
-! Order of the one-mode expansions
-!----------------------------------------------------------------------
-    write(ibin) order1
-    
+
 !----------------------------------------------------------------------
 ! Diabatic dipole flag
 !----------------------------------------------------------------------
     write(ibin) ldipfit
-
-!----------------------------------------------------------------------
-! Reference geometry
-!----------------------------------------------------------------------
-    write(ibin) xcoo0
-    write(ibin) atnum
-    
-!----------------------------------------------------------------------
-! Coordinate transformations
-!----------------------------------------------------------------------
-    write(ibin) nmcoo
-    write(ibin) coonm
     
 !----------------------------------------------------------------------
 ! Vertical excitation energies
@@ -1688,14 +1710,26 @@ contains
 !----------------------------------------------------------------------
 ! Coupling coefficients
 !----------------------------------------------------------------------
-    write(ibin) coeff1
-    write(ibin) coeff2
+    write(ibin) kappa
+    write(ibin) lambda
+    write(ibin) gamma
+    write(ibin) mu
+    write(ibin) iota
+    write(ibin) tau
+    write(ibin) epsilon
+    write(ibin) xi
     
 !----------------------------------------------------------------------
 ! Masks
 !----------------------------------------------------------------------
-    write(ibin) coeff1_mask
-    write(ibin) coeff2_mask
+    write(ibin) kappa_mask
+    write(ibin) lambda_mask
+    write(ibin) gamma_mask
+    write(ibin) mu_mask
+    write(ibin) iota_mask
+    write(ibin) tau_mask
+    write(ibin) epsilon_mask
+    write(ibin) xi_mask
 
 !----------------------------------------------------------------------
 ! Ab initio diabatic potential values
