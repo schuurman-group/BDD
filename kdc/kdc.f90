@@ -624,7 +624,7 @@ contains
     
     implicit none
 
-    integer :: unit,ierr,i
+    integer :: unit,ierr,i,k,count
 
 !----------------------------------------------------------------------
 ! Open the set file
@@ -651,9 +651,74 @@ contains
     ! Allocate arrays
     allocate(bdfiles(nfiles))
     bdfiles=''
+    allocate(nrm(nfiles))
+    nrm=0
     
 !----------------------------------------------------------------------
-! Second pass: read in the filenames
+! Second pass: determine the total number of deleted points
+!----------------------------------------------------------------------
+    rewind(unit)
+
+    ! Loop over files
+    do i=1,nfiles
+
+       ! Read in the next line
+       call rdinp(unit)
+
+       ! Is there more than a filename specified?
+       if (inkw > 1 .and. keyword(2) == 'rm') then
+
+          ! Number of points to delete for this file
+          nrm(i)=inkw-2
+          
+       endif
+       
+    enddo
+
+    ! Total number of deleted points
+    nrm_tot=sum(nrm)
+
+!----------------------------------------------------------------------
+! Third pass: determine the total number of deleted points
+!----------------------------------------------------------------------
+    rewind(unit)
+    
+    ! Allocate arrays
+    allocate(irm(nrm_tot))
+    irm=0
+    allocate(offsets_rm(nfiles+1))
+    offsets_rm=0
+
+    ! Deleted point counter
+    count=0
+    
+    ! Loop over files
+    do i=1,nfiles
+
+       ! Read in the next line
+       call rdinp(unit)
+
+       ! Is there more than a filename specified?
+       if (inkw > 1 .and. keyword(2) == 'rm') then
+
+          ! Save the delted point indices
+          do k=3,inkw
+             count=count+1
+             read(keyword(k),*) irm(count)
+          enddo
+          
+       endif
+          
+    enddo
+
+    ! Fill in the offsets array
+    offsets_rm(1)=1
+    do i=2,nfiles+1
+       offsets_rm(i)=offsets_rm(i-1)+nrm(i-1)
+    enddo
+
+!----------------------------------------------------------------------
+! Fourth pass: read in the filenames
 !----------------------------------------------------------------------
     rewind(unit)
 
@@ -891,8 +956,10 @@ contains
     
     implicit none
 
-    integer :: n,unit,ierr
-    integer :: igeom
+    integer              :: n,unit,ierr
+    integer              :: igeom
+    integer              :: nskip
+    integer, allocatable :: iskip(:)
     
 !----------------------------------------------------------------------
 ! Determine the total number of displaced geometries
@@ -934,7 +1001,7 @@ contains
 
        ! Parse the GRaCI output file
        ! To do: add diabatic dipole matrices
-       call parse_gracifiles_1file(unit,igeom)
+       call parse_gracifiles_1file(n,unit,igeom)
 
        ! Close the blockdiag log file
        close(unit)
@@ -977,7 +1044,7 @@ contains
 
        ! Loop over files
        do n=1,nfiles
-          
+
           ! Open the output file
           open(unit,file=bdfiles(n),form='formatted',status='old')
 
@@ -995,7 +1062,7 @@ contains
        enddo
 
     endif
-
+    
 !----------------------------------------------------------------------
 ! Label stem given: count the number of diabatic potential matrix
 ! sections for DFT/MRCI(2) calculations with the correct label stem
@@ -1048,14 +1115,19 @@ contains
        enddo
        
     endif
-       
+
+!----------------------------------------------------------------------
+! Account for the deleted points
+!----------------------------------------------------------------------
+    ngeom=ngeom-nrm_tot
+    
     return
     
   end subroutine get_ngeom_graci
 
 !######################################################################
 
-  subroutine parse_gracifiles_1file(unit,igeom)
+  subroutine parse_gracifiles_1file(n,unit,igeom)
 
     use constants
     use iomod
@@ -1064,9 +1136,9 @@ contains
     
     implicit none
 
-    integer, intent(in)         :: unit
+    integer, intent(in)         :: n,unit
     integer, intent(inout)      :: igeom
-    integer                     :: i,j,itmp,jtmp,i1,il
+    integer                     :: i,j,itmp,jtmp,i1,il,count
     real(dp), dimension(ncoo)   :: xcoo
     real(dp), dimension(nmodes) :: qcoo
     real(dp), parameter         :: q0thrsh=1e-4_dp
@@ -1078,6 +1150,9 @@ contains
 ! Read in the points in normal mode coordinates and the corresponding
 ! diabatic potential values
 !----------------------------------------------------------------------
+    ! Total geometry counter
+    count=0
+
     rewind(unit)
 
 10  read(unit,'(a)',end=100) string
@@ -1114,7 +1189,13 @@ contains
              if (sqrt(dot_product(qcoo,qcoo)) < q0thrsh) then
                 goto 10
              endif
-          
+             
+             ! ...also skip if this is a deleted point...
+             count=count+1
+             if (skip_geom(n,count)) then
+                goto 10
+             endif
+                          
              ! ...otherwise save the normal mode coordinates and carry on
              igeom=igeom+1
              qvec(:,igeom)=qcoo
@@ -1150,7 +1231,38 @@ contains
     return
     
   end subroutine parse_gracifiles_1file
+
+!######################################################################
+
+  function skip_geom(ifile,igeom)
     
+    use constants
+    use kdcglobal
+    
+    implicit none
+
+    logical             :: skip_geom
+    
+    integer, intent(in) :: ifile,igeom
+    integer             :: j
+
+    skip_geom=.false.
+
+    if (nrm(ifile) == 0) then
+       return
+    endif
+    
+    do j=offsets_rm(ifile),offsets_rm(ifile+1)-1
+       if (irm(j) == igeom) then
+          skip_geom=.true.
+          exit
+       endif
+    enddo
+       
+    return
+    
+  end function skip_geom
+  
 !######################################################################
 
   subroutine get_qvec_1file(unit,n)

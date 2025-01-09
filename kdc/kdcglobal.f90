@@ -19,6 +19,12 @@ module kdcglobal
   character(len=120)              :: setfile
   character(len=120), allocatable :: bdfiles(:)
   logical                         :: lsetfile
+
+  ! Point deletion
+  integer                         :: nrm_tot
+  integer, allocatable            :: nrm(:)
+  integer, allocatable            :: irm(:)
+  integer, allocatable            :: offsets_rm(:)
   
   ! Model type and mode <-> file mappings
   integer, allocatable            :: coefftyp(:)
