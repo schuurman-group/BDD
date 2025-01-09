@@ -12,27 +12,15 @@ module symmetry
   !----------------------------------------------------------------------
   ! Symmetry information
   !----------------------------------------------------------------------
-  integer, allocatable           :: kappa_mask(:,:)
-  integer, allocatable           :: lambda_mask(:,:,:)
-  integer, allocatable           :: gamma_mask(:,:,:)
-  integer, allocatable           :: mu_mask(:,:,:,:)
-  integer, allocatable           :: iota_mask(:,:)
-  integer, allocatable           :: tau_mask(:,:,:)
-  integer, allocatable           :: epsilon_mask(:,:)
-  integer, allocatable           :: xi_mask(:,:,:)
+  integer, allocatable           :: coeff1_mask(:,:,:,:)
+  integer, allocatable           :: coeff2_mask(:,:,:,:)
   integer, allocatable           :: dip1_mask(:,:,:,:)
   integer, allocatable           :: dip2_mask(:,:,:,:,:)
   integer, allocatable           :: dip3_mask(:,:,:,:)
   integer, allocatable           :: dip4_mask(:,:,:,:)
-  integer, dimension(2)          :: nkappa
-  integer, dimension(2)          :: nlambda
-  integer, dimension(2)          :: ngamma
-  integer, dimension(2)          :: nmu
-  integer, dimension(2)          :: niota
-  integer, dimension(2)          :: ntau
-  integer, dimension(2)          :: nepsilon
-  integer, dimension(2)          :: nxi
   integer, dimension(2)          :: ntot
+  integer, allocatable           :: ncoeff1(:,:)
+  integer, allocatable           :: ncoeff2(:)
   integer, dimension(2)          :: ndip1
   integer, dimension(2)          :: ndip2
   integer, dimension(2)          :: ndip3
@@ -59,14 +47,15 @@ contains
 
 !######################################################################
 
-  subroutine create_mask(dipolein)
+  subroutine create_mask(order1,dipolein)
 
     use constants
     use sysinfo
     
     implicit none
 
-    integer                    :: s1,s2,m1,m2,c
+    integer, intent(in)        :: order1
+    integer                    :: s1,s2,m1,m2,c,n
     integer, dimension(3)      :: dipchk
     integer, dimension(nmodes) :: nmchk
     integer, dimension(nsta)   :: stachk
@@ -84,38 +73,14 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
-    ! First-order, intrastate
-    allocate(kappa_mask(nmodes,nsta))
-    kappa_mask=0
+    ! One-mode terms
+    allocate(coeff1_mask(nmodes,nsta,nsta,order1))
+    coeff1_mask=0
 
-    ! First-order, interstate
-    allocate(lambda_mask(nmodes,nsta,nsta))
-    lambda_mask=0
-
-    ! Second-order, intrastate
-    allocate(gamma_mask(nmodes,nmodes,nsta))
-    gamma_mask=0
-
-    ! Second-order, interstate
-    allocate(mu_mask(nmodes,nmodes,nsta,nsta))
-    mu_mask=0
-
-    ! Third-order, cubic-only, intrastate
-    allocate(iota_mask(nmodes,nsta))
-    iota_mask=0
-
-    ! Third-order, cubic-only, interstate
-    allocate(tau_mask(nmodes,nsta,nsta))
-    tau_mask=0
-
-    ! Fourth-order, quartic-only, intrastate
-    allocate(epsilon_mask(nmodes,nsta))
-    epsilon_mask=0
-
-    ! Fourth-order, quartic-only, interstate
-    allocate(xi_mask(nmodes,nsta,nsta))
-    xi_mask=0
-
+    ! Two-mode terms (2nd-order only)
+    allocate(coeff2_mask(nmodes,nmodes,nsta,nsta))
+    coeff2_mask=0
+    
     ! Diabatic dipole matrix expansion coefficients
     if (dipole) then
        allocate(dip1_mask(nmodes,nsta,nsta,3))
@@ -161,116 +126,39 @@ contains
 !----------------------------------------------------------------------
     ! Set dipchk to zero until we reach the dipole expansion terms
     dipchk=0
-    
-    ! kappa
-    do s1=1,nsta
-       do m1=1,nmodes
-          nmchk=0
-          stachk=0
-          nmchk(m1)=1
-          stachk(s1)=2
-          kappa_mask(m1,s1)=integralsym(nmchk,stachk,dipchk)                
-       enddo
-    enddo
 
-    ! lambda
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             nmchk=0
-             stachk=0
-             nmchk(m1)=1
-             stachk(s1)=1
-             stachk(s2)=1
-             lambda_mask(m1,s1,s2)=integralsym(nmchk,stachk,dipchk)
-             lambda_mask(m1,s2,s1)=lambda_mask(m1,s1,s2)
+    ! One-mode terms
+    do n=1,order1
+       do s2=1,nsta
+          do s1=1,nsta
+             do m1=1,nmodes
+                nmchk=0
+                stachk=0
+                nmchk(m1)=n
+                stachk(s1)=stachk(s1)+1
+                stachk(s2)=stachk(s2)+1
+                coeff1_mask(m1,s1,s2,n)=integralsym(nmchk,stachk,dipchk)
+             enddo
           enddo
        enddo
     enddo
 
-    ! gamma
-    do s1=1,nsta
-       do m1=1,nmodes
-          do m2=m1,nmodes
-             nmchk=0
-             stachk=0
-             nmchk(m1)=nmchk(m1)+1
-             nmchk(m2)=nmchk(m2)+1
-             stachk(s1)=2
-             gamma_mask(m1,m2,s1)=integralsym(nmchk,stachk,dipchk)
-             gamma_mask(m2,m1,s1)=gamma_mask(m1,m2,s1)
-          enddo
-       enddo
-    enddo
-
-    ! mu
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             do m2=m1,nmodes
+    ! Two-mode terms (2nd-order only)
+    do s2=1,nsta
+       do s1=s2,nsta
+          do m2=1,nmodes-1
+             do m1=m2+1,nmodes
                 nmchk=0
                 stachk=0
                 nmchk(m1)=nmchk(m1)+1
                 nmchk(m2)=nmchk(m2)+1
                 stachk(s1)=stachk(s1)+1
                 stachk(s2)=stachk(s2)+1
-                mu_mask(m1,m2,s1,s2)=integralsym(nmchk,stachk,dipchk)
-                mu_mask(m2,m1,s1,s2)=mu_mask(m1,m2,s1,s2)
-                mu_mask(m1,m2,s1,s2)=mu_mask(m1,m2,s1,s2)
-                mu_mask(m2,m1,s2,s1)=mu_mask(m1,m2,s1,s2)
+                coeff2_mask(m1,m2,s1,s2)=integralsym(nmchk,stachk,dipchk)
+                coeff2_mask(m2,m1,s1,s2)=coeff2_mask(m1,m2,s1,s2)
+                coeff2_mask(m1,m2,s2,s1)=coeff2_mask(m1,m2,s1,s2)
+                coeff2_mask(m2,m1,s2,s1)=coeff2_mask(m1,m2,s1,s2)
              enddo
-          enddo
-       enddo
-    enddo
-
-    ! iota
-    do s1=1,nsta
-       do m1=1,nmodes
-          nmchk=0
-          stachk=0
-          nmchk(m1)=3
-          stachk(s1)=2
-          iota_mask(m1,s1)=integralsym(nmchk,stachk,dipchk)
-       enddo
-    enddo
-    
-    ! tau
-    do s1=1,nsta
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             nmchk=0
-             stachk=0
-             nmchk(m1)=3
-             stachk(s1)=stachk(s1)+1
-             stachk(s2)=stachk(s2)+1
-             tau_mask(m1,s1,s2)=integralsym(nmchk,stachk,dipchk)
-             tau_mask(m1,s2,s1)=tau_mask(m1,s1,s2)
-          enddo
-       enddo
-    enddo
-
-    ! epsilon
-    do s1=1,nsta
-       do m1=1,nmodes
-          nmchk=0
-          stachk=0
-          nmchk(m1)=4
-          stachk(s1)=2
-          epsilon_mask(m1,s1)=integralsym(nmchk,stachk,dipchk)
-       enddo
-    enddo
-
-    ! xi
-    do s1=1,nsta
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             nmchk=0
-             stachk=0
-             nmchk(m1)=4
-             stachk(s1)=stachk(s1)+1
-             stachk(s2)=stachk(s2)+1
-             xi_mask(m1,s1,s2)=integralsym(nmchk,stachk,dipchk)
-             xi_mask(m1,s2,s1)=xi_mask(m1,s1,s2)
           enddo
        enddo
     enddo
@@ -824,16 +712,23 @@ contains
 
 !######################################################################
 
-  subroutine getnpar(dipolein)
+  subroutine getnpar(order1,dipolein)
 
     use constants
     use sysinfo
     
     implicit none
 
-    integer           :: m,m1,m2,s,s1,s2,c
-    logical, optional :: dipolein
-    logical           :: dipole
+    integer, intent(in) :: order1
+    integer             :: m,m1,m2,s,s1,s2,c,n
+    logical, optional   :: dipolein
+    logical             :: dipole
+
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    allocate(ncoeff1(2,order1))
+    allocate(ncoeff2(2))
     
 !----------------------------------------------------------------------
 ! Optional fitting of diabatic dipole matrix elements
@@ -846,14 +741,8 @@ contains
 !----------------------------------------------------------------------
 ! Initialisation
 !----------------------------------------------------------------------
-    nkappa=0
-    nlambda=0
-    ngamma=0
-    nmu=0
-    niota=0
-    ntau=0
-    nepsilon=0
-    nxi=0
+    ncoeff1=0
+    ncoeff2=0
     ndip1=0
     ndip2=0
     ndip3=0
@@ -862,98 +751,36 @@ contains
 !----------------------------------------------------------------------
 ! Coefficients of the vibronic coupling Hamiltonian
 !----------------------------------------------------------------------
-    ! kappa
-    do s=1,nsta
-       do m=1,nmodes
-          ! Total number
-          nkappa(1)=nkappa(1)+1
-          ! Symmetry allowed
-          if (kappa_mask(m,s).eq.1) nkappa(2)=nkappa(2)+1
-       enddo
-    enddo
-
-    ! lambda
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m=1,nmodes
-             ! Total number
-             nlambda(1)=nlambda(1)+1
-             ! Symmetry allowed
-             if (lambda_mask(m,s1,s2).eq.1) nlambda(2)=nlambda(2)+1
-          enddo
-       enddo
-    enddo
-
-    ! gamma
-    do s=1,nsta
-       do m1=1,nmodes
-          do m2=m1,nmodes
-             ! Total number
-             ngamma(1)=ngamma(1)+1
-             ! Symmetry allowed
-             if (gamma_mask(m1,m2,s).eq.1) ngamma(2)=ngamma(2)+1
-          enddo
-       enddo
-    enddo
-
-    ! mu
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             do m2=m1,nmodes
+    ! One-mode terms
+    do n=1,order1
+       do s2=1,nsta
+          do s1=s2,nsta
+             do m=1,nmodes
                 ! Total number
-                nmu(1)=nmu(1)+1
+                ncoeff1(1,n)=ncoeff1(1,n)+1
                 ! Symmetry allowed
-                if (mu_mask(m1,m2,s1,s2).eq.1) nmu(2)=nmu(2)+1
+                if (coeff1_mask(m,s1,s2,n) == 1) &
+                     ncoeff1(2,n)=ncoeff1(2,n)+1
              enddo
           enddo
        enddo
     enddo
 
-    ! iota
-    do s1=1,nsta-1
-       do m1=1,nmodes
-          ! Total number
-          niota(1)=niota(1)+1
-          ! Symmetry allowed
-          if (iota_mask(m1,s1).eq.1) niota(2)=niota(2)+1
-       enddo
-    enddo
-
-    ! tau
-    do s1=1,nsta
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             ! Total number
-             ntau(1)=ntau(1)+1
-             ! Symmetry allowed
-             if (tau_mask(m1,s1,s2).eq.1) ntau(2)=ntau(2)+1
+    ! Two-mode terms
+    do s2=1,nsta
+       do s1=s2,nsta
+          do m2=1,nmodes-1
+             do m1=m2+1,nmodes
+                ! Total number
+                ncoeff2(1)=ncoeff2(1)+1
+                ! Symmetry allowed
+                if (coeff2_mask(m1,m2,s1,s2) == 1) &
+                     ncoeff2(2)=ncoeff2(2)+1
+             enddo
           enddo
        enddo
     enddo
-
-    ! epsilon
-    do s1=1,nsta-1
-       do m1=1,nmodes
-          ! Total number
-          nepsilon(1)=nepsilon(1)+1
-          ! Symmetry allowed
-          if (epsilon_mask(m1,s1).eq.1) nepsilon(2)=nepsilon(2)+1
-       enddo
-    enddo
-
-    ! xi
-    do s1=1,nsta
-       do s2=s1+1,nsta
-          do m1=1,nmodes
-             ! Total number
-             nxi(1)=nxi(1)+1
-             ! Symmetry allowed
-             if (xi_mask(m1,s1,s2).eq.1) nxi(2)=nxi(2)+1
-          enddo
-       enddo
-    enddo
-
+       
 !----------------------------------------------------------------------
 ! Coefficients of the dipole matrix expansion
 !----------------------------------------------------------------------
@@ -1023,8 +850,13 @@ contains
 !----------------------------------------------------------------------
 ! Total
 !----------------------------------------------------------------------
-    ntot=nkappa+nlambda+ngamma+nmu+niota+ntau+nepsilon+nxi &
-         +ndip1+ndip2+ndip3+ndip4
+    ntot=0
+
+    do n=1,order1
+       ntot=ntot+ncoeff1(:,n)
+    enddo
+
+    ntot=ntot+ncoeff2
     
     return
     
@@ -1051,24 +883,11 @@ contains
 ! Determine which 2D cuts to make based on the symmetry-allowed
 ! coupling coefficients
 !----------------------------------------------------------------------
-    ! gamma
-    do s=1,nsta
-       do m1=1,nmodes-1
-          do m2=m1+1,nmodes
-             if (gamma_mask(m1,m2,s).eq.1) then
-                cut_mask(m1,m2)=1
-                cut_mask(m2,m1)=1
-             endif
-          enddo
-       enddo
-    enddo
-    
-    ! mu
-    do s1=1,nsta-1
-       do s2=s1+1,nsta
-          do m1=1,nmodes-1
-             do m2=m1+1,nmodes
-                if (mu_mask(m1,m2,s1,s2).eq.1) then
+    do s2=1,nsta
+       do s1=s2,nsta
+          do m2=1,nmodes-1
+             do m1=m2+1,nmodes
+                if (coeff2_mask(m1,m2,s1,s2) == 1) then
                    cut_mask(m1,m2)=1
                    cut_mask(m2,m1)=1
                 endif

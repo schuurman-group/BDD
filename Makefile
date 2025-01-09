@@ -17,7 +17,7 @@
 F90	 = ifort
 F77	 = ifort
 CC	 = icc
-F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291
+F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291 -diag-disable 10448
 CCOPTS  = -g -O0
 
 # External libraries
@@ -55,6 +55,8 @@ SYMMETRY=symmetry/symmetry.o
 POTFUNCS=potfuncs/parameters.o \
 	potfuncs/potfuncs.o
 
+OPT=opt/opt.o
+
 BLOCKDIAG = blockdiag/bdglobal.o \
 	blockdiag/adt.o \
 	blockdiag/mooverlaps.o \
@@ -68,9 +70,9 @@ DISPLACE = displace/dispglobal.o \
 	displace/displace.o
 
 KDC = kdc/kdcglobal.o \
+	kdc/cartgrad.o \
 	kdc/opermod.o \
 	kdc/parinfo.o \
-	kdc/fdmod.o \
 	kdc/nmeqmod.o \
 	kdc/transform.o \
 	kdc/kdc.o
@@ -78,11 +80,10 @@ KDC = kdc/kdcglobal.o \
 PLTKDC = pltkdc/pltglobal.o \
 	pltkdc/pltkdc.o
 
-GRIDFUNC = gridfunc/gridglobal.o \
-	gridfunc/extfunc.o \
-        gridfunc/func.o \
-        gridfunc/dvr.o \
-	gridfunc/gridfunc.o
+MERGEOP = mergeop/mergeglobal.o \
+	kdc/kdcglobal.o \
+	kdc/opermod.o \
+	mergeop/mergeop.o
 
 OBJECTS_BLOCKDIAG = $(MULTI) \
 	$(INCLUDE) \
@@ -141,6 +142,7 @@ OBJECTS_KDC = $(INCLUDE) \
 	$(IOQC) \
 	$(SYMMETRY) \
 	$(POTFUNCS) \
+	$(OPT) \
 	$(KDC)
 OBJ_KDC = constants.o \
 	channels.o \
@@ -153,10 +155,11 @@ OBJ_KDC = constants.o \
 	ioqc.o \
 	symmetry.o \
 	potfuncs.o \
+	opt.o \
 	kdcglobal.o \
+	cartgrad.o \
 	opermod.o \
 	parinfo.o \
-	fdmod.o \
 	nmeqmod.o \
 	transform.o \
 	kdc.o
@@ -178,30 +181,23 @@ OBJ_PLTKDC = constants.o \
 	pltglobal.o \
 	pltkdc.o
 
-OBJECTS_GRIDFUNC = $(INCLUDE) \
+OBJECTS_MERGEOP = $(INCLUDE) \
 	$(IOMODULES) \
-	$(UTILITIES) \
-	$(IOQC) \
 	$(SYMMETRY) \
 	$(POTFUNCS) \
-	$(GRIDFUNC)
+	$(MERGEOP)
 
-OBJ_GRIDFUNC = constants.o \
+OBJ_MERGEOP = constants.o \
 	channels.o \
 	parameters.o \
-	sysinfo.o \
-	parsemod.o \
-	iomod.o \
-	timingmod.o \
-	utils.o \
-	ioqc.o \
 	symmetry.o \
-	potfuncs.o \
-	gridglobal.o \
-        extfunc.o \
-        func.o \
-	dvr.o \
-	gridfunc.o
+	sysinfo.o \
+	iomod.o \
+	parsemod.o \
+	mergeglobal.o \
+	kdcglobal.o \
+	opermod.o \
+	mergeop.o
 
 #-----------------------------------------------------------------------
 # Rules to create the program
@@ -222,8 +218,8 @@ pltkdc: $(OBJECTS_PLTKDC)
 	$(F90) $(F90OPTS) $(OBJ_PLTKDC) $(LIBS) -o bin/pltkdc.x
 	rm -f *.o *~ *.mod 2>/dev/null
 
-gridfunc: $(OBJECTS_GRIDFUNC)
-	$(F90) $(F90OPTS) $(OBJ_GRIDFUNC) $(LIBS) -o bin/gridfunc.x
+mergeop: $(OBJECTS_MERGEOP)
+	$(F90) $(F90OPTS) $(OBJ_MERGEOP) $(LIBS) -o bin/mergeop.x
 	rm -f *.o *~ *.mod 2>/dev/null
 
 %.o: %.f90

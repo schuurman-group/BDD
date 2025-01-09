@@ -53,7 +53,7 @@ contains
     integer, allocatable :: I1(:),I2(:)
     integer              :: isI1(nsta)
     real(dp)             :: wmat(nsta,nsta),T(nsta,nsta)
-        
+    
 !----------------------------------------------------------------------
 ! Sets of state indices defining the transformation
 !----------------------------------------------------------------------
@@ -69,10 +69,11 @@ contains
 ! currently supported for C1 symmetry reference points This is due to
 ! the ability of the transformation to break state symmetries
 !----------------------------------------------------------------------
-    if (pntgrp /= 'c1') then
-       errmsg='Error: block diagonalisation is only supported in C1'&
-            //' symmetry'
-    endif
+    !if (pntgrp /= 'c1') then
+    !   errmsg='Error: block diagonalisation is only supported in C1'&
+    !        //' symmetry'
+    !   call error_control
+    !endif
 
 !----------------------------------------------------------------------
 ! Sanity check 2: make sure that the two sets of state indices are
@@ -90,9 +91,15 @@ contains
           call error_control
        endif
     enddo
+
+!----------------------------------------------------------------------
+! Allocate the array of block diagonalising transformations
+!----------------------------------------------------------------------
+    allocate(Tmat(nsta,nsta,ngeom))
+    Tmat=0.0d0
     
 !----------------------------------------------------------------------
-! Perform the block diagonalisation at all poins
+! Perform the block diagonalisation at all points
 !----------------------------------------------------------------------
     ! Loop over geometries
     do n=1,ngeom
@@ -103,6 +110,9 @@ contains
        ! Compute the block diagonalising transformation T
        call block_diag_trans(nsta,wmat,nI1,nI2,I1,I2,T)
 
+       ! Save the transformation
+       Tmat(:,:,n)=T
+       
        ! Perform the transformation
        diabpot(:,:,n)=matmul(transpose(T),matmul(wmat,T))
        
@@ -143,6 +153,7 @@ contains
     real(dp)              :: S_BD(dim,dim)
     real(dp)              :: U(dim,dim),V(dim,dim)
     real(dp)              :: tmp(dim,dim)
+    integer               :: taken(dim)
     
     ! Everything else
     integer               :: i,j,ii,jj
@@ -201,26 +212,88 @@ contains
 !----------------------------------------------------------------------
     T=matmul(U,V)
 
-!----------------------------------------------------------------------
-! Rearrage T s.t. the i'th transformed state is in maximum coincidence
-! with the i'th input state
-!----------------------------------------------------------------------
-    do i=1,dim
-       largest=0.0d0
-       do j=1,dim
-          if (abs(T(i,j)) > largest) then
-             largest = abs(T(i,j))
-             ii=j
-          endif
-       enddo
-       tmp(:,i)=T(:,ii)
-    enddo
-
-    T=tmp
-    
     return
     
   end subroutine block_diag_trans
+    
+!######################################################################
+! write_Tmat: writes the block diagonalising transformations to disk
+!######################################################################
+  subroutine write_Tmat
+
+    use constants
+    use sysinfo
+    use kdcglobal
+    use iomod
+    
+    implicit none
+
+    integer               :: m,n,s1,s2,ndat
+    integer               :: iscratch
+    real(dp), allocatable :: q(:),Tij(:)
+    character(len=60)     :: filename
+    
+!----------------------------------------------------------------------
+! Allocate arrays
+!----------------------------------------------------------------------
+    ! Transformation matrix
+    allocate(Tij(maxfiles1m))
+    Tij=0.0d0
+
+    ! Normal mode coordinates
+    allocate(q(maxfiles1m))
+    q=0.0d0
+    
+!----------------------------------------------------------------------
+! Get the next free I/O unit
+!----------------------------------------------------------------------
+    call freeunit(iscratch)
+    
+!----------------------------------------------------------------------
+! Transformation matrix elements along the 1-mode cuts
+!----------------------------------------------------------------------
+    ! Loop over modes
+    do m=1,nmodes
+
+       ! Cycle if there are no points for the current mode
+       ndat=ngeom1m(m)
+       if (ndat == 0) cycle
+
+       ! Loop over elements of the transfomation matrix
+       do s1=1,nsta
+          do s2=1,nsta
+
+             ! Fill in the coordinate transformation matrix element
+             ! vectors
+             do n=1,ndat
+                q(n)=qvec(m,findx1m(m,n))
+                Tij(n)=Tmat(s1,s2,findx1m(m,n))
+             enddo
+
+             ! Open the output file
+             filename=''
+             write(filename,'(a,i0,a,i0,a,i0,a)') &
+                  'T_',s1,'_',s2,'_q',m,'.dat'
+             open(iscratch,file=filename,form='formatted',&
+                  status='unknown')
+
+             ! Write the transformation matrix element to disk
+             do n=1,ndat
+                write(iscratch,'(F10.7,2x,ES11.4)') q(n),Tij(n)
+             enddo
+             
+             ! Close the output file
+             close(iscratch)
+             
+             
+          enddo
+       enddo
+          
+    enddo
+       
+    return
+    
+  end subroutine write_Tmat
     
 !######################################################################
   

@@ -274,11 +274,18 @@ contains
 !----------------------------------------------------------------------
     read(ibin) nmodes
     read(ibin) nsta
-
+    read(ibin) ncoo
+    read(ibin) natm
+    
 !----------------------------------------------------------------------
 ! No. ab initio diabatic potential values
 !----------------------------------------------------------------------
     read(ibin) ndat
+    
+!----------------------------------------------------------------------
+! Order of the one-mode expansions
+!----------------------------------------------------------------------
+    read(ibin) order1
 
 !----------------------------------------------------------------------
 ! Diabatic dipole flag
@@ -288,26 +295,22 @@ contains
 !----------------------------------------------------------------------
 ! Allocate arrays
 !----------------------------------------------------------------------
+    ! Reference geometry
+    allocate(xcoo0(ncoo))
+    allocate(atnum(natm))
+
+    ! Coordinate transformations
+    allocate(nmcoo(nmodes,ncoo))
+    allocate(coonm(ncoo,nmodes))
+    
     ! Model diabatic potential arrays
     allocate(e0(nsta))
     allocate(freq(nmodes))
-    allocate(kappa(nmodes,nsta))
-    allocate(lambda(nmodes,nsta,nsta))
-    allocate(gamma(nmodes,nmodes,nsta))
-    allocate(mu(nmodes,nmodes,nsta,nsta))
-    allocate(iota(nmodes,nsta))
-    allocate(tau(nmodes,nsta,nsta))
-    allocate(epsilon(nmodes,nsta))
-    allocate(xi(nmodes,nsta,nsta))
-    allocate(kappa_mask(nmodes,nsta))
-    allocate(lambda_mask(nmodes,nsta,nsta))
-    allocate(gamma_mask(nmodes,nmodes,nsta))
-    allocate(mu_mask(nmodes,nmodes,nsta,nsta))
-    allocate(iota_mask(nmodes,nsta))
-    allocate(tau_mask(nmodes,nsta,nsta))
-    allocate(epsilon_mask(nmodes,nsta))
-    allocate(xi_mask(nmodes,nsta,nsta))
-
+    allocate(coeff1(nmodes,nsta,nsta,order1))
+    allocate(coeff2(nmodes,nmodes,nsta,nsta))
+    allocate(coeff1_mask(nmodes,nsta,nsta,order1))
+    allocate(coeff2_mask(nmodes,nmodes,nsta,nsta))
+    
     ! Ab initio diabatic potential arrays
     allocate(wq0(nsta))
     allocate(wdisp(nsta,nsta,ndat))
@@ -329,6 +332,18 @@ contains
        ! Ab initio dipole values
        allocate(ddisp(nsta,nsta,3,ndat))
     endif
+
+!----------------------------------------------------------------------
+! Reference geometry
+!----------------------------------------------------------------------
+    read(ibin) xcoo0
+    read(ibin) atnum
+    
+!----------------------------------------------------------------------
+! Coordinate transformations
+!----------------------------------------------------------------------
+    read(ibin) nmcoo
+    read(ibin) coonm
     
 !----------------------------------------------------------------------
 ! Vertical excitation energies
@@ -343,26 +358,14 @@ contains
 !----------------------------------------------------------------------
 ! Coupling coefficients
 !----------------------------------------------------------------------
-    read(ibin) kappa
-    read(ibin) lambda
-    read(ibin) gamma
-    read(ibin) mu
-    read(ibin) iota
-    read(ibin) tau
-    read(ibin) epsilon
-    read(ibin) xi
-    
+    read(ibin) coeff1
+    read(ibin) coeff2
+
 !----------------------------------------------------------------------
 ! Masks
 !----------------------------------------------------------------------
-    read(ibin) kappa_mask
-    read(ibin) lambda_mask
-    read(ibin) gamma_mask
-    read(ibin) mu_mask
-    read(ibin) iota_mask
-    read(ibin) tau_mask
-    read(ibin) epsilon_mask
-    read(ibin) xi_mask
+    read(ibin) coeff1_mask
+    read(ibin) coeff2_mask
 
 !----------------------------------------------------------------------
 ! Ab inito diabatic potential values
@@ -437,10 +440,13 @@ contains
     ! Loop over points
     do i=1,npnts
        
-       ! Current geometry
        q(mplt)=qi+(i-1)*dq
-       if (ldiagcut) q(mplt2)=qi+(i-1)*dq
-       
+
+       if (ldiagcut) then
+          q(mplt)=q(mplt)/sqrt(2.0d0)
+          q(mplt2)=(qi+(i-1)*dq)/sqrt(2.0d0)
+       endif
+          
        ! Current set of energies
        surf(i,:)=surface(q)
 
@@ -746,7 +752,11 @@ contains
     do s=si,sf
        write(unit,*) 0.0d0,e0(s)
        do i=1,nabinit
-          write(unit,*) qvec(mplt,iabinit(i)),abinit(s,s,i)
+          if (ldiagcut) then
+             write(unit,*) sqrt(2.0d0)*qvec(mplt,iabinit(i)),abinit(s,s,i)
+          else
+             write(unit,*) qvec(mplt,iabinit(i)),abinit(s,s,i)
+          endif
        enddo
        write(unit,'(2x,a)') 'e'
     enddo

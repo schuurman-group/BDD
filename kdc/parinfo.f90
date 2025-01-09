@@ -1,6 +1,6 @@
 !######################################################################
-! parinfo: routines to output some useful information about the QVC
-!          Hamiltonian parameters to the log file
+! parinfo: routines to output some useful information about the
+!          vibronic coupling Hamiltonian parameters to the log file
 !######################################################################
 
 module parinfo
@@ -12,8 +12,8 @@ module parinfo
   save
 
   real(dp), allocatable :: efreq(:,:)
-  real(dp), allocatable :: wkappa(:,:)
-  real(dp), allocatable :: wlambda(:,:,:,:)
+  real(dp), allocatable :: wtau1ii(:,:)
+  real(dp), allocatable :: wtau1ij(:,:,:,:)
   
 contains
 
@@ -68,10 +68,10 @@ contains
     efreq=0.0d0
 
     ! Effective frequency-weighted first-order coupling coefficients
-    allocate(wkappa(nmodes,nsta))
-    wkappa=0.0d0
-    allocate(wlambda(nmodes,nsta,nsta,2))
-    wlambda=0.0d0
+    allocate(wtau1ii(nmodes,nsta))
+    wtau1ii=0.0d0
+    allocate(wtau1ij(nmodes,nsta,nsta,2))
+    wtau1ij=0.0d0
     
     return
     
@@ -87,8 +87,8 @@ contains
     implicit none
 
     deallocate(efreq)
-    deallocate(wkappa)
-    deallocate(wlambda)
+    deallocate(wtau1ii)
+    deallocate(wtau1ij)
     
     return
     
@@ -120,7 +120,7 @@ contains
     
     do s=1,nsta
        do m=1,nmodes
-          fac=freq(m)**2+gamma(m,m,s)*freq(m)
+          fac=freq(m)**2+coeff1(m,s,s,2)*freq(m)
           if (fac.lt.0.0d0) imaginary(m,s)=.true.
           efreq(m,s)=sqrt(abs(fac))
        enddo
@@ -174,21 +174,21 @@ contains
 ! Calculate the effective frequency-weighted first-order coupling
 ! coefficients
 !----------------------------------------------------------------------
-    ! kappa
+    ! On-diagonal coupling coefficients
     do m=1,nmodes
        do s=1,nsta
-          wkappa(m,s)=kappa(m,s)/efreq(m,s)
+          wtau1ii(m,s)=coeff1(m,s,s,1)/efreq(m,s)
        enddo
     enddo
 
-    ! lambda
+    ! Off-diagonal coupling coefficients
     do m=1,nmodes
        do s1=1,nsta-1
           do s2=s1+1,nsta
-             wlambda(m,s1,s2,1)=lambda(m,s1,s2)/efreq(m,s1)
-             wlambda(m,s1,s2,2)=lambda(m,s1,s2)/efreq(m,s2)
-             wlambda(m,s2,s1,1)=wlambda(m,s1,s2,1)
-             wlambda(m,s2,s1,2)=wlambda(m,s1,s2,2)
+             wtau1ij(m,s1,s2,1)=coeff1(m,s1,s2,1)/efreq(m,s1)
+             wtau1ij(m,s1,s2,2)=coeff1(m,s1,s2,1)/efreq(m,s2)
+             wtau1ij(m,s2,s1,1)=wtau1ij(m,s1,s2,1)
+             wtau1ij(m,s2,s1,2)=wtau1ij(m,s1,s2,2)
           enddo
        enddo
     enddo
@@ -203,46 +203,46 @@ contains
          Coefficients'
     write(ilog,'(72a)') ('+',k=1,72)
 
-    ! kappa
+    ! On-diagonal 1st-order coupling coefficients
     write(ilog,'(/,40a)') ('-',k=1,40)
-    write(ilog,'(a)') ' Mode  |  State  |  w-kappa'
+    write(ilog,'(a)') ' Mode  |  State  |  w-tau1^(i,i)'
     write(ilog,'(40a)') ('-',k=1,40)
     do s=1,nsta
        do m=1,nmodes
-          if (kappa_mask(m,s).eq.0) cycle
+          if (coeff1_mask(m,s,s,1).eq.0) cycle
           write(ilog,'(x,i3,3x,a,2x,i2,5x,a,2x,F7.4)') m,'|',s,'|',&
-               wkappa(m,s)
+               wtau1ii(m,s)
        enddo
        write(ilog,'(44a)') ('-',k=1,40)
     enddo
 
-    ! lambda, lower state weighting
-    write(ilog,'(/,44a)') ('-',k=1,44)
-    write(ilog,'(a)') ' Mode  |  State i  |  State j  |  wi-lambda'
-    write(ilog,'(44a)') ('-',k=1,44)
+    ! Off-diagonal 1st-order coupling coefficient, lower state weighting
+    write(ilog,'(/,47a)') ('-',k=1,47)
+    write(ilog,'(a)') ' Mode  |  State i  |  State j  |  wi-tau1^(i,j)'
+    write(ilog,'(47a)') ('-',k=1,47)
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
-             if (lambda_mask(m,s1,s2).eq.0) cycle
+             if (coeff1_mask(m,s1,s2,1).eq.0) cycle
              write(ilog,'(x,i3,3x,a,2x,i2,7x,a,2x,i2,7x,a,2x,F7.4)') &
-                  m,'|',s1,'|',s2,'|',wlambda(m,s1,s2,1)
+                  m,'|',s1,'|',s2,'|',wtau1ij(m,s1,s2,1)
           enddo
-          write(ilog,'(44a)') ('-',k=1,44)
+          write(ilog,'(47a)') ('-',k=1,47)
        enddo
     enddo
 
-    ! lambda, upper state weighting
-    write(ilog,'(/,44a)') ('-',k=1,44)
-    write(ilog,'(a)') ' Mode  |  State i  |  State j  |  wj-lambda'
-    write(ilog,'(44a)') ('-',k=1,44)
+    ! Off-diagonal 1st-order coupling coefficient, upper state weighting
+    write(ilog,'(/,47a)') ('-',k=1,47)
+    write(ilog,'(a)') ' Mode  |  State i  |  State j  |  wj-tau1^(i,j)'
+    write(ilog,'(47a)') ('-',k=1,47)
     do s1=1,nsta-1
        do s2=s1+1,nsta
           do m=1,nmodes
-             if (lambda_mask(m,s1,s2).eq.0) cycle
+             if (coeff1_mask(m,s1,s2,1).eq.0) cycle
              write(ilog,'(x,i3,3x,a,2x,i2,7x,a,2x,i2,7x,a,2x,F7.4)') &
-                  m,'|',s1,'|',s2,'|',wlambda(m,s1,s2,2)
+                  m,'|',s1,'|',s2,'|',wtau1ij(m,s1,s2,2)
           enddo
-          write(ilog,'(44a)') ('-',k=1,44)
+          write(ilog,'(47a)') ('-',k=1,47)
        enddo
     enddo
     
@@ -276,21 +276,21 @@ contains
 !----------------------------------------------------------------------
     maxpar=0.0d0
 
-    ! kappa
+    ! On-diagonal coupling coefficients
     do m=1,nmodes
        do s=1,nsta
-          if (kappa_mask(m,s).eq.0) cycle
-          fwp=abs(wkappa(m,s))
+          if (coeff1_mask(m,s,s,1).eq.0) cycle
+          fwp=abs(wtau1ii(m,s))
           if (fwp.ge.maxpar(m,s)) maxpar(m,s)=fwp
        enddo
     enddo
 
-    ! lambda
+    ! Off-diagonal coupling coefficients
     do m=1,nmodes
        do s1=1,nsta-1
           do s2=s1+1,nsta
-             if (lambda_mask(m,s1,s2).eq.0) cycle
-             fwp=max(abs(wlambda(m,s1,s2,1)),abs(wlambda(m,s1,s2,2)))
+             if (coeff1_mask(m,s1,s2,1).eq.0) cycle
+             fwp=max(abs(wtau1ij(m,s1,s2,1)),abs(wtau1ij(m,s1,s2,2)))
              if (fwp.ge.maxpar(m,s1)) maxpar(m,s1)=fwp
              if (fwp.ge.maxpar(m,s2)) maxpar(m,s2)=fwp
           enddo
