@@ -18,6 +18,10 @@ module kdcglobal
   ! Filenames
   character(len=120)              :: setfile
   character(len=120), allocatable :: bdfiles(:)
+  integer                         :: nrm_tot
+  integer, allocatable            :: nrm(:)
+  integer, allocatable            :: irm(:)
+  integer, allocatable            :: offsets_rm(:)
   logical                         :: lsetfile
   
   ! Model type and mode <-> file mappings

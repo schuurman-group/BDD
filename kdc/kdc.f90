@@ -624,7 +624,7 @@ contains
     
     implicit none
 
-    integer :: unit,ierr,i
+    integer :: unit,ierr,i,k,count
 
 !----------------------------------------------------------------------
 ! Open the set file
@@ -651,9 +651,74 @@ contains
     ! Allocate arrays
     allocate(bdfiles(nfiles))
     bdfiles=''
+    allocate(nrm(nfiles))
+    nrm=0
     
 !----------------------------------------------------------------------
-! Second pass: read in the filenames
+! Second pass: determine the total number of deleted points
+!----------------------------------------------------------------------
+    rewind(unit)
+
+    ! Loop over files
+    do i=1,nfiles
+
+       ! Read in the next line
+       call rdinp(unit)
+
+       ! Is there more than a filename specified?
+       if (inkw > 1 .and. keyword(2) == 'rm') then
+
+          ! Number of points to delete for this file
+          nrm(i)=inkw-2
+          
+       endif
+       
+    enddo
+
+    ! Total number of deleted points
+    nrm_tot=sum(nrm)
+
+!----------------------------------------------------------------------
+! Third pass: determine the total number of deleted points
+!----------------------------------------------------------------------
+    rewind(unit)
+    
+    ! Allocate arrays
+    allocate(irm(nrm_tot))
+    irm=0
+    allocate(offsets_rm(nfiles+1))
+    offsets_rm=0
+
+    ! Deleted point counter
+    count=0
+    
+    ! Loop over files
+    do i=1,nfiles
+
+       ! Read in the next line
+       call rdinp(unit)
+
+       ! Is there more than a filename specified?
+       if (inkw > 1 .and. keyword(2) == 'rm') then
+
+          ! Save the delted point indices
+          do k=3,inkw
+             count=count+1
+             read(keyword(k),*) irm(count)
+          enddo
+          
+       endif
+          
+    enddo
+
+    ! Fill in the offsets array
+    offsets_rm(1)=1
+    do i=2,nfiles+1
+       offsets_rm(i)=offsets_rm(i-1)+nrm(i-1)
+    enddo
+
+!----------------------------------------------------------------------
+! Fourth pass: read in the filenames
 !----------------------------------------------------------------------
     rewind(unit)
 
