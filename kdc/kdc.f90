@@ -129,8 +129,18 @@ program kdc
 !----------------------------------------------------------------------
 ! Write the MCTDH operator file
 !----------------------------------------------------------------------
-  call wroper
+  select case(iopformat)
 
+  case(1)
+
+     call wroper_mctdh
+
+  case(2)
+
+     call wroper_multiqd
+     
+  end select
+  
 !----------------------------------------------------------------------
 ! Optional writing of the gradients and non-adiabatic coupling vectors
 ! to xyz files for visualisation
@@ -328,6 +338,9 @@ contains
     
     ! Order of the 1-mode expansions
     order1=6
+
+    ! Operator file format: MCTDH by default
+    iopformat=1
 
 !----------------------------------------------------------------------
 ! Read the input file
@@ -532,6 +545,22 @@ contains
              goto 100
           endif
 
+       else if (keyword(i).eq.'$opfile') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             if (keyword(i).eq.'mctdh') then
+                iopformat=1
+             else if (keyword(i).eq.'multiqd') then
+                iopformat=2
+             else
+                errmsg='Unrecognised operator file type: '&
+                     //trim(keyword(i))
+                call error_control
+             endif
+          else
+             goto 100
+          endif
+          
        else
           ! Exit if the keyword is not recognised
           errmsg='Unknown keyword: '//trim(keyword(i))

@@ -74,5 +74,8 @@ module kdcglobal
   ! Writing of the gradient and non-adiabatic coupling
   ! vectors to xyz files
   logical                         :: lcartgrad
+
+  ! Operator file format
+  integer                         :: iopformat
   
 end module kdcglobal

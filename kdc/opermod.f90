@@ -10,7 +10,7 @@ contains
 
 !######################################################################
 
-  subroutine wroper
+  subroutine wroper_mctdh
 
     use constants
     use channels
@@ -421,7 +421,6 @@ contains
        enddo
     enddo
 
-
     ! Two-mode coupling coefficients
     if (nzeta > 0) then
     
@@ -705,8 +704,259 @@ contains
     
     return
     
-  end subroutine wroper
+  end subroutine wroper_mctdh
 
+!######################################################################
+
+  subroutine wroper_multiqd
+
+    use constants
+    use channels
+    use iomod
+    use sysinfo
+    use parameters
+    use symmetry
+    use kdcglobal
+
+    integer                        :: unit,n,m,m1,m2,s,s1,s2,i,j,k,c,&
+                                      nl,ncurr,ndof,fel
+    integer                        :: nzeta
+    integer                        :: nzdip0
+    integer                        :: nzdip1
+    integer                        :: nzdip2
+    integer                        :: nzdip3
+    integer                        :: nzdip4
+    real(dp), parameter            :: thrsh=5e-4_dp
+    integer                        :: fac
+    character(len=3)               :: an,am,am1,am2,as,as1,as2
+    character(len=5)               :: aunit
+    character(len=9)               :: apre
+    
+!----------------------------------------------------------------------
+! Determine the no. non-zero coupling coefficients in each class
+!----------------------------------------------------------------------
+    call get_nzpar(nzeta,nzdip0,nzdip1,nzdip2,nzdip3,nzdip4,thrsh)
+    
+!----------------------------------------------------------------------
+! Unit label
+!----------------------------------------------------------------------
+    aunit=' ev'
+
+!----------------------------------------------------------------------
+! Write the parameters values
+!----------------------------------------------------------------------
+    ! Frequencies
+    write(iop,'(a)') '# Frequencies'
+    do m=1,nmodes
+       write(am,'(i3)') m
+       write(iop,'(a,F9.6,a)') &
+            'omega_'//adjustl(am)//' =',freq(m),aunit
+    enddo
+
+    ! Energies
+    write(iop,'(/,a)') '# Energies'
+    do s=1,nsta
+       write(as,'(i3)') s
+       write(iop,'(a,F9.6,a)') &
+            'E'//adjustl(as)//' = ',e0(s),aunit
+    enddo
+
+    ! On-diagonal one-mode coupling coefficients
+    do n=1,order1
+       write(iop,'(/,a,i0,x,a)') '# Order-',n,&
+            'on-diagonal one-mode coupling coefficients'
+       do s=1,nsta
+          do m=1,nmodes
+             if (coeff1_mask(m,s,s,n) == 0) cycle
+             if (abs(coeff1(m,s,s,n)) < thrsh) cycle
+             write(iop,'(a,4(i0,a),F9.6,a)') &
+                  'tau',n,'_',m,'_',s,'_',s,' = ',&
+                  coeff1(m,s,s,n),aunit
+          enddo
+       enddo
+    enddo
+
+    ! Off-diagonal one-mode coupling coefficients
+    do n=1,order1
+       write(iop,'(/,a,i0,x,a)') '# Order-',n,&
+            'off-diagonal one-mode coupling coefficients'
+       do s2=1,nsta-1
+          do s1=s2+1,nsta
+             do m=1,nmodes
+                if (coeff1_mask(m,s1,s2,n) == 0) cycle
+                if (abs(coeff1(m,s1,s2,n)) < thrsh) cycle
+                write(iop,'(a,4(i0,a),F9.6,a)') &
+                     'tau',n,'_',m,'_',s2,'_',s1,' = ',&
+                     coeff1(m,s1,s2,n),aunit
+             enddo
+          enddo
+       enddo
+    enddo
+
+    ! Two-mode coupling coefficients
+    if (nzeta > 0) then
+       
+       ! On-diagonal 
+       write(iop,'(/,a)') &
+            '# Order-2 on-diagonal two-mode coupling coefficients'
+       do s=1,nsta
+          do m2=1,nmodes-1
+             do m1=m2+1,nmodes
+                if (coeff2_mask(m1,m2,s,s) == 0) cycle
+                if (abs(coeff2(m1,m2,s,s)) < thrsh) cycle
+                write(iop,'(a,4(i0,a),F9.6,a)') &
+                     'eta_',m2,'_',m1,'_',s,'_',s,' = ',&
+                     coeff2(m1,m2,s,s),aunit
+             enddo
+          enddo
+       enddo
+
+       ! Off-diagonal 
+       write(iop,'(/,a)') &
+            '# Order-2 off-diagonal two-mode coupling coefficients'
+       do s2=1,nsta-1
+          do s1=s2+1,nsta
+             do m2=1,nmodes-1
+                do m1=m2+1,nmodes
+                   if (coeff2_mask(m1,m2,s1,s2) == 0) cycle
+                   if (abs(coeff2(m1,m2,s1,s2)) < thrsh) cycle
+                   write(iop,'(a,4(i0,a),F9.6,a)') &
+                        'eta_',m2,'_',m1,'_',s2,'_',s1,' = ',&
+                        coeff2(m1,m2,s1,s2),aunit
+                enddo
+             enddo
+          enddo
+       enddo
+       
+    endif
+
+!----------------------------------------------------------------------
+! Write the operator terms
+!----------------------------------------------------------------------
+    ! Kinetic energy operator
+    write(iop,'(/,a)') '# Kinetic energy'
+    do m=1,nmodes
+       write(am,'(i3)') m
+       write(iop,'(a)') &
+            '-0.5*omega_'//adjustl(am)//' * d2q_'//adjustl(am) &
+            //' @ sum |i><i|'
+    enddo
+
+    ! Zeroth-order potential: VEEs
+    write(iop,'(/,a)') '# Zeroth-order potential: VEEs'
+    do s=1,nsta
+       write(as,'(i3)') s
+       write(iop,'(a)') &
+            'E'//adjustl(as)//' *'&
+            //' |'//trim(adjustl(as))//'><'//trim(adjustl(as))//'|'
+    enddo
+
+    ! Zeroth-order potential: Harmonic oscillators
+    write(iop,'(/,a)') '# Zeroth-order potential: &
+         Harmonic oscillators'
+    do m=1,nmodes
+       write(am,'(i3)') m
+       write(iop,'(a)') &
+            '0.5*omega_'//adjustl(am)//' * q_'//&
+            trim(adjustl(am))//'^2'//' @ sum |i><i|'
+    enddo
+
+    ! On-diagonal one-mode coupling coefficients
+    fac=1
+    do n=1,order1
+       fac=n*fac
+       write(iop,'(/,a,i0,x,a)') '# Order-',n,&
+            'on-diagonal one-mode coupling coefficients'
+       do s=1,nsta
+          do m=1,nmodes
+             if (coeff1_mask(m,s,s,n) == 0) cycle
+             if (abs(coeff1(m,s,s,n)) < thrsh) cycle
+             write(apre,'(F9.6)') 1.0/fac
+             write(iop,'(a,8(a,i0),a)') apre,'*tau',&
+                  n,'_',m,'_',s,'_',s,&
+                  ' * q_',m,'^',n,&
+                  ' @ |',s,'><',s,'|'
+          enddo
+       enddo
+    enddo
+
+    ! Off-diagonal one-mode coupling coefficients
+    fac=1
+    do n=1,order1
+       fac=n*fac
+       write(iop,'(/,a,i0,x,a)') '# Order-',n,&
+            'off-diagonal one-mode coupling coefficients'
+       do s2=1,nsta-1
+          do s1=s2+1,nsta
+             do m=1,nmodes
+                if (coeff1_mask(m,s1,s2,n) == 0) cycle
+                if (abs(coeff1(m,s1,s2,n)) < thrsh) cycle
+
+                write(apre,'(F9.6)') 1.0/fac
+                write(iop,'(a,8(a,i0),a)') apre,'*tau',&
+                     n,'_',m,'_',s,'_',s,&
+                     ' * q_',m,'^',n,&
+                     ' @ |',s2,'><',s1,'| + hc'
+                
+             enddo
+          enddo
+       enddo
+    enddo
+
+    ! Two-mode coupling coefficients
+    if (nzeta > 0) then
+    
+       ! On-diagonal
+       write(iop,'(/,a)') &
+            '# Order-2 on-diagonal two-mode coupling coefficients'
+       do s=1,nsta
+          do m2=1,nmodes-1
+             do m1=m2+1,nmodes
+                if (coeff2_mask(m1,m2,s,s) == 0) cycle
+                if (abs(coeff2(m1,m2,s,s)) < thrsh) cycle
+                write(iop,'(8(a,i0),a)') &
+                     'eta_',m2,&
+                     '_',m1,&
+                     '_',s,&
+                     '_',s,&
+                     '  * q_',m2,&
+                     ' @ q_',m1,&
+                     ' @ |',s,&
+                     '><',s,&
+                     '|'
+             enddo
+          enddo
+       enddo
+
+       write(iop,'(/,a)') &
+            '# Order-2 off-diagonal two-mode coupling coefficients'
+       do s2=1,nsta-1
+          do s1=s2+1,nsta
+             do m2=1,nmodes-1
+                do m1=m2+1,nmodes
+                   if (coeff2_mask(m1,m2,s1,s2) == 0) cycle
+                   if (abs(coeff2(m1,m2,s1,s2)) < thrsh) cycle
+                   write(iop,'(8(a,i0),a)') &
+                     'eta_',m2,&
+                     '_',m1,&
+                     '_',s,&
+                     '_',s,&
+                     '  * q_',m2,&
+                     ' @ q_',m1,&
+                     ' @ |',s2,&
+                     '><',s1,&
+                     '| + hc'
+                enddo
+             enddo
+          enddo
+       enddo
+                   
+    endif
+       
+    return
+    
+  end subroutine wroper_multiqd
+  
 !######################################################################
 
   subroutine get_nzpar(nzeta,nzdip0,nzdip1,nzdip2,nzdip3,nzdip4,thrsh)

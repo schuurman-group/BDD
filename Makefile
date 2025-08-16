@@ -14,15 +14,15 @@
 #
 # ifort
 #
-F90	 = ifort
-F77	 = ifort
+F90	 = ifx
+F77	 = ifx
 CC	 = icc
 F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291 -diag-disable 10448
 CCOPTS  = -g -O0
 
 # External libraries
-LIBS= -lblas -llapack
-#LIBS = -mkl
+#LIBS= -lblas -llapack
+LIBS = -qmkl
 
 #-----------------------------------------------------------------------
 # Define object files
