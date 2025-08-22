@@ -894,7 +894,7 @@ contains
 
                 write(apre,'(F9.6)') 1.0/fac
                 write(iop,'(a,8(a,i0),a)') apre,'*tau',&
-                     n,'_',m,'_',s,'_',s,&
+                     n,'_',m,'_',s2,'_',s1,&
                      ' * q_',m,'^',n,&
                      ' @ |',s2,'><',s1,'| + hc'
                 
