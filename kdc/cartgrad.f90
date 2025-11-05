@@ -29,10 +29,10 @@ contains
 ! Create the cartgrad directory
 !----------------------------------------------------------------------
     ! Works with intel
-    !inquire(directory='cartgrad',exist=found)
+    inquire(directory='cartgrad',exist=found)
 
     ! Works with gfortran
-    inquire(file='cartgrad/.',exist=found)
+    !inquire(file='cartgrad/.',exist=found)
 
     if (found) then
        call system('rm -rf cartgrad/*')
@@ -60,7 +60,7 @@ contains
        grad=grad/norm
 
        ! Write the gradient to file
-       write(iout,'(i0,/)') natm
+       write(iout,'(i0,/,a,x,F9.6)') natm,'norm:',norm
        do i=1,natm
           write(iout,'(a,6(2x,F12.7))') atlbl(i),&
                (xcoo0(j)/ang2bohr,j=i*3-2,i*3),&
@@ -93,9 +93,9 @@ contains
           ! Normalise
           norm=sqrt(dot_product(grad,grad))
           grad=grad/norm
-          
+
           ! Write the gradient to file
-          write(iout,'(i0,/)') natm
+          write(iout,'(i0,/,a,x,F9.6)') natm,'norm:',norm
           do i=1,natm
              write(iout,'(a,6(2x,F12.7))') atlbl(i),&
                   (xcoo0(j)/ang2bohr,j=i*3-2,i*3),&
@@ -107,7 +107,7 @@ contains
           
        enddo
     enddo
-       
+    
     return
     
   end subroutine write_cartgrad
