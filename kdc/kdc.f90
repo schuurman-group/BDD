@@ -342,6 +342,13 @@ contains
     ! Operator file format: MCTDH by default
     iopformat=1
 
+    ! States to include in the operator file: all by default
+    nopstates=nsta
+    allocate(opstates(nsta))
+    do i=1,nsta
+       opstates(i)=i
+    enddo
+    
 !----------------------------------------------------------------------
 ! Read the input file
 !----------------------------------------------------------------------
@@ -560,7 +567,22 @@ contains
           else
              goto 100
           endif
-          
+
+       else if (keyword(i).eq.'$opstates') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             opstates=0
+             nopstates=0
+             do j=i,inkw
+                if (keyword(j).eq.',') cycle
+                nopstates=nopstates+1
+                read(keyword(j),*) opstates(nopstates)
+             enddo
+             i=inkw
+          else
+             goto 100
+          endif
+             
        else
           ! Exit if the keyword is not recognised
           errmsg='Unknown keyword: '//trim(keyword(i))
@@ -581,7 +603,7 @@ contains
        call error_control
        
     endif
-
+    
 !----------------------------------------------------------------------
 ! Make sure that all the required information has been given
 !----------------------------------------------------------------------
@@ -615,6 +637,12 @@ contains
           errmsg='The Q0 dipole matrix elements have not been given'
           call error_control
        endif
+    endif
+
+    if (iopformat.eq.1.and.nopstates<nsta) then
+       errmsg='Currently, printing a reduced number of states to '&
+            //'an MCTDH operator file is not supported'
+       call error_control
     endif
     
     return

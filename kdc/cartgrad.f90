@@ -24,6 +24,14 @@ contains
     real(dp)          :: norm
     logical           :: found
     character(len=60) :: outfile
+
+
+    ! TEST
+    real(dp)          :: g(ncoo),h(ncoo),grad1(ncoo),grad2(ncoo)
+    real(dp)          :: gtilde(ncoo),htilde(ncoo)
+    real(dp)          :: gnorm,hnorm,beta,theta
+    ! TEST
+    
     
 !----------------------------------------------------------------------
 ! Create the cartgrad directory
@@ -107,6 +115,30 @@ contains
           
        enddo
     enddo
+
+
+    !! TEST
+    !s1 = 6
+    !s2 = 7
+    !grad1 = matmul(transpose(coonm), coeff1(:,s1,s1,1))
+    !grad2 = matmul(transpose(coonm), coeff1(:,s2,s2,1))
+    !
+    !g = grad2-grad1
+    !
+    !h = matmul(transpose(coonm), coeff1(:,s1,s2,1))
+    !
+    !beta = atan(2.0d0 * dot_product(g,h) / &
+    !     (dot_product(h,h) - dot_product(g,g))) / 2.0d0
+    !
+    !gtilde = -cos(beta)*g + sin(beta)*h
+    !htilde = sin(beta)*g + cos(beta)*h
+    !
+    !print*,sqrt(dot_product(gtilde,gtilde))
+    !print*,sqrt(dot_product(htilde,htilde))
+    !
+    !stop
+    !! TEST
+    
     
     return
     

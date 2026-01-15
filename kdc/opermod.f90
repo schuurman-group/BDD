@@ -728,7 +728,7 @@ contains
     integer                        :: nzdip4
     real(dp), parameter            :: thrsh=5e-4_dp
     integer                        :: fac
-    character(len=3)               :: an,am,am1,am2,as,as1,as2
+    character(len=3)               :: an,am,am1,am2,as,as1,as2,ai,aj
     character(len=5)               :: aunit
     character(len=9)               :: apre
     
@@ -755,17 +755,19 @@ contains
 
     ! Energies
     write(iop,'(/,a)') '# Energies'
-    do s=1,nsta
+    do i=1,nopstates
+       s=opstates(i)
        write(as,'(i3)') s
        write(iop,'(a,F9.6,a)') &
             'E'//adjustl(as)//' = ',e0(s),aunit
     enddo
-
+    
     ! On-diagonal one-mode coupling coefficients
     do n=1,order1
        write(iop,'(/,a,i0,x,a)') '# Order-',n,&
             'on-diagonal one-mode coupling coefficients'
-       do s=1,nsta
+       do i=1,nopstates
+          s=opstates(i)
           do m=1,nmodes
              if (coeff1_mask(m,s,s,n) == 0) cycle
              if (abs(coeff1(m,s,s,n)) < thrsh) cycle
@@ -780,8 +782,12 @@ contains
     do n=1,order1
        write(iop,'(/,a,i0,x,a)') '# Order-',n,&
             'off-diagonal one-mode coupling coefficients'
-       do s2=1,nsta-1
-          do s1=s2+1,nsta
+       do j=1,nopstates-1
+          s2=opstates(j)
+          
+          do i=j+1,nopstates
+             s1=opstates(i)
+             
              do m=1,nmodes
                 if (coeff1_mask(m,s1,s2,n) == 0) cycle
                 if (abs(coeff1(m,s1,s2,n)) < thrsh) cycle
@@ -799,7 +805,8 @@ contains
        ! On-diagonal 
        write(iop,'(/,a)') &
             '# Order-2 on-diagonal two-mode coupling coefficients'
-       do s=1,nsta
+       do i=1,nopstates
+          s=opstates(i)
           do m2=1,nmodes-1
              do m1=m2+1,nmodes
                 if (coeff2_mask(m1,m2,s,s) == 0) cycle
@@ -810,12 +817,14 @@ contains
              enddo
           enddo
        enddo
-
+       
        ! Off-diagonal 
        write(iop,'(/,a)') &
             '# Order-2 off-diagonal two-mode coupling coefficients'
-       do s2=1,nsta-1
-          do s1=s2+1,nsta
+       do j=1,nopstates-1
+          s2=opstates(j)
+          do i=j+1,nopstates
+             s1=opstates(i)
              do m2=1,nmodes-1
                 do m1=m2+1,nmodes
                    if (coeff2_mask(m1,m2,s1,s2) == 0) cycle
@@ -844,11 +853,13 @@ contains
 
     ! Zeroth-order potential: VEEs
     write(iop,'(/,a)') '# Zeroth-order potential: VEEs'
-    do s=1,nsta
+    do i=1,nopstates
+       s=opstates(i)
+       write(ai,'(i3)') i
        write(as,'(i3)') s
        write(iop,'(a)') &
             'E'//adjustl(as)//' *'&
-            //' |'//trim(adjustl(as))//'><'//trim(adjustl(as))//'|'
+            //' |'//trim(adjustl(ai))//'><'//trim(adjustl(ai))//'|'
     enddo
 
     ! Zeroth-order potential: Harmonic oscillators
@@ -867,7 +878,8 @@ contains
        fac=n*fac
        write(iop,'(/,a,i0,x,a)') '# Order-',n,&
             'on-diagonal one-mode coupling coefficients'
-       do s=1,nsta
+       do i=1,nopstates
+          s=opstates(i)
           do m=1,nmodes
              if (coeff1_mask(m,s,s,n) == 0) cycle
              if (abs(coeff1(m,s,s,n)) < thrsh) cycle
@@ -875,7 +887,7 @@ contains
              write(iop,'(a,8(a,i0),a)') apre,'*tau',&
                   n,'_',m,'_',s,'_',s,&
                   ' * q_',m,'^',n,&
-                  ' @ |',s,'><',s,'|'
+                  ' @ |',i,'><',i,'|'
           enddo
        enddo
     enddo
@@ -886,18 +898,18 @@ contains
        fac=n*fac
        write(iop,'(/,a,i0,x,a)') '# Order-',n,&
             'off-diagonal one-mode coupling coefficients'
-       do s2=1,nsta-1
-          do s1=s2+1,nsta
+       do j=1,nopstates-1
+          s2=opstates(j)
+          do i=j+1,nopstates
+             s1=opstates(i)
              do m=1,nmodes
                 if (coeff1_mask(m,s1,s2,n) == 0) cycle
                 if (abs(coeff1(m,s1,s2,n)) < thrsh) cycle
-
                 write(apre,'(F9.6)') 1.0/fac
                 write(iop,'(a,8(a,i0),a)') apre,'*tau',&
                      n,'_',m,'_',s2,'_',s1,&
                      ' * q_',m,'^',n,&
-                     ' @ |',s2,'><',s1,'| + hc'
-                
+                     ' @ |',j,'><',i,'| + hc'
              enddo
           enddo
        enddo
@@ -909,7 +921,8 @@ contains
        ! On-diagonal
        write(iop,'(/,a)') &
             '# Order-2 on-diagonal two-mode coupling coefficients'
-       do s=1,nsta
+       do i=1,nopstates
+          s=opstates(i)
           do m2=1,nmodes-1
              do m1=m2+1,nmodes
                 if (coeff2_mask(m1,m2,s,s) == 0) cycle
@@ -921,8 +934,8 @@ contains
                      '_',s,&
                      '  * q_',m2,&
                      ' @ q_',m1,&
-                     ' @ |',s,&
-                     '><',s,&
+                     ' @ |',i,&
+                     '><',i,&
                      '|'
              enddo
           enddo
@@ -930,8 +943,10 @@ contains
 
        write(iop,'(/,a)') &
             '# Order-2 off-diagonal two-mode coupling coefficients'
-       do s2=1,nsta-1
-          do s1=s2+1,nsta
+       do j=1,nopstates-1
+          s2=opstates(j)
+          do i=j+1,nopstates
+             s1=opstates(i)
              do m2=1,nmodes-1
                 do m1=m2+1,nmodes
                    if (coeff2_mask(m1,m2,s1,s2) == 0) cycle
@@ -943,8 +958,8 @@ contains
                      '_',s,&
                      '  * q_',m2,&
                      ' @ q_',m1,&
-                     ' @ |',s2,&
-                     '><',s1,&
+                     ' @ |',j,&
+                     '><',i,&
                      '| + hc'
                 enddo
              enddo

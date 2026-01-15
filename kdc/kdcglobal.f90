@@ -77,5 +77,9 @@ module kdcglobal
 
   ! Operator file format
   integer                         :: iopformat
-  
+
+  ! Electronic states to include in the operator file
+  integer                         :: nopstates
+  integer, allocatable            :: opstates(:)
+
 end module kdcglobal
