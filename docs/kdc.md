@@ -54,9 +54,9 @@ Supported point groups: C1, Cs, Ci, C2, C2v, C2h, D2, D2h.
 Adiabatic energies at the reference geometry (in Hartree):
 
     $q0_ener
-    -78.267243   1
-    -77.999755   2
-    -77.966886   3
+    -78.267243 1
+    -77.999755 2
+    -77.966886 3
     $end
 
 Each line contains an energy value followed by a state index.
@@ -86,6 +86,8 @@ values. Files can be listed directly:
 or read from a set file:
 
     $bdfiles = setfile.txt
+
+where the set file containes the list of files to be read.
 
 When using a set file, individual ab initio points can be excluded
 from the fit using the `rm` keyword:
@@ -146,7 +148,9 @@ into blocks using braces:
     $blockdiag = {1, 2}, {3, 4, 5}
 
 States within different blocks are decoupled by a unitary
-transformation applied at each geometry.
+transformation applied at each geometry. See: L. S. Cederbaum,
+J. Schirmer, and H.-D. Meyer, *Block diagonalisation of Hermitian
+matrices*, J. Phys. A: Math. Gen. **22**, 2427 (1989).
 
 **$blockdiag_algorithm**
 
@@ -166,12 +170,6 @@ visualisation:
     $cartgrad
 
 No argument is needed.
-
-**$label**
-
-Label stem for parsing GRaCI output files:
-
-    $label = graci_output
 
 ### Dipole-related keywords
 
@@ -242,9 +240,9 @@ reference data.
     $order = 4
 
     $q0_ener
-    0.0   1
-    3.85  2
-    5.10  3
+    -78.267243 1
+    -77.999755 2
+    -77.966886 3
     $end
 
     $state_sym
@@ -258,8 +256,5 @@ reference data.
     q2.out
     q3.out
     $end
-
-    $blockdiag = {1}, {2, 3}
-    $blockdiag_algorithm = svd
 
     $opfile = mctdh
