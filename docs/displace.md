@@ -1,3 +1,8 @@
+---
+layout: default
+title: displace
+---
+
 # displace
 
 Creation of displaced geometries along mass- and frequency-weighted

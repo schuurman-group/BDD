@@ -1,3 +1,8 @@
+---
+layout: default
+title: pltkdc
+---
+
 # pltkdc
 
 Plotting of the vibronic coupling Hamiltonian potentials using the

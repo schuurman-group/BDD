@@ -1,3 +1,8 @@
+---
+layout: default
+title: pltkdc.py
+---
+
 # pltkdc.py
 
 Python plotting script using matplotlib, replacing the Fortran pltkdc
