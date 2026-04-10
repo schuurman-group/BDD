@@ -25,7 +25,7 @@ comments.
 
 ### Required keywords
 
-**\$freqfile**
+**$freqfile**
 
 Quantum chemistry output file containing the normal modes and
 vibrational frequencies:
@@ -42,7 +42,7 @@ The file format is detected automatically. Supported formats:
 | Turbomole (aoforce)| Recognised from aoforce output format      |
 | ORCA               | ORCA Hessian file format                   |
 
-**\$cut**
+**$cut**
 
 Type of cut, step size, and number of points:
 
@@ -72,7 +72,7 @@ direction:
 The following keywords are required when `$cut` is `2mode` or
 `2mode_ondiag`.
 
-**\$point_group**
+**$point_group**
 
 Point group of the molecule:
 
@@ -83,7 +83,7 @@ by symmetry, and therefore which 2D cuts are needed.
 
 Supported point groups: C1, Cs, Ci, C2, C2v, C2h, D2, D2h.
 
-**\$state_sym**
+**$state_sym**
 
 Symmetry labels of the electronic states:
 
