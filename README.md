@@ -35,9 +35,15 @@ Build a single program:
 
 Executables are installed to `bin/`.
 
-### Using the Intel Fortran compiler
+### Choosing the Fortran compiler
 
-Remove any existing build directory and pass the compiler to CMake:
+The compiler can be selected by setting the `FC` environment variable
+before the first build:
+
+    rm -rf build
+    FC=ifx ./install_BDD
+
+Or equivalently via the CMake variable:
 
     rm -rf build
     ./install_BDD "" -DCMAKE_Fortran_COMPILER=ifx
