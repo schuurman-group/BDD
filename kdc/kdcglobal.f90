@@ -65,11 +65,13 @@ module kdcglobal
   character(len=60)               :: lblstem
 
   ! Block diagonalisation variables
-  integer                         :: nbd(2)
+  integer                         :: nblocks
+  integer, allocatable            :: nbd(:)
   integer                         :: maxbd
   integer, allocatable            :: ibd(:,:)
   real(dp), allocatable           :: Tmat(:,:,:)
   logical                         :: lblockdiag
+  integer                         :: iblockdiag_alg
 
   ! Writing of the gradient and non-adiabatic coupling
   ! vectors to xyz files

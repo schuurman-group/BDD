@@ -30,7 +30,7 @@ program mergeop
 !----------------------------------------------------------------------
   call freeunit(iop)
   open(iop,file='merged.op',form='formatted',status='unknown')
-  call wroper
+  call wroper_mctdh
   
 contains
 

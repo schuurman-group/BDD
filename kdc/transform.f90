@@ -46,23 +46,12 @@ contains
     use kdcglobal
     use symmetry
     use iomod
-    
+
     implicit none
 
-    integer              :: i,n,nI1,nI2
-    integer, allocatable :: I1(:),I2(:)
-    integer              :: isI1(nsta)
+    integer              :: i,j,k,n
+    integer              :: block_of(nsta)
     real(dp)             :: wmat(nsta,nsta),T(nsta,nsta)
-    
-!----------------------------------------------------------------------
-! Sets of state indices defining the transformation
-!----------------------------------------------------------------------
-    nI1=nbd(1)
-    nI2=nbd(2)
-    allocate(I1(nI1), I2(nI2))
-
-    I1=ibd(1:nI1,1)
-    I2=ibd(1:nI2,2)
 
 !----------------------------------------------------------------------
 ! Sanity check 1: block diagonalisation transformations are only
@@ -76,20 +65,20 @@ contains
     !endif
 
 !----------------------------------------------------------------------
-! Sanity check 2: make sure that the two sets of state indices are
-! disjoint    
+! Sanity check 2: make sure that the sets of state indices are
+! pairwise disjoint
 !----------------------------------------------------------------------
-    isI1=0
-    do i=1,nI1
-       isI1(I1(i))=1
-    enddo
-
-    do i=1,nI2
-       if (isI1(I2(i)) == 1) then
-          errmsg='Error in blockdiag: the two sets of state indices'&
-               //' are not disjoint'
-          call error_control
-       endif
+    block_of=0
+    do k=1,nblocks
+       do j=1,nbd(k)
+          i=ibd(j,k)
+          if (block_of(i) /= 0) then
+             errmsg='Error in blockdiag: the sets of state indices'&
+                  //' are not disjoint'
+             call error_control
+          endif
+          block_of(i)=k
+       enddo
     enddo
 
 !----------------------------------------------------------------------
@@ -97,7 +86,7 @@ contains
 !----------------------------------------------------------------------
     allocate(Tmat(nsta,nsta,ngeom))
     Tmat=0.0d0
-    
+
 !----------------------------------------------------------------------
 ! Perform the block diagonalisation at all points
 !----------------------------------------------------------------------
@@ -108,32 +97,39 @@ contains
        wmat=diabpot(:,:,n)
 
        ! Compute the block diagonalising transformation T
-       call block_diag_trans(nsta,wmat,nI1,nI2,I1,I2,T)
+       select case(iblockdiag_alg)
+       case(1)
+          call block_diag_trans(nsta,wmat,nblocks,nbd,maxbd,ibd,T)
+       case(2)
+          call block_diag_trans_svd(nsta,wmat,nblocks,nbd,maxbd,ibd,T)
+       end select
 
        ! Save the transformation
        Tmat(:,:,n)=T
-       
+
        ! Perform the transformation
        diabpot(:,:,n)=matmul(transpose(T),matmul(wmat,T))
-       
+
     enddo
 
     return
-    
+
   end subroutine blockdiag
 
 !######################################################################
-! block_diag_mat: given a matrix W and two sets of indices, I1 and I2,
-!                 computes the corresponding block diagonalising
-!                 transformation T subject to the constraint
-!                 ||T-1|| = min
+! block_diag_trans: given a matrix A and sets of indices defining
+!                   N blocks, computes the corresponding block
+!                   diagonalising transformation T subject to the
+!                   constraint ||T-1|| = min
+!                   (Cederbaum, Schirmer, Meyer, J. Phys. A, 22,
+!                    2427, 1989, Eq. 7)
 !######################################################################
-  subroutine block_diag_trans(dim,A,nI1,nI2,I1,I2,T)
+  subroutine block_diag_trans(dim,A,nblks,nbd,maxbd,ibd,T)
 
     use constants
     use utils
     use iomod
-    
+
     implicit none
 
     ! Input matrix
@@ -141,8 +137,10 @@ contains
     real(dp), intent(in)  :: A(dim,dim)
 
     ! Indices defining the block structure of the transformation
-    integer, intent(in)   :: nI1,nI2
-    integer, intent(in)   :: I1(nI1),I2(nI2)
+    integer, intent(in)   :: nblks
+    integer, intent(in)   :: nbd(nblks)
+    integer, intent(in)   :: maxbd
+    integer, intent(in)   :: ibd(maxbd,nblks)
 
     ! Transformation matrix
     real(dp), intent(out) :: T(dim,dim)
@@ -153,53 +151,43 @@ contains
     real(dp)              :: S_BD(dim,dim)
     real(dp)              :: U(dim,dim),V(dim,dim)
     real(dp)              :: tmp(dim,dim)
-    integer               :: taken(dim)
-    
+
     ! Everything else
-    integer               :: i,j,ii,jj
+    integer               :: i,j,k,ii,jj
     integer               :: error
-    real(dp)              :: largest
-    
+
 !----------------------------------------------------------------------
 ! Compute the eigenvectors, S, of the input matrix
 !----------------------------------------------------------------------
     S=A
-    
+
     call dsyev('V','U',dim,S,dim,lambda,work,3*dim,error)
 
     if (error /= 0) then
        errmsg='Diagonalisation failed in subroutine block_diag_trans'
        call error_control
     endif
-    
+
 !----------------------------------------------------------------------
 ! Get the block diagonal part of the matrix of eigenvectors, S_BD
 !----------------------------------------------------------------------
     S_BD=0.0d0
 
-    ! First block
-    do j=1,nI1
-       jj=I1(j)
-       do i=1,nI1
-          ii=I1(i)
-          S_BD(ii,jj)=S(ii,jj)
-       enddo
-    enddo
-
-    ! Second block
-    do j=1,nI2
-       jj=I2(j)
-       do i=1,nI2
-          ii=I2(i)
-          S_BD(ii,jj)=S(ii,jj)
+    do k=1,nblks
+       do j=1,nbd(k)
+          jj=ibd(j,k)
+          do i=1,nbd(k)
+             ii=ibd(i,k)
+             S_BD(ii,jj)=S(ii,jj)
+          enddo
        enddo
     enddo
 
 !----------------------------------------------------------------------
-! Compute U = S S_BD
+! Compute U = S S_BD^T
 !----------------------------------------------------------------------
     U=matmul(S,transpose(S_BD))
-    
+
 !----------------------------------------------------------------------
 ! Compute V=(S_BD S_BD^T)^-1/2
 !----------------------------------------------------------------------
@@ -213,9 +201,141 @@ contains
     T=matmul(U,V)
 
     return
-    
+
   end subroutine block_diag_trans
     
+!######################################################################
+! block_diag_trans_svd: SVD-based block diagonalising transformation.
+!                       Computes T via the polar decomposition of
+!                       each diagonal block S_nn of the eigenvector
+!                       matrix, using the SVD to obtain the unitary
+!                       factor directly without matrix inversion.
+!                       (Cederbaum, Schirmer, Meyer, J. Phys. A, 22,
+!                        2427, 1989, Eqs. 11-13)
+!######################################################################
+  subroutine block_diag_trans_svd(dim,A,nblks,nbd,maxbd,ibd,T)
+
+    use constants
+    use iomod
+
+    implicit none
+
+    ! Input matrix
+    integer, intent(in)   :: dim
+    real(dp), intent(in)  :: A(dim,dim)
+
+    ! Indices defining the block structure of the transformation
+    integer, intent(in)   :: nblks
+    integer, intent(in)   :: nbd(nblks)
+    integer, intent(in)   :: maxbd
+    integer, intent(in)   :: ibd(maxbd,nblks)
+
+    ! Transformation matrix
+    real(dp), intent(out) :: T(dim,dim)
+
+    ! Eigenvector matrix
+    real(dp)              :: S(dim,dim),lambda(dim)
+    real(dp)              :: work_eig(3*dim)
+
+    ! SVD working arrays (sized for the largest block)
+    integer               :: lwork_svd
+    real(dp), allocatable :: Snn(:,:)
+    real(dp), allocatable :: U_svd(:,:),VT_svd(:,:)
+    real(dp), allocatable :: sigma(:)
+    real(dp), allocatable :: work_svd(:)
+
+    ! Block diagonal matrix F
+    real(dp)              :: F(dim,dim)
+
+    ! Everything else
+    integer               :: i,j,k,ii,jj,dk
+    integer               :: error
+
+!----------------------------------------------------------------------
+! Compute the eigenvectors, S, of the input matrix
+!----------------------------------------------------------------------
+    S=A
+
+    call dsyev('V','U',dim,S,dim,lambda,work_eig,3*dim,error)
+
+    if (error /= 0) then
+       errmsg='Diagonalisation failed in subroutine '&
+            //'block_diag_trans_svd'
+       call error_control
+    endif
+
+!----------------------------------------------------------------------
+! Allocate SVD work arrays for the largest block
+!----------------------------------------------------------------------
+    lwork_svd=5*maxbd
+    allocate(Snn(maxbd,maxbd))
+    allocate(U_svd(maxbd,maxbd))
+    allocate(VT_svd(maxbd,maxbd))
+    allocate(sigma(maxbd))
+    allocate(work_svd(lwork_svd))
+
+!----------------------------------------------------------------------
+! Construct the block diagonal matrix F from the SVD of each
+! diagonal block S_nn of the eigenvector matrix
+!----------------------------------------------------------------------
+    F=0.0d0
+
+    do k=1,nblks
+
+       dk=nbd(k)
+
+       ! Extract the diagonal block S_nn
+       do j=1,dk
+          jj=ibd(j,k)
+          do i=1,dk
+             ii=ibd(i,k)
+             Snn(i,j)=S(ii,jj)
+          enddo
+       enddo
+
+       ! Compute the SVD: S_nn = U sigma V^T
+       call dgesvd('A','A',dk,dk,Snn(1:dk,1:dk),dk,sigma(1:dk),&
+            U_svd(1:dk,1:dk),dk,VT_svd(1:dk,1:dk),dk,&
+            work_svd,lwork_svd,error)
+
+       if (error /= 0) then
+          errmsg='SVD failed in subroutine block_diag_trans_svd'
+          call error_control
+       endif
+
+       ! Compute F_nn = V U^T and place into the full matrix F
+       ! dgesvd returns U_svd and VT_svd (= V^T), so
+       ! V(i,l) = VT_svd(l,i) and U(j,l) = U_svd(j,l)
+       ! F_nn(i,j) = sum_l V(i,l) * U(j,l)
+       !           = sum_l VT_svd(l,i) * U_svd(j,l)
+       do j=1,dk
+          jj=ibd(j,k)
+          do i=1,dk
+             ii=ibd(i,k)
+             F(ii,jj)=dot_product(VT_svd(1:dk,i),U_svd(j,1:dk))
+          enddo
+       enddo
+
+    enddo
+
+!----------------------------------------------------------------------
+! Compute T = S F
+!----------------------------------------------------------------------
+    T=matmul(S,F)
+
+!----------------------------------------------------------------------
+! Deallocate arrays
+!----------------------------------------------------------------------
+    deallocate(Snn)
+    deallocate(U_svd)
+    deallocate(VT_svd)
+    deallocate(sigma)
+    deallocate(work_svd)
+
+    return
+
+  end subroutine block_diag_trans_svd
+
 !######################################################################
 ! write_Tmat: writes the block diagonalising transformations to disk
 !######################################################################

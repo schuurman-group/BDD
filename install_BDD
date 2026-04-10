@@ -3,14 +3,23 @@
 target=$1
 
 #-----------------------------------------------------------------------
-# Calls to make
+# CMake build directory
 #-----------------------------------------------------------------------
-list=(displace blockdiag kdc pltkdc mergeop)
+builddir=build
 
-if [ -z $target ]; then
-    for T in "${list[@]}"; do
-	make $T $args
-    done
-else
-    make $target $args
+# Create the build directory and run cmake if needed
+if [ ! -f "$builddir/Makefile" ]; then
+    mkdir -p "$builddir"
+    cmake -S . -B "$builddir" "${@:2}"
 fi
+
+#-----------------------------------------------------------------------
+# Build and install
+#-----------------------------------------------------------------------
+if [ -z "$target" ]; then
+    cmake --build "$builddir"
+else
+    cmake --build "$builddir" --target "${target}.x"
+fi
+
+cmake --install "$builddir" --prefix .

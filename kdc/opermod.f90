@@ -731,7 +731,7 @@ contains
     character(len=3)               :: an,am,am1,am2,as,as1,as2,ai,aj
     character(len=5)               :: aunit
     character(len=9)               :: apre
-    
+
 !----------------------------------------------------------------------
 ! Determine the no. non-zero coupling coefficients in each class
 !----------------------------------------------------------------------

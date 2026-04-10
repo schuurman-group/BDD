@@ -13,7 +13,7 @@ program kdc
   use cartgrad
   use parameters
   use kdcglobal
-  
+
   implicit none
 
 !----------------------------------------------------------------------
@@ -30,6 +30,11 @@ program kdc
 ! Read the input file
 !----------------------------------------------------------------------
   call rdinpfile_kdc
+
+!----------------------------------------------------------------------
+! Set the operator file extension
+!----------------------------------------------------------------------
+  call set_op_extension
 
 !----------------------------------------------------------------------
 ! Determine the normal mode file type
@@ -331,6 +336,8 @@ contains
 
     ! Block diagonalisation
     lblockdiag=.false.
+    nblocks=0
+    iblockdiag_alg=2
 
     ! Writing of the gradient and non-adiabatic coupling vectors
     ! to file
@@ -497,44 +504,87 @@ contains
              i=i+2
              ii=i
              if (keyword(i).eq.'{') then
-                ! (1) Determine the no. states in each block
-                nbd=0
-                k=1
+                ! (1) Count the number of blocks
+                nblocks=0
+                i=ii-1
                 do
                    i=i+1
-                   if (keyword(i).eq.'}' .and. k.eq.2) exit
-                   if (keyword(i).eq.'{') k=2
-                   if (keyword(i).ne.',' &
-                        .and. keyword(i).ne.'}' &
-                        .and. keyword(i).ne.'{') then
-                      nbd(k)=nbd(k)+1
+                   if (keyword(i).eq.'{') nblocks=nblocks+1
+                   if (keyword(i).eq.'}') then
+                      if (nblocks.eq.0) then
+                         errmsg='Error parsing the $blockdiag'&
+                              //' argument'
+                         call error_control
+                      endif
+                      ! Skip optional comma between blocks
+                      if (keyword(i+1).eq.',') i=i+1
+                      if (keyword(i+1).ne.'{') exit
                    endif
                 enddo
-                ! (2) Allocate arrays
-                maxbd=maxval(nbd)
-                allocate(ibd(maxbd,2))
-                ibd=0
-                ! (3) Read the indices of the states in each block
-                k=1
-                i=ii
-                j=1
+                ! (2) Count the no. states in each block
+                allocate(nbd(nblocks))
+                nbd=0
+                k=0
+                i=ii-1
                 do
                    i=i+1
-                   if (keyword(i).eq.'}' .and. k.eq.2) exit
                    if (keyword(i).eq.'{') then
-                      k=2
-                      j=1
+                      k=k+1
+                      cycle
                    endif
-                   if (keyword(i).ne.',' &
-                        .and. keyword(i).ne.'}' &
-                        .and. keyword(i).ne.'{') then
-                      read(keyword(i),*) ibd(j,k)
+                   if (keyword(i).eq.'}') then
+                      if (k.eq.nblocks) exit
+                      ! Skip optional comma between blocks
+                      if (keyword(i+1).eq.',') i=i+1
+                      cycle
+                   endif
+                   if (keyword(i).ne.',') nbd(k)=nbd(k)+1
+                enddo
+                ! (3) Allocate arrays
+                maxbd=maxval(nbd)
+                allocate(ibd(maxbd,nblocks))
+                ibd=0
+                ! (4) Read the indices of the states in each block
+                k=0
+                j=0
+                i=ii-1
+                do
+                   i=i+1
+                   if (keyword(i).eq.'{') then
+                      k=k+1
+                      j=0
+                      cycle
+                   endif
+                   if (keyword(i).eq.'}') then
+                      if (k.eq.nblocks) exit
+                      ! Skip optional comma between blocks
+                      if (keyword(i+1).eq.',') i=i+1
+                      cycle
+                   endif
+                   if (keyword(i).ne.',') then
                       j=j+1
+                      read(keyword(i),*) ibd(j,k)
                    endif
                 enddo
              else
                 errmsg='Error parsing the $blockdiag argument: '&
-                     //'expected {i1,...,im} {j1,...,jn}'
+                     //'expected {i1,...,im} {j1,...,jn} ...'
+                call error_control
+             endif
+          else
+             goto 100
+          endif
+
+       else if (keyword(i).eq.'$blockdiag_algorithm') then
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             if (keyword(i).eq.'invsqrt') then
+                iblockdiag_alg=1
+             else if (keyword(i).eq.'svd') then
+                iblockdiag_alg=2
+             else
+                errmsg='Unrecognised block diagonalisation'&
+                     //' algorithm: '//trim(keyword(i))
                 call error_control
              endif
           else
@@ -1834,7 +1884,33 @@ contains
     return
     
   end subroutine wrbinfile
-    
+
+!######################################################################
+
+  subroutine set_op_extension
+
+    use channels
+    use kdcglobal
+
+    implicit none
+
+    integer :: i
+    logical :: is_open
+
+    if (iopformat.eq.2) then
+       i=index(aop,'.op')
+       if (i.gt.0) then
+          ! Close the .op file and delete it
+          inquire(unit=iop,opened=is_open)
+          if (is_open) close(iop,status='delete')
+          ! Reopen with the .sop extension
+          aop=aop(1:i-1)//'.sop'
+          open(iop,file=aop,form='formatted',status='unknown')
+       endif
+    endif
+
+  end subroutine set_op_extension
+
 !######################################################################
 
 end program kdc

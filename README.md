@@ -15,5 +15,36 @@ using block diagonalisation diabatisation:
 (4) pltkdc: plotting of the vibronic coupling Hamiltonian potentials
             using the output of the kdc program.
 
-(5) gridfunc: calculation of various useful operators on direct product
-              grids
+
+## Prerequisites
+
+- A Fortran compiler (gfortran or Intel ifx/ifort)
+- CMake (>= 3.14)
+- LAPACK and BLAS libraries
+- OpenMP (optional)
+
+## Installation
+
+Build all programs using the install script:
+
+    ./install_BDD
+
+Build a single program:
+
+    ./install_BDD kdc
+
+Executables are installed to `bin/`.
+
+### Using the Intel Fortran compiler
+
+Remove any existing build directory and pass the compiler to CMake:
+
+    rm -rf build
+    ./install_BDD "" -DCMAKE_Fortran_COMPILER=ifx
+
+### Manual CMake workflow
+
+    mkdir build && cd build
+    cmake ..
+    cmake --build .
+    cmake --install . --prefix ..

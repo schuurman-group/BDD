@@ -36,11 +36,11 @@ contains
 !----------------------------------------------------------------------
 ! Create the cartgrad directory
 !----------------------------------------------------------------------
-    ! Works with intel
+#ifdef GFORTRAN
+    inquire(file='cartgrad/.',exist=found)
+#else
     inquire(directory='cartgrad',exist=found)
-
-    ! Works with gfortran
-    !inquire(file='cartgrad/.',exist=found)
+#endif
 
     if (found) then
        call system('rm -rf cartgrad/*')

@@ -113,11 +113,11 @@ contains
 !----------------------------------------------------------------------
 ! Create the geometries directory
 !----------------------------------------------------------------------
-    ! Works with ifort
-    !inquire(directory='geoms',exist=found)
-
-    ! Works with gfortran
+#ifdef GFORTRAN
     inquire(file='geoms/.',exist=found)
+#else
+    inquire(directory='geoms',exist=found)
+#endif
 
     if (found) then
        call system('rm -rf geoms/*')

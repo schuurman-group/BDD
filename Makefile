@@ -2,27 +2,26 @@
 # Compiler flags
 #-----------------------------------------------------------------------
 
-#
-# gfortran
-#
-#F90	= gfortran
-#F77	= gfortran
-#CC	= gcc
-#F90OPTS = -cpp -g -ffixed-line-length-none -ffree-line-length-none -fopenmp -O3 -fbacktrace
-#CCOPTS  = -g -O0
+# Fortran compiler: override on the command line, e.g., make FC=ifx kdc
+FC = gfortran
 
-#
-# ifort
-#
-F90	 = ifx
-F77	 = ifx
-CC	 = icc
-F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291 -diag-disable 10448
-CCOPTS  = -g -O0
+F90 = $(FC)
+F77 = $(FC)
 
-# External libraries
-#LIBS= -lblas -llapack
-LIBS = -qmkl
+# Compiler-specific flags
+ifneq (,$(findstring gfortran,$(FC)))
+  F90OPTS = -cpp -g -ffixed-line-length-none -ffree-line-length-none -fopenmp -O3 -fbacktrace -DGFORTRAN
+  F77OPTS = $(F90OPTS)
+  CCOPTS  = -g -O0
+  CC      = gcc
+  LIBS    = -lblas -llapack
+else
+  F90OPTS = -cpp -g -free -fopenmp -traceback -O3 -diag-disable 8290 -diag-disable 8291 -diag-disable 10448
+  F77OPTS = $(F90OPTS)
+  CCOPTS  = -g -O0
+  CC      = icc
+  LIBS    = -qmkl
+endif
 
 #-----------------------------------------------------------------------
 # Define object files
