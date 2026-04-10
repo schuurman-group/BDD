@@ -337,7 +337,7 @@ contains
     ! Block diagonalisation
     lblockdiag=.false.
     nblocks=0
-    iblockdiag_alg=2
+    iblockdiag_alg=1
 
     ! Writing of the gradient and non-adiabatic coupling vectors
     ! to file
