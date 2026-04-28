@@ -184,6 +184,129 @@ contains
 
 !######################################################################
 
+  function adiabaticgrad(q,s) result(g)
+
+    use constants
+    use iomod
+    use sysinfo
+
+    implicit none
+
+    integer, intent(in)            :: s
+    integer                        :: m,e2,error
+    real(dp), dimension(nmodes)    :: q
+    real(dp), dimension(nmodes)    :: g
+    real(dp), dimension(nsta)      :: v
+    real(dp), dimension(nsta,nsta) :: w
+    real(dp), dimension(nsta,nsta) :: dw
+    real(dp), dimension(3*nsta)    :: work
+
+!----------------------------------------------------------------------
+! Build W(q) and diagonalise to obtain the adiabatic eigenvectors
+! (returned in the columns of w on output of dsyev).
+!
+! NB. Hellmann-Feynman is ill-defined when two adiabatic eigenvalues
+! are degenerate (i.e. at conical intersections); use with care for
+! excited-state minima.
+!----------------------------------------------------------------------
+    w=pot(q)
+
+    e2=3*nsta
+    call dsyev('V','U',nsta,w,nsta,v,work,e2,error)
+
+    if (error.ne.0) then
+       write(6,'(/,2x,a,/)') 'Diagonalisation of the potential &
+            matrix failed in adiabaticgrad'
+       stop
+    endif
+
+!----------------------------------------------------------------------
+! Hellmann-Feynman gradient:  g(m) = U_s^T (dW/dq_m) U_s
+!----------------------------------------------------------------------
+    do m=1,nmodes
+       dw=dpot_dq(q,m)
+       g(m)=dot_product(w(:,s), matmul(dw, w(:,s)))
+    enddo
+
+    return
+
+  end function adiabaticgrad
+
+!######################################################################
+
+  function dpot_dq(q,m) result(dw)
+
+    use constants
+    use sysinfo
+    use symmetry
+    use parameters
+
+    implicit none
+
+    integer, intent(in)            :: m
+    integer                        :: m1,m2,s,s1,s2,n
+    real(dp), dimension(nmodes)    :: q
+    real(dp), dimension(nsta,nsta) :: dw
+    real(dp)                       :: fac,pre
+
+!----------------------------------------------------------------------
+! Initialisation
+!----------------------------------------------------------------------
+    dw=0.0d0
+
+!----------------------------------------------------------------------
+! Harmonic part:  d/dq_m [ 0.5*freq(m')*q(m')^2 ] = freq(m)*q(m)
+! (only the m'=m term contributes; harmonic terms are diagonal)
+!----------------------------------------------------------------------
+    do s=1,nsta
+       dw(s,s)=dw(s,s)+freq(m)*q(m)
+    enddo
+
+!----------------------------------------------------------------------
+! One-mode part:  d/dq_m [ (1/n!)*coeff1(m,s1,s2,n)*q(m)^n ]
+!               = (n/n!) * coeff1(m,s1,s2,n) * q(m)^(n-1)
+! Only the m'=m term contributes; mode index m is fixed below.
+!----------------------------------------------------------------------
+    fac=1.0d0
+    do n=1,order1
+       fac=fac*n
+       pre=1.0d0/fac
+       do s2=1,nsta
+          do s1=1,nsta
+             if (coeff1_mask(m,s1,s2,n) == 0) cycle
+             dw(s1,s2)=dw(s1,s2) &
+                  + n*pre*coeff1(m,s1,s2,n)*q(m)**(n-1)
+          enddo
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Two-mode part:  d/dq_m [ 0.5*coeff2(m1,m2,s1,s2)*q(m1)*q(m2) ]
+! Contributions come from m1=m (sum over m2) and m2=m (sum over m1).
+!----------------------------------------------------------------------
+    do s2=1,nsta
+       do s1=1,nsta
+          ! m1 = m, m2 varies
+          do m2=1,nmodes
+             if (coeff2_mask(m,m2,s1,s2) == 0) cycle
+             dw(s1,s2)=dw(s1,s2) &
+                  + 0.5d0*coeff2(m,m2,s1,s2)*q(m2)
+          enddo
+          ! m2 = m, m1 varies
+          do m1=1,nmodes
+             if (coeff2_mask(m1,m,s1,s2) == 0) cycle
+             dw(s1,s2)=dw(s1,s2) &
+                  + 0.5d0*coeff2(m1,m,s1,s2)*q(m1)
+          enddo
+       enddo
+    enddo
+
+    return
+
+  end function dpot_dq
+
+!######################################################################
+
   function diabdip(q,s1,s2) result(dip)
 
     use constants

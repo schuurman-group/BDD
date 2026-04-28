@@ -108,8 +108,10 @@ target_link_libraries(bdd_potfuncs PRIVATE
 #-----------------------------------------------------------------------
 add_library(bdd_opt STATIC
   opt/opt.f90
+  opt/geomopt.f90
 )
 bdd_target_setup(bdd_opt)
+target_link_libraries(bdd_opt PRIVATE bdd_include bdd_potfuncs)
 
 #-----------------------------------------------------------------------
 # Library: bdd_multi (accuracy, printing, timer, lapack, math,

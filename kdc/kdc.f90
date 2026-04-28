@@ -120,6 +120,12 @@ program kdc
   call check_coefficients
 
 !----------------------------------------------------------------------
+! Optimise the ground-state adiabatic surface starting from Q=0
+! and report the result to the log file
+!----------------------------------------------------------------------
+  call optimise_ground_state
+
+!----------------------------------------------------------------------
 ! If the coupling coefficients were determined by fitting, then
 ! output the RMSDs to the log file
 !----------------------------------------------------------------------
@@ -1738,6 +1744,105 @@ contains
     return
     
   end subroutine check_coefficients
+
+!######################################################################
+
+  subroutine optimise_ground_state
+
+    use constants
+    use channels
+    use sysinfo
+    use iomod,    only: freeunit
+    use potfuncs, only: adiabaticpot
+    use geomopt,  only: optimise
+
+    implicit none
+
+    integer  :: i, j, iout, ifault
+    real(dp) :: q0(nmodes), qmin(nmodes)
+    real(dp) :: v0(nsta)
+    real(dp) :: x(ncoo)
+    real(dp) :: e_q0, e_qmin, dist
+
+!----------------------------------------------------------------------
+! Starting geometry: Q = 0
+!----------------------------------------------------------------------
+    q0 = 0.0d0
+
+!----------------------------------------------------------------------
+! Energy at the reference geometry on the ground state (state 1)
+!----------------------------------------------------------------------
+    v0   = adiabaticpot(q0)
+    e_q0 = v0(1) * eh2ev
+
+!----------------------------------------------------------------------
+! Minimise the ground-state adiabatic surface
+!----------------------------------------------------------------------
+    call optimise(q0, 1, qmin, vmin=e_qmin, ifault=ifault, &
+                  tol_g=1.0d-6)
+
+    e_qmin = e_qmin * eh2ev
+
+!----------------------------------------------------------------------
+! Distance from Q=0 to the optimised geometry, in normal modes
+!----------------------------------------------------------------------
+    dist = sqrt(sum(qmin**2))
+
+!----------------------------------------------------------------------
+! Write the optimisation summary to the log file
+!----------------------------------------------------------------------
+    write(ilog,'(/,72a)') ('+',i=1,72)
+    write(ilog,'(2x,a)') 'Ground State Geometry Optimisation'
+    write(ilog,'(72a)') ('+',i=1,72)
+
+    if (ifault /= 0) then
+       write(ilog,'(/,2x,a,i0)') &
+            'WARNING: Nelder-Mead did not converge cleanly. ifault = ', &
+            ifault
+    endif
+
+    ! Optimised geometry in normal modes
+    write(ilog,'(/,2x,a)') 'Optimised geometry (normal modes):'
+    write(ilog,'(2x,42a)') ('-',i=1,42)
+    write(ilog,'(2x,a)')   '  Mode  Label        Q'
+    write(ilog,'(2x,42a)') ('-',i=1,42)
+    do i = 1, nmodes
+       write(ilog,'(2x,i6,2x,a3,4x,F14.8)') i, nmlab(i), qmin(i)
+    enddo
+    write(ilog,'(2x,42a)') ('-',i=1,42)
+
+    ! Energies at Q=0 and at the optimised geometry, in eV
+    write(ilog,'(/,2x,a,F16.8,a)') 'E(Q=0)          = ', e_q0,  ' eV'
+    write(ilog,'(2x,a,F16.8,a)')   'E(Q_opt)        = ', e_qmin,' eV'
+    write(ilog,'(2x,a,F16.8,a)')   'E(Q=0)-E(Q_opt) = ', e_q0 - e_qmin, &
+         ' eV'
+
+    ! Distance from Q=0 to the optimised geometry (normal modes)
+    write(ilog,'(/,2x,a,F14.8)') &
+         '||Q_opt - 0|| (normal modes) = ', dist
+
+!----------------------------------------------------------------------
+! Write the optimised geometry to an xyz file in the current
+! working directory
+!----------------------------------------------------------------------
+    x = xcoo0/ang2bohr + matmul(nmcoo, qmin)
+
+    call freeunit(iout)
+    open(iout, file='S0_min.xyz', form='formatted', status='unknown')
+    write(iout,'(i0)') natm
+    write(iout,'(a)') 'Optimised ground-state geometry (S0 minimum)'
+    do i = 1, natm
+       write(iout,'(a2,3(2x,F12.7))') atlbl(i), &
+            (x(j), j=i*3-2, i*3)
+    enddo
+    close(iout)
+
+    write(ilog,'(/,2x,a)') &
+         'Optimised geometry written to S0_min.xyz'
+
+    return
+
+  end subroutine optimise_ground_state
 
 !######################################################################
 

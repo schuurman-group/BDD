@@ -302,7 +302,7 @@ contains
     write(ilog,'(a)') '    |J>       |      Sum_n <I_n|J>**2'
     write(ilog,'(47a)') ('-',i=1,47)
     do i=1,nsta_ref
-       write(ilog,'(5x,i2,17x,F13.10)'),i,sumsq(i)
+       write(ilog,'(5x,i2,17x,F13.10)') i,sumsq(i)
     enddo
     write(ilog,'(47a)') ('-',i=1,47)
     
