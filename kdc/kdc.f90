@@ -13,6 +13,7 @@ program kdc
   use cartgrad
   use parameters
   use kdcglobal
+  use reexpand
 
   implicit none
 
@@ -130,7 +131,16 @@ program kdc
 ! output the RMSDs to the log file
 !----------------------------------------------------------------------
   call wrrmsd
-  
+
+!----------------------------------------------------------------------
+! Optional re-expansion of the diabatic potential about Qmin (the
+! minimum of an adiabatic surface, default state 1). Performed AFTER
+! wrrmsd (so the original fit's residuals are reported first) and
+! BEFORE get_parinfo (so the printed parameter info reflects the
+! re-expanded model).
+!----------------------------------------------------------------------
+  if (lreexpand) call reexpand_about_qmin
+
 !----------------------------------------------------------------------
 ! Output some useful information about the coupling coefficients to
 ! the log file
@@ -318,7 +328,17 @@ contains
     lshift=.false.
     allocate(shift0(nsta,nsta))
     shift0=0.0d0
-    
+
+    ! Re-expansion about the minimum of an adiabatic surface
+    ! (qmin_re is allocated later, when nmodes is known)
+    lreexpand=.false.
+    ireexpand_state=1
+
+    ! Off-diagonal zeroth-order constants (only populated by $reexpand;
+    ! always allocated zero so that pot() can add unconditionally)
+    allocate(e0_off(nsta,nsta))
+    e0_off=0.0d0
+
     ! Point group
     pntgrp=''
 
@@ -425,7 +445,17 @@ contains
              read(keyword(1),*) shift0(k1,k2)
              shift0(k2,k1)=shift0(k1,k2)
           enddo
-          
+
+       else if (keyword(i).eq.'$reexpand') then
+          lreexpand=.true.
+          ! Optional argument: the adiabatic state index whose minimum
+          ! defines the new expansion centre Qmin. Defaults to 1.
+          if (keyword(i+1).eq.'=') then
+             i=i+2
+             read(keyword(i),*) ireexpand_state
+          endif
+
+
        else if (keyword(i).eq.'$point_group') then
           if (keyword(i+1).eq.'=') then
              i=i+2
@@ -699,6 +729,18 @@ contains
        errmsg='Currently, printing a reduced number of states to '&
             //'an MCTDH operator file is not supported'
        call error_control
+    endif
+
+    if (lreexpand) then
+       if (ireexpand_state < 1 .or. ireexpand_state > nsta) then
+          errmsg='Invalid state index given with $reexpand'
+          call error_control
+       endif
+       if (ldipfit) then
+          errmsg='$reexpand is not currently compatible with the '&
+               //'fitting of diabatic dipole expansions'
+          call error_control
+       endif
     endif
     
     return
@@ -1541,6 +1583,13 @@ contains
 !----------------------------------------------------------------------
     allocate(e0(nsta))
     e0(:)=(q0pot(:)-q0pot(1))*eh2ev
+
+!----------------------------------------------------------------------
+! Re-expansion centre Qmin (zero by default; populated by
+! reexpand_about_qmin when $reexpand is active)
+!----------------------------------------------------------------------
+    if (.not. allocated(qmin_re)) allocate(qmin_re(nmodes))
+    qmin_re=0.0d0
     
 !----------------------------------------------------------------------
 ! Calculate the coupling coefficients
@@ -1938,7 +1987,17 @@ contains
 ! Vertical excitation energies
 !----------------------------------------------------------------------
     write(ibin) e0
-    
+
+!----------------------------------------------------------------------
+! Re-expansion information: flag, target state, off-diagonal zeroth-
+! order constants, and Qmin. Always written so the binary format is
+! self-consistent.
+!----------------------------------------------------------------------
+    write(ibin) lreexpand
+    write(ibin) ireexpand_state
+    write(ibin) e0_off
+    write(ibin) qmin_re
+
 !----------------------------------------------------------------------
 ! Frequencies
 !----------------------------------------------------------------------

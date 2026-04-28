@@ -96,6 +96,20 @@ contains
             'E'//adjustl(as)//' = ',e0(s),aunit
     enddo
 
+    ! Off-diagonal zeroth-order constants (populated by $reexpand;
+    ! zero in the default case, so no output unless the user requested
+    ! re-expansion)
+    if (lreexpand) then
+       write(iop,'(/,a)') '# Off-diagonal zeroth-order constants'
+       do s2=1,nsta-1
+          do s1=s2+1,nsta
+             if (abs(e0_off(s1,s2)) < thrsh) cycle
+             write(iop,'(a,2(i0,a),F9.6,a)') &
+                  'eps_',s2,'_',s1,' = ',e0_off(s1,s2),aunit
+          enddo
+       enddo
+    endif
+
     ! On-diagonal one-mode coupling coefficients
     do n=1,order1
        write(iop,'(/,a,i0,x,a)') '# Order-',n,&
@@ -371,6 +385,21 @@ contains
             'E'//adjustl(as)//'  |'//adjustl(afel)&
             //'  S'//trim(adjustl(as))//'&'//trim(adjustl(as))
     enddo
+
+    ! Zeroth-order potential: off-diagonal constants (only emitted
+    ! when $reexpand was active and produced non-zero entries)
+    if (lreexpand) then
+       write(iop,'(/,a)') &
+            '# Zeroth-order potential: off-diagonal couplings'
+       do s2=1,nsta-1
+          do s1=s2+1,nsta
+             if (abs(e0_off(s1,s2)) < thrsh) cycle
+             write(iop,'(2(a,i0),a,2(a,i0))') &
+                  'eps_',s2,'_',s1,&
+                  '  |'//adjustl(afel)//'  S',s2,'&',s1
+          enddo
+       enddo
+    endif
 
     ! Zeroth-order potential: Harmonic oscillators
     write(iop,'(/,a)') '# Zeroth-order potential: &
@@ -761,7 +790,21 @@ contains
        write(iop,'(a,F9.6,a)') &
             'E'//adjustl(as)//' = ',e0(s),aunit
     enddo
-    
+
+    ! Off-diagonal zeroth-order constants (populated by $reexpand)
+    if (lreexpand) then
+       write(iop,'(/,a)') '# Off-diagonal zeroth-order constants'
+       do j=1,nopstates-1
+          s2=opstates(j)
+          do i=j+1,nopstates
+             s1=opstates(i)
+             if (abs(e0_off(s1,s2)) < thrsh) cycle
+             write(iop,'(a,2(i0,a),F9.6,a)') &
+                  'eps_',s2,'_',s1,' = ',e0_off(s1,s2),aunit
+          enddo
+       enddo
+    endif
+
     ! On-diagonal one-mode coupling coefficients
     do n=1,order1
        write(iop,'(/,a,i0,x,a)') '# Order-',n,&
@@ -861,6 +904,23 @@ contains
             'E'//adjustl(as)//' *'&
             //' |'//trim(adjustl(ai))//'><'//trim(adjustl(ai))//'|'
     enddo
+
+    ! Zeroth-order potential: off-diagonal constants (only emitted
+    ! when $reexpand was active and produced non-zero entries)
+    if (lreexpand) then
+       write(iop,'(/,a)') &
+            '# Zeroth-order potential: off-diagonal couplings'
+       do j=1,nopstates-1
+          s2=opstates(j)
+          do i=j+1,nopstates
+             s1=opstates(i)
+             if (abs(e0_off(s1,s2)) < thrsh) cycle
+             write(iop,'(2(a,i0),2(a,i0),a)') &
+                  'eps_',s2,'_',s1,&
+                  ' @ |',j,'><',i,'| + hc'
+          enddo
+       enddo
+    endif
 
     ! Zeroth-order potential: Harmonic oscillators
     write(iop,'(/,a)') '# Zeroth-order potential: &

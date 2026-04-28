@@ -26,5 +26,10 @@ module pltglobal
 
   ! Diabatic coupling surfaces
   integer               :: dcpsta1,dcpsta2
-  
+
+  ! Re-expansion about Qmin (mirrors kdcglobal/parameters in kdc.x)
+  logical               :: lreexpand
+  integer               :: ireexpand_state
+  real(dp), allocatable :: qmin_re(:)
+
 end module pltglobal

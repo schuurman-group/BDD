@@ -41,6 +41,12 @@ module kdcglobal
   ! Zeroth-order parameter shifts
   real(dp), allocatable           :: shift0(:,:)
   logical                         :: lshift
+
+  ! Re-expansion of the diabatic potential about the minimum of an
+  ! adiabatic surface (Qmin)
+  logical                         :: lreexpand
+  integer                         :: ireexpand_state
+  real(dp), allocatable           :: qmin_re(:)
   
   ! Diabatic potential matrices at the displaced geometries
   real(dp), allocatable           :: diabpot(:,:,:)

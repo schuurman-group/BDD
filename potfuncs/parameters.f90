@@ -6,7 +6,11 @@ module parameters
 
   ! Vertical excitation energies
   real(dp), allocatable :: e0(:)
-  
+
+  ! Off-diagonal zeroth-order constants (populated by $reexpand;
+  ! zero by default). Symmetric, with zero diagonal.
+  real(dp), allocatable :: e0_off(:,:)
+
   ! Coupling coeffients
   integer               :: order1
   real(dp), allocatable :: coeff1(:,:,:,:)

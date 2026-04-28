@@ -135,7 +135,11 @@ contains
     do s=1,nsta
        w(s,s)=w(s,s)+e0(s)
     enddo
-    
+
+    ! Off-diagonal zeroth-order constants (populated by $reexpand;
+    ! zero by default with zero diagonal, so unconditionally safe)
+    if (allocated(e0_off)) w=w+e0_off
+
     ! Harmonic potentials
     do s=1,nsta
        do m=1,nmodes

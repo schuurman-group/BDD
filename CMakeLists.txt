@@ -191,6 +191,7 @@ add_executable(kdc.x
   kdc/parinfo.f90
   kdc/nmeqmod.f90
   kdc/transform.f90
+  kdc/reexpand.f90
   kdc/kdc.f90
 )
 bdd_target_setup(kdc.x)

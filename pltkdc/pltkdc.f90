@@ -305,11 +305,15 @@ contains
     
     ! Model diabatic potential arrays
     allocate(e0(nsta))
+    allocate(e0_off(nsta,nsta))
     allocate(freq(nmodes))
     allocate(coeff1(nmodes,nsta,nsta,order1))
     allocate(coeff2(nmodes,nmodes,nsta,nsta))
     allocate(coeff1_mask(nmodes,nsta,nsta,order1))
     allocate(coeff2_mask(nmodes,nmodes,nsta,nsta))
+
+    ! Re-expansion centre
+    allocate(qmin_re(nmodes))
     
     ! Ab initio diabatic potential arrays
     allocate(wq0(nsta))
@@ -349,7 +353,15 @@ contains
 ! Vertical excitation energies
 !----------------------------------------------------------------------
     read(ibin) e0
-    
+
+!----------------------------------------------------------------------
+! Re-expansion information (always present in the binary file)
+!----------------------------------------------------------------------
+    read(ibin) lreexpand
+    read(ibin) ireexpand_state
+    read(ibin) e0_off
+    read(ibin) qmin_re
+
 !----------------------------------------------------------------------
 ! Frequencies
 !----------------------------------------------------------------------

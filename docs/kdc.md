@@ -140,6 +140,60 @@ eV):
 Each line contains a shift value followed by two state indices. The
 shift is applied symmetrically.
 
+**$reexpand**
+
+After the standard fit completes, re-expand all diabatic potential
+matrix elements about the minimum of an adiabatic potential surface
+v_s(Q), in normal-mode coordinates, instead of about the reference
+geometry Q = 0. By default the minimum of adiabatic state 1 is used:
+
+    $reexpand
+
+To re-expand about the minimum of a different adiabatic state, give
+the state index as an argument:
+
+    $reexpand = 1
+
+The re-expansion is exact and analytical: the model is a polynomial
+of finite total degree, so the change of expansion centre stays
+within the same monomial basis (no re-fitting). The bilinear
+coefficients are unchanged; the 1-mode coefficients and the
+diagonal energies are updated; new off-diagonal zeroth-order
+constants `eps_<s2>_<s1>` are emitted into the operator file because
+W_{ij}(Qmin) is generally non-zero for i≠j.
+
+The minimum of the *adiabatic* v_s(Q) is the standard physical
+ground-state geometry. The on-diagonal 1st-order coupling
+coefficients of state s vanish at the new origin only when the
+diabatic and adiabatic representations coincide at Qmin (e.g. when
+state s is decoupled from all others by symmetry, as enforced by
+`$blockdiag = {s}, {...}`). When state s mixes with others at Qmin,
+the on-diagonal `tau1` coefficients reflect the gradient of the
+diabatic W_{ss}(Q) at the adiabatic minimum, which is generally
+non-zero.
+
+A diagnostic block is written to the log file after the
+re-expansion, reporting the diabatic and adiabatic gradient norms at
+Qmin, the maximum residual coupling W_{s,j}(Qmin), the adiabatic
+eigenvalues at Qmin, and a comparison `||Qmin_diab − Qmin_adiab||_∞`.
+This allows the user to verify that the optimisation converged to
+the expected minimum.
+
+Notes:
+
+- Qmin is located via a BFGS optimisation starting from Q=0 on the
+  requested adiabatic surface, with a Hellmann-Feynman analytical
+  gradient. The line search tolerates near-converged numerical
+  noise from `dsyev` (treats `|grad| < 100 × tol_g` as converged
+  even on Armijo failure). If convergence fails outright the
+  original (Q=0) expansion is kept and a warning is written to the
+  log file.
+- The Cartesian geometry corresponding to Qmin is written to
+  `reexpand_qmin.xyz` in the working directory.
+- `$reexpand` is currently incompatible with diabatic dipole fitting
+  (`$dip_sym` / `$q0_dipole`); attempting to combine them is rejected
+  at input parsing.
+
 **$blockdiag**
 
 Block diagonalise the diabatic potential matrix. States are grouped

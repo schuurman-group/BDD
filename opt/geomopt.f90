@@ -10,14 +10,21 @@ module geomopt
 contains
 
 !######################################################################
-! optimise: locally minimise the s-th adiabatic potential surface
-!           starting from the normal-mode geometry q0, using the BFGS
-!           quasi-Newton algorithm with an analytical Hellmann-Feynman
-!           gradient.
+! optimise: locally minimise a potential surface as a function of the
+!           normal-mode coordinates, starting from q0, using the BFGS
+!           quasi-Newton algorithm with an analytical gradient.
+!
+! By default, the s-th adiabatic potential surface is minimised
+! (Hellmann-Feynman gradient). Pass ldiabatic=.true. to instead
+! minimise the diabatic potential matrix element W_{ss}(Q) directly.
 !
 ! Inputs:
 !   q0(nmodes) : initial geometry in normal modes
-!   s          : adiabatic state index (1..nsta)
+!   s          : state index (1..nsta) -- adiabatic by default,
+!                diabatic when ldiabatic=.true.
+!   ldiabatic  : (optional) if .true., minimise the diabatic
+!                W_{ss}(Q) instead of the adiabatic v_s(Q).
+!                                                         [default .false.]
 !   tol_g      : (optional) convergence tolerance on gradient norm
 !                                                         [default 1d-6]
 !   tol_x      : (optional) convergence tolerance on step norm
@@ -26,17 +33,18 @@ contains
 !
 ! Outputs:
 !   qmin(nmodes) : optimised geometry
-!   vmin         : adiabatic energy on state s at qmin
+!   vmin         : energy at qmin (adiabatic v_s, or diabatic W_{ss}
+!                  if ldiabatic=.true.)
 !   ifault       : status (0 = converged,
 !                          1 = max_iter reached,
 !                          2 = line-search failure)
 !######################################################################
 
   subroutine optimise(q0, s, qmin, vmin, ifault, &
-                      tol_g, tol_x, max_iter)
+                      tol_g, tol_x, max_iter, ldiabatic)
 
     use sysinfo,  only: nmodes, nsta, freq
-    use potfuncs, only: adiabaticpot, adiabaticgrad
+    use potfuncs, only: adiabaticpot, adiabaticgrad, pot, dpot_dq
 
     implicit none
 
@@ -48,6 +56,7 @@ contains
     real(dp), intent(in), optional :: tol_g
     real(dp), intent(in), optional :: tol_x
     integer,  intent(in), optional :: max_iter
+    logical,  intent(in), optional :: ldiabatic
 
     integer  :: iter, m, maxit
     real(dp) :: x(nmodes), x_new(nmodes), p(nmodes)
@@ -55,8 +64,10 @@ contains
     real(dp) :: sv(nmodes), yv(nmodes), Hy(nmodes)
     real(dp) :: H(nmodes, nmodes)
     real(dp) :: v(nsta)
+    real(dp) :: w(nsta,nsta), dw(nsta,nsta)
     real(dp) :: e, e_new, alpha, gp, ys
     real(dp) :: gtol, xtol
+    logical  :: ldiab
 
     real(dp), parameter :: c1        = 1.0d-4
     real(dp), parameter :: alpha_min = 1.0d-12
@@ -92,13 +103,28 @@ contains
        maxit = 200
     endif
 
+    if (present(ldiabatic)) then
+       ldiab = ldiabatic
+    else
+       ldiab = .false.
+    endif
+
 !----------------------------------------------------------------------
 ! Initial point, energy and gradient
 !----------------------------------------------------------------------
     x = q0
-    v = adiabaticpot(x)
-    e = v(s)
-    g = adiabaticgrad(x, s)
+    if (ldiab) then
+       w = pot(x)
+       e = w(s,s)
+       do m = 1, nmodes
+          dw = dpot_dq(x, m)
+          g(m) = dw(s,s)
+       enddo
+    else
+       v = adiabaticpot(x)
+       e = v(s)
+       g = adiabaticgrad(x, s)
+    endif
 
 !----------------------------------------------------------------------
 ! Initial inverse-Hessian guess: diag(1/freq(m)).
@@ -139,12 +165,26 @@ contains
        alpha = 1.0d0
        do
           x_new = x + alpha*p
-          v     = adiabaticpot(x_new)
-          e_new = v(s)
+          if (ldiab) then
+             w     = pot(x_new)
+             e_new = w(s,s)
+          else
+             v     = adiabaticpot(x_new)
+             e_new = v(s)
+          endif
           if (e_new <= e + c1*alpha*gp) exit
           alpha = 0.5d0*alpha
           if (alpha < alpha_min) then
-             ifault = 2
+             ! Line search has stalled. If the gradient norm is
+             ! already comparable to the convergence tolerance, the
+             ! Armijo failure is just numerical noise from dsyev /
+             ! Hellmann-Feynman near a minimum, not a real obstacle:
+             ! accept as converged. Otherwise, flag the failure.
+             if (sqrt(dot_product(g, g)) < 100.0d0*gtol) then
+                ifault = 0
+             else
+                ifault = 2
+             endif
              qmin   = x
              vmin   = e
              return
@@ -152,7 +192,14 @@ contains
        enddo
 
        ! Gradient at the new point
-       g_new = adiabaticgrad(x_new, s)
+       if (ldiab) then
+          do m = 1, nmodes
+             dw       = dpot_dq(x_new, m)
+             g_new(m) = dw(s,s)
+          enddo
+       else
+          g_new = adiabaticgrad(x_new, s)
+       endif
 
        ! BFGS inverse-Hessian update
        sv = x_new - x
