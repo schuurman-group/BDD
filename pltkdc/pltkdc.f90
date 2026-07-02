@@ -887,7 +887,11 @@ contains
     write(unit,'(2x,a)') 'e'
 
     ! Ab inito data
-    write(unit,*) 0.0d0,0.0d0
+    ! The reference (Q0) diabatic coupling is non-zero whenever a
+    ! constant unitary transformation has been applied ($transformation);
+    ! it is stored in e0_off (eV) and included in the model curve, so the
+    ! Q0 ab initio point must use it too rather than a hard-coded zero.
+    write(unit,*) 0.0d0,e0_off(dcpsta1,dcpsta2)
     do i=1,nabinit
        write(unit,*) qvec(mplt,iabinit(i)),abinit(dcpsta1,dcpsta2,i)
     enddo

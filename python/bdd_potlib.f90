@@ -20,6 +20,9 @@
 
     character(len=*), intent(in) :: filename
     integer                      :: iunit
+    logical                      :: lreexpand
+    integer                      :: ireexpand_state
+    real(dp), allocatable        :: qmin_re(:)
 
 !----------------------------------------------------------------------
 ! Open the parameter file
@@ -63,6 +66,8 @@
 
     ! Model diabatic potential arrays
     allocate(e0(nsta))
+    allocate(e0_off(nsta,nsta))
+    allocate(qmin_re(nmodes))
     allocate(freq(nmodes))
     allocate(coeff1(nmodes,nsta,nsta,order1))
     allocate(coeff2(nmodes,nmodes,nsta,nsta))
@@ -107,6 +112,18 @@
 ! Vertical excitation energies
 !----------------------------------------------------------------------
     read(iunit) e0
+
+!----------------------------------------------------------------------
+! Re-expansion information (always present in the binary file). e0_off
+! holds the reference (Q0) off-diagonal diabatic potential constants
+! (eV), non-zero when a constant unitary transformation has been
+! applied ($transformation). It is consumed by pot() via the
+! allocated(e0_off) test, so it must be read and allocated here.
+!----------------------------------------------------------------------
+    read(iunit) lreexpand
+    read(iunit) ireexpand_state
+    read(iunit) e0_off
+    read(iunit) qmin_re
 
 !----------------------------------------------------------------------
 ! Frequencies
@@ -619,6 +636,16 @@
     else if (surftyp.eq.2.or.surftyp.eq.4) then
        do s=1,nsta
           vab(s,s,1)=e0(s)
+       enddo
+       ! Reference (Q0) off-diagonal diabatic couplings. Non-zero
+       ! whenever a constant unitary transformation ($transformation)
+       ! has been applied; stored in e0_off (eV) and included in the
+       ! model curve, so the Q0 ab initio point must use it too.
+       do ss1=1,nsta-1
+          do ss2=ss1+1,nsta
+             vab(ss1,ss2,1)=e0_off(ss1,ss2)
+             vab(ss2,ss1,1)=vab(ss1,ss2,1)
+          enddo
        enddo
     else if (surftyp.eq.3) then
        if (ldip) then
