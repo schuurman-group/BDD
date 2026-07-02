@@ -96,10 +96,10 @@ contains
             'E'//adjustl(as)//' = ',e0(s),aunit
     enddo
 
-    ! Off-diagonal zeroth-order constants (populated by $reexpand;
-    ! zero in the default case, so no output unless the user requested
-    ! re-expansion)
-    if (lreexpand) then
+    ! Off-diagonal zeroth-order constants (populated by $reexpand or a
+    ! constant $transformation; zero in the default case, so no output
+    ! unless one of these was requested)
+    if (lreexpand .or. ltransform) then
        write(iop,'(/,a)') '# Off-diagonal zeroth-order constants'
        do s2=1,nsta-1
           do s1=s2+1,nsta
@@ -387,8 +387,9 @@ contains
     enddo
 
     ! Zeroth-order potential: off-diagonal constants (only emitted
-    ! when $reexpand was active and produced non-zero entries)
-    if (lreexpand) then
+    ! when $reexpand or a constant $transformation produced non-zero
+    ! entries)
+    if (lreexpand .or. ltransform) then
        write(iop,'(/,a)') &
             '# Zeroth-order potential: off-diagonal couplings'
        do s2=1,nsta-1
@@ -791,8 +792,9 @@ contains
             'E'//adjustl(as)//' = ',e0(s),aunit
     enddo
 
-    ! Off-diagonal zeroth-order constants (populated by $reexpand)
-    if (lreexpand) then
+    ! Off-diagonal zeroth-order constants (populated by $reexpand or a
+    ! constant $transformation)
+    if (lreexpand .or. ltransform) then
        write(iop,'(/,a)') '# Off-diagonal zeroth-order constants'
        do j=1,nopstates-1
           s2=opstates(j)
@@ -906,8 +908,9 @@ contains
     enddo
 
     ! Zeroth-order potential: off-diagonal constants (only emitted
-    ! when $reexpand was active and produced non-zero entries)
-    if (lreexpand) then
+    ! when $reexpand or a constant $transformation produced non-zero
+    ! entries)
+    if (lreexpand .or. ltransform) then
        write(iop,'(/,a)') &
             '# Zeroth-order potential: off-diagonal couplings'
        do j=1,nopstates-1

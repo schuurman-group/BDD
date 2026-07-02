@@ -37,6 +37,114 @@ contains
   end subroutine shift
   
 !######################################################################
+! transform_diabpot: applies a constant, geometry-independent unitary
+!                    (orthogonal) transformation U to the diabatic
+!                    potential matrix at every geometry,
+!                    W' = U^T W U. The diabatic dipole matrices are
+!                    transformed in the same way when dipole fitting
+!                    is active. This exploits the freedom in the
+!                    definition of the diabatic states, which are only
+!                    fixed up to a constant unitary transformation.
+!
+!                    The reference (Q0) matrix is also rotated. Since
+!                    the model takes W(Q0) = diag(q0pot), the rotated
+!                    reference W'(Q0) = U^T diag(q0pot) U is generally
+!                    non-diagonal: its diagonal updates q0pot and its
+!                    off-diagonal elements (previously zero) are stored
+!                    in q0pot_off for use as zeroth-order constants.
+!######################################################################
+  subroutine transform_diabpot
+
+    use constants
+    use sysinfo
+    use kdcglobal
+    use parameters
+    use iomod
+
+    implicit none
+
+    integer  :: n,c,i,j,s
+    real(dp) :: UtU(nsta,nsta),dev
+    real(dp) :: w0(nsta,nsta)
+
+!----------------------------------------------------------------------
+! Sanity check: make sure that U is orthogonal, i.e. U^T U = 1. This
+! catches typos and incompletely specified transformation blocks.
+!----------------------------------------------------------------------
+    UtU=matmul(transpose(Umat),Umat)
+
+    dev=0.0d0
+    do j=1,nsta
+       do i=1,nsta
+          if (i == j) then
+             dev=max(dev,abs(UtU(i,j)-1.0d0))
+          else
+             dev=max(dev,abs(UtU(i,j)))
+          endif
+       enddo
+    enddo
+
+    if (dev > 1e-6_dp) then
+       errmsg='Error in transform_diabpot: the $transformation matrix'&
+            //' is not orthogonal (U^T U /= 1)'
+       call error_control
+    endif
+
+!----------------------------------------------------------------------
+! Apply the transformation at every geometry
+!----------------------------------------------------------------------
+    do n=1,ngeom
+
+       ! Diabatic potential
+       diabpot(:,:,n)=matmul(transpose(Umat),matmul(diabpot(:,:,n),Umat))
+
+       ! Diabatic dipoles
+       if (ldipfit) then
+          do c=1,3
+             diabdip(:,:,c,n)=&
+                  matmul(transpose(Umat),matmul(diabdip(:,:,c,n),Umat))
+          enddo
+       endif
+
+    enddo
+
+!----------------------------------------------------------------------
+! Transform the reference (Q0) matrix. The model reference matrix is
+! diag(q0pot); rotate it and split into the new diagonal energies
+! (q0pot) and the new off-diagonal zeroth-order constants (q0pot_off).
+!----------------------------------------------------------------------
+    w0=0.0d0
+    do s=1,nsta
+       w0(s,s)=q0pot(s)
+    enddo
+    w0=matmul(transpose(Umat),matmul(w0,Umat))
+
+    do j=1,nsta
+       do i=1,nsta
+          if (i == j) then
+             q0pot(i)=w0(i,i)
+          else
+             q0pot_off(i,j)=w0(i,j)
+          endif
+       enddo
+    enddo
+
+!----------------------------------------------------------------------
+! Transform the reference (Q0) dipole matrix so that it remains
+! consistent with the rotated displaced-geometry dipole data. dip0 is
+! already a full matrix consumed by pot() and the operator writers.
+!----------------------------------------------------------------------
+    if (ldipfit) then
+       do c=1,3
+          dip0(:,:,c)=matmul(transpose(Umat),matmul(dip0(:,:,c),Umat))
+       enddo
+    endif
+
+    return
+
+  end subroutine transform_diabpot
+
+!######################################################################
 ! blockdiag: block diagonalisation of the diabatic potential matrix
 !######################################################################
   subroutine blockdiag

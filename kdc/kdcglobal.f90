@@ -37,6 +37,10 @@ module kdcglobal
   
   ! Adiabatic potential at Q0
   real(dp), allocatable           :: q0pot(:)
+
+  ! Off-diagonal reference (Q0) constants, in Hartree, produced by a
+  ! constant unitary transformation (zero diagonal; zero by default)
+  real(dp), allocatable           :: q0pot_off(:,:)
   
   ! Zeroth-order parameter shifts
   real(dp), allocatable           :: shift0(:,:)
@@ -78,6 +82,11 @@ module kdcglobal
   real(dp), allocatable           :: Tmat(:,:,:)
   logical                         :: lblockdiag
   integer                         :: iblockdiag_alg
+
+  ! Constant, geometry-independent unitary transformation of the
+  ! diabatic potential matrix (applied prior to fitting)
+  real(dp), allocatable           :: Umat(:,:)
+  logical                         :: ltransform
 
   ! Writing of the gradient and non-adiabatic coupling
   ! vectors to xyz files

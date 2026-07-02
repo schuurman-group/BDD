@@ -140,6 +140,46 @@ eV):
 Each line contains a shift value followed by two state indices. The
 shift is applied symmetrically.
 
+**$transformation**
+
+Applies a constant, geometry-independent unitary (orthogonal)
+transformation U to the diabatic potential matrix at every geometry,
+W' = U^T W U, before fitting. This exploits the fact that diabatic
+states are only defined up to such a constant transformation, and can
+be used to improve the quality or interpretability of the fit:
+
+    $transformation
+     0.70710678  2  2
+    -0.70710678  2  3
+     0.70710678  3  2
+     0.70710678  3  3
+    $end
+
+Each line contains a matrix element value followed by its row and
+column indices. Unlike `$shifts`, the elements are *not* symmetrised:
+U is a general orthogonal matrix, so every non-zero element must be
+given explicitly. U is initialised to the identity matrix, so only
+the elements that differ from the identity need to be supplied (the
+example above rotates the 2x2 sub-block of states 2 and 3 by 45
+degrees and leaves all other states untouched). The matrix is checked
+for orthogonality (U^T U = 1) and the run aborts if this is not
+satisfied.
+
+A non-identity transformation rotates the reference (Q0) matrix,
+`U^T diag(E) U`, which is generally not diagonal. As a result the
+diagonal reference energies change, and non-zero off-diagonal
+zeroth-order constants appear. These are written to the operator file
+as `eps_<s2>_<s1>` parameters and Hamiltonian terms, for both the
+MCTDH and MultiQD formats.
+
+If dipole fitting is active (`$dip_sym` / `$q0_dipole`), the diabatic
+dipole matrices (including the Q0 dipole matrix) are transformed
+consistently. When combined with `$blockdiag`, the transformation is
+applied first, so the block diagonalisation operates on the
+already-transformed diabatic potential.
+
+`$transformation` cannot currently be combined with `$reexpand`.
+
 **$reexpand**
 
 After the standard fit completes, re-expand all diabatic potential

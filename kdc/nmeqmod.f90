@@ -144,9 +144,15 @@ contains
                 w(n)=diabpot(s1,s2,findx1m(m,n))
              enddo
 
-             ! Subtract off the zeroth-order potential value
-             ! Note that WIJ(Q0)=0 for I!=J
-             if (s1.eq.s2) w(1:ndat)=w(1:ndat)-q0pot(s1)
+             ! Subtract off the zeroth-order potential value.
+             ! WIJ(Q0)=0 for I!=J unless a constant unitary
+             ! transformation has introduced a non-zero off-diagonal
+             ! reference constant (q0pot_off), which is zero otherwise.
+             if (s1.eq.s2) then
+                w(1:ndat)=w(1:ndat)-q0pot(s1)
+             else
+                w(1:ndat)=w(1:ndat)-q0pot_off(s1,s2)
+             endif
 
              ! Perform the fitting for the current mode and
              ! diabatic potential matrix element
@@ -607,9 +613,16 @@ contains
                    wfit(n)=diabpot(s1,s2,findx2m(m1,m2,n))
                 enddo
 
-                ! Subtract off the zeroth-order potential value
-                ! Note that WIJ(Q0)=0 for I!=J
-                if (s1 == s2) wfit(1:nfit)=wfit(1:nfit)-q0pot(s1)
+                ! Subtract off the zeroth-order potential value.
+                ! WIJ(Q0)=0 for I!=J unless a constant unitary
+                ! transformation has introduced a non-zero off-diagonal
+                ! reference constant (q0pot_off), which is zero
+                ! otherwise.
+                if (s1 == s2) then
+                   wfit(1:nfit)=wfit(1:nfit)-q0pot(s1)
+                else
+                   wfit(1:nfit)=wfit(1:nfit)-q0pot_off(s1,s2)
+                endif
                 
                 ! Perform the fitting using the Nelder-Mead algorithm
                 guess(1)=0.0d0

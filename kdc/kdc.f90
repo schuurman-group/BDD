@@ -103,7 +103,17 @@ program kdc
 ! Optional shifts of the diabatic potential matrix elements
 !----------------------------------------------------------------------
   if (lshift) call shift
-  
+
+!----------------------------------------------------------------------
+! Optional constant, geometry-independent unitary transformation of
+! the diabatic potential matrix.
+!
+! IMPORTANT: this must precede the block diagonalisation below, which
+! computes its per-geometry transformation from the (already rotated)
+! diabatic potential.
+!----------------------------------------------------------------------
+  if (ltransform) call transform_diabpot
+
 !----------------------------------------------------------------------
 ! Optional block diagonalising transformation of the diabatic
 ! potential
@@ -365,6 +375,22 @@ contains
     nblocks=0
     iblockdiag_alg=1
 
+    ! Constant unitary transformation of the diabatic potential
+    ! (initialised to the identity; overridden by the $transformation
+    ! section)
+    ltransform=.false.
+    allocate(Umat(nsta,nsta))
+    Umat=0.0d0
+    do i=1,nsta
+       Umat(i,i)=1.0d0
+    enddo
+
+    ! Off-diagonal reference (Q0) constants produced by the
+    ! transformation (zero unless a non-trivial $transformation is
+    ! given)
+    allocate(q0pot_off(nsta,nsta))
+    q0pot_off=0.0d0
+
     ! Writing of the gradient and non-adiabatic coupling vectors
     ! to file
     lcartgrad=.false.
@@ -444,6 +470,25 @@ contains
              read(keyword(3),*) k2
              read(keyword(1),*) shift0(k1,k2)
              shift0(k2,k1)=shift0(k1,k2)
+          enddo
+
+       else if (keyword(i).eq.'$transformation') then
+          ltransform=.true.
+          do
+             call rdinp(iin)
+             if (keyword(1).eq.'$end') exit
+             if (lend) then
+                errmsg='End of file reached whilst reading the &
+                     $transformation section'
+                call error_control
+             endif
+             ! Each line gives one element of the constant unitary
+             ! transformation matrix as: <value> <row> <column>.
+             ! Note that, unlike the $shifts section, the elements are
+             ! *not* symmetrised: U is a general orthogonal matrix.
+             read(keyword(2),*) k1
+             read(keyword(3),*) k2
+             read(keyword(1),*) Umat(k1,k2)
           enddo
 
        else if (keyword(i).eq.'$reexpand') then
@@ -741,10 +786,15 @@ contains
                //'fitting of diabatic dipole expansions'
           call error_control
        endif
+       if (ltransform) then
+          errmsg='$transformation is not currently compatible with '&
+               //'$reexpand'
+          call error_control
+       endif
     endif
-    
+
     return
-    
+
   end subroutine rdinpfile_kdc
     
 !######################################################################
@@ -1583,6 +1633,14 @@ contains
 !----------------------------------------------------------------------
     allocate(e0(nsta))
     e0(:)=(q0pot(:)-q0pot(1))*eh2ev
+
+!----------------------------------------------------------------------
+! Off-diagonal zeroth-order constants (eV). Zero unless a constant
+! unitary transformation ($transformation) introduced non-zero
+! off-diagonal reference constants (q0pot_off, Hartree). The zero
+! diagonal of q0pot_off is preserved.
+!----------------------------------------------------------------------
+    e0_off=q0pot_off*eh2ev
 
 !----------------------------------------------------------------------
 ! Re-expansion centre Qmin (zero by default; populated by
