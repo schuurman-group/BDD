@@ -118,15 +118,31 @@ contains
 
     implicit none
 
-    integer                        :: m,m1,m2,s,s1,s2,n
+    integer                        :: m,m1,m2,s,s1,s2,n,i1,i2,nnz
+    integer, dimension(nmodes)     :: mnz
     real(dp), dimension(nmodes)    :: q
     real(dp), dimension(nsta,nsta) :: w
     real(dp)                       :: fac,pre
-    
+
 !----------------------------------------------------------------------
 ! Initialisation of the model potential
 !----------------------------------------------------------------------
     w=0.0d0
+
+!----------------------------------------------------------------------
+! Indices of the displaced modes. Every term in the expansion carries
+! at least one factor of q(m), so modes with q(m)=0 contribute nothing
+! and can be skipped. This is exact, and is a large saving for the
+! one- and two-mode cuts made by pltkdc.x, where only one or two modes
+! are displaced.
+!----------------------------------------------------------------------
+    nnz=0
+    do m=1,nmodes
+       if (q(m) /= 0.0d0) then
+          nnz=nnz+1
+          mnz(nnz)=m
+       endif
+    enddo
 
 !----------------------------------------------------------------------
 ! Zeroth-order contributions
@@ -142,7 +158,8 @@ contains
 
     ! Harmonic potentials
     do s=1,nsta
-       do m=1,nmodes
+       do i1=1,nnz
+          m=mnz(i1)
           w(s,s)=w(s,s)+0.5d0*freq(m)*q(m)**2
        enddo
     enddo
@@ -159,13 +176,14 @@ contains
        
        do s2=1,nsta
           do s1=1,nsta
-             do m=1,nmodes
+             do i1=1,nnz
+                m=mnz(i1)
                 if (coeff1_mask(m,s1,s2,n) == 0) cycle
                 w(s1,s2)=w(s1,s2)+pre*coeff1(m,s1,s2,n)*q(m)**n
              enddo
           enddo
        enddo
-       
+
     enddo
 
 !----------------------------------------------------------------------
@@ -173,8 +191,10 @@ contains
 !----------------------------------------------------------------------
     do s2=1,nsta
        do s1=1,nsta
-          do m2=1,nmodes
-             do m1=1,nmodes
+          do i2=1,nnz
+             m2=mnz(i2)
+             do i1=1,nnz
+                m1=mnz(i1)
                 if (coeff2_mask(m1,m2,s1,s2) == 0) cycle
                 w(s1,s2)=w(s1,s2)+0.5d0*coeff2(m1,m2,s1,s2)*q(m1)*q(m2)
              enddo

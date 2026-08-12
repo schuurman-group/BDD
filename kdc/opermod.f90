@@ -761,16 +761,28 @@ contains
     character(len=3)               :: an,am,am1,am2,as,as1,as2,ai,aj
     character(len=5)               :: aunit
     character(len=9)               :: apre
+    character(len=5)               :: ael
 
 !----------------------------------------------------------------------
 ! Determine the no. non-zero coupling coefficients in each class
 !----------------------------------------------------------------------
     call get_nzpar(nzeta,nzdip0,nzdip1,nzdip2,nzdip3,nzdip4,thrsh)
-    
+
 !----------------------------------------------------------------------
 ! Unit label
 !----------------------------------------------------------------------
     aunit=' ev'
+
+!----------------------------------------------------------------------
+! Electronic degree-of-freedom label.
+!
+! MultiQD requires every electronic factor to carry the index of the
+! electronic mode, written as |s><t|_k.  The electronic DOF follows the
+! nmodes vibrational ones, so k = nmodes+1.  ael holds the '_k' suffix
+! that is appended to every electronic factor written below.
+!----------------------------------------------------------------------
+    fel=nmodes+1
+    write(ael,'(a,i0)') '_',fel
 
 !----------------------------------------------------------------------
 ! Write the parameters values
@@ -893,7 +905,7 @@ contains
        write(am,'(i3)') m
        write(iop,'(a)') &
             '-0.5*omega_'//adjustl(am)//' * d2q_'//adjustl(am) &
-            //' @ sum |i><i|'
+            //' @ sum |i><i|'//trim(ael)
     enddo
 
     ! Zeroth-order potential: VEEs
@@ -904,7 +916,7 @@ contains
        write(as,'(i3)') s
        write(iop,'(a)') &
             'E'//adjustl(as)//' *'&
-            //' |'//trim(adjustl(ai))//'><'//trim(adjustl(ai))//'|'
+            //' |'//trim(adjustl(ai))//'><'//trim(adjustl(ai))//'|'//trim(ael)
     enddo
 
     ! Zeroth-order potential: off-diagonal constants (only emitted
@@ -918,9 +930,9 @@ contains
           do i=j+1,nopstates
              s1=opstates(i)
              if (abs(e0_off(s1,s2)) < thrsh) cycle
-             write(iop,'(2(a,i0),2(a,i0),a)') &
+             write(iop,'(2(a,i0),2(a,i0),3a)') &
                   'eps_',s2,'_',s1,&
-                  ' @ |',j,'><',i,'| + hc'
+                  ' @ |',j,'><',i,'|',trim(ael),' + hc'
           enddo
        enddo
     endif
@@ -932,7 +944,7 @@ contains
        write(am,'(i3)') m
        write(iop,'(a)') &
             '0.5*omega_'//adjustl(am)//' * q_'//&
-            trim(adjustl(am))//'^2'//' @ sum |i><i|'
+            trim(adjustl(am))//'^2'//' @ sum |i><i|'//trim(ael)
     enddo
 
     ! On-diagonal one-mode coupling coefficients
@@ -947,10 +959,10 @@ contains
              if (coeff1_mask(m,s,s,n) == 0) cycle
              if (abs(coeff1(m,s,s,n)) < thrsh) cycle
              write(apre,'(F9.6)') 1.0/fac
-             write(iop,'(a,8(a,i0),a)') apre,'*tau',&
+             write(iop,'(a,8(a,i0),2a)') apre,'*tau',&
                   n,'_',m,'_',s,'_',s,&
                   ' * q_',m,'^',n,&
-                  ' @ |',i,'><',i,'|'
+                  ' @ |',i,'><',i,'|',trim(ael)
           enddo
        enddo
     enddo
@@ -969,10 +981,10 @@ contains
                 if (coeff1_mask(m,s1,s2,n) == 0) cycle
                 if (abs(coeff1(m,s1,s2,n)) < thrsh) cycle
                 write(apre,'(F9.6)') 1.0/fac
-                write(iop,'(a,8(a,i0),a)') apre,'*tau',&
+                write(iop,'(a,8(a,i0),3a)') apre,'*tau',&
                      n,'_',m,'_',s2,'_',s1,&
                      ' * q_',m,'^',n,&
-                     ' @ |',j,'><',i,'| + hc'
+                     ' @ |',j,'><',i,'|',trim(ael),' + hc'
              enddo
           enddo
        enddo
@@ -990,7 +1002,7 @@ contains
              do m1=m2+1,nmodes
                 if (coeff2_mask(m1,m2,s,s) == 0) cycle
                 if (abs(coeff2(m1,m2,s,s)) < thrsh) cycle
-                write(iop,'(8(a,i0),a)') &
+                write(iop,'(8(a,i0),2a)') &
                      'eta_',m2,&
                      '_',m1,&
                      '_',s,&
@@ -999,7 +1011,7 @@ contains
                      ' @ q_',m1,&
                      ' @ |',i,&
                      '><',i,&
-                     '|'
+                     '|',trim(ael)
              enddo
           enddo
        enddo
@@ -1014,7 +1026,7 @@ contains
                 do m1=m2+1,nmodes
                    if (coeff2_mask(m1,m2,s1,s2) == 0) cycle
                    if (abs(coeff2(m1,m2,s1,s2)) < thrsh) cycle
-                   write(iop,'(8(a,i0),a)') &
+                   write(iop,'(8(a,i0),3a)') &
                      'eta_',m2,&
                      '_',m1,&
                      '_',s,&
@@ -1023,7 +1035,7 @@ contains
                      ' @ q_',m1,&
                      ' @ |',j,&
                      '><',i,&
-                     '| + hc'
+                     '|',trim(ael),' + hc'
                 enddo
              enddo
           enddo
